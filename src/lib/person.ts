@@ -164,10 +164,13 @@ export const researchKey = (place: Place, birthYear: number) => {
   return `${place.id}:${e.from}-${e.to}`;
 };
 
-/** What a place's research depends on (loves and steer-clears seed and filter it), to rerun only what changed. */
+/**
+ * What a place's research depends on (the place, its era, and the loves that seed it), to rerun only what changed.
+ * Steer-clears aren't in it: they filter the cards wherever they're shown, so a new one never needs a fresh look-up.
+ */
 export function researchInputs(p: Person, place: Place): string {
   const by = birthYearOf(p) ?? 0;
-  return JSON.stringify([place.name, eraForPlace(place, by), p.loves.filter((l) => l.source !== "ring_a_bell").map((l) => nameKey(l.title)).sort(), p.steers.map((s) => nameKey(s.label)).sort()]);
+  return JSON.stringify([place.name, eraForPlace(place, by), p.loves.filter((l) => l.source !== "ring_a_bell").map((l) => nameKey(l.title)).sort()]);
 }
 
 /** Whether a title matches a steer-clear label (either contains the other, by words). */
