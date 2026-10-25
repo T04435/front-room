@@ -24,4 +24,5 @@ export const TOOL_LABELS: Record<string, string> = {
   era_places: "Places from their hometown that are still there",
   music_words: "Turn the family's words into music",
   curate: "Build the session kit",
+  check_songs: "Check the song titles on MusicBrainz",
 };

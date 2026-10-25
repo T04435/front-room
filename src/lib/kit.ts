@@ -67,6 +67,8 @@ export type KitItem = {
   phase?: Phase;
   links?: { spotify: string; youtube: string };
   minutes?: number;
+  /** Songs: "musicbrainz" when MusicBrainz confirms the artist has a recording with this title; "unchecked" when it couldn't be asked. */
+  check?: "musicbrainz" | "unchecked";
 };
 
 // ---- What the curator writes, checked against the research --------------------------------------------------------

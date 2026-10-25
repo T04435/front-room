@@ -5,7 +5,9 @@ import { localityLabel, nameKey, parseInsights, parseSearch, parseTags, pickByNa
 import type { CallLog, QlooParams } from "@/lib/qloo-transport";
 import { TOOL_LABELS, type RunEvent } from "@/lib/run-events";
 import { curate } from "@/server/curate";
+import { offline } from "@/server/env";
 import { newKitId, saveKit } from "@/server/kits";
+import { checkSong } from "@/server/musicbrainz";
 import { QlooError, qlooGet } from "@/server/qloo";
 
 type Emit = (event: RunEvent) => void;
@@ -154,8 +156,11 @@ async function run(state: RunState, emit: Emit, abortSignal: AbortSignal | undef
     abortSignal,
     () => emit({ type: "note", text: "The kit came back unreadable, so it's built once more." }),
   );
-  const { items, prompts, problems } = checkCurated(curated, state.items);
-  if (problems.length) console.warn("curator problems", problems);
+  const checked = checkCurated(curated, state.items);
+  if (checked.problems.length) console.warn("curator problems", checked.problems);
+  const items = await checkSongs(checked.items, emit);
+  const known = new Set(items.map((i) => i.ref));
+  const prompts = checked.prompts.filter((p) => p.refs.every((r) => known.has(r)));
   if (items.filter((i) => i.type === "song").length < 4) {
     emit({ type: "error", message: "The kit came back with too few songs. Try again in a minute." });
     return;
@@ -282,4 +287,54 @@ async function places(state: RunState, where: string, label: string, onCall: (lo
     if (item) added.push(item);
   }
   return added.length ? { ok: true, summary: `${list(added)}.`, items: added } : { ok: false, summary: `Qloo has no historic places listed for ${label}.`, items: [] };
+}
+
+/** Fewest songs a kit keeps: below this, titles MusicBrainz can't find stay in (marked unchecked) rather than leave a thin playlist. */
+const MIN_SONGS = 5;
+
+/**
+ * Checks each song title the curator picked against MusicBrainz (one call a second). A confirmed song takes
+ * MusicBrainz's first release year; a title it can't find is dropped (a made-up title must not reach staff) unless
+ * that would leave fewer than MIN_SONGS. If MusicBrainz can't be reached, songs stay, marked unchecked. Offline: no calls.
+ */
+async function checkSongs(items: KitItem[], emit: Emit): Promise<KitItem[]> {
+  const songs = items.filter((i) => i.type === "song");
+  if (offline()) return items.map((i) => (i.type === "song" ? { ...i, check: "unchecked" as const } : i));
+  emit({ type: "step-start", id: "check-songs", tool: "check_songs", label: TOOL_LABELS.check_songs });
+  const results = new Map<string, "found" | "missing" | "error">();
+  const years = new Map<string, number>();
+  for (const s of songs) {
+    try {
+      const r = await checkSong(s.by!.title, s.title);
+      results.set(s.ref, r.found ? "found" : "missing");
+      if (r.year) years.set(s.ref, r.year);
+    } catch (error) {
+      console.error("musicbrainz check failed", error instanceof Error ? error.message : error);
+      results.set(s.ref, "error");
+    }
+  }
+  const missing = songs.filter((s) => results.get(s.ref) === "missing");
+  const drop = new Set(songs.length - missing.length >= MIN_SONGS ? missing.map((s) => s.ref) : []);
+  const kept = items
+    .filter((i) => !drop.has(i.ref))
+    .map((i): KitItem => {
+      if (i.type !== "song") return i;
+      const found = results.get(i.ref) === "found";
+      return {
+        ...i,
+        year: years.get(i.ref) ?? i.year,
+        check: found ? "musicbrainz" : "unchecked",
+        source: found ? `AI pick, confirmed on MusicBrainz: a recording by ${i.by!.title} (${i.by!.ref})` : i.source,
+      };
+    });
+  const confirmed = songs.filter((s) => results.get(s.ref) === "found").length;
+  const dropped = [...drop].map((r) => songs.find((s) => s.ref === r)!.title);
+  emit({
+    type: "step-end",
+    id: "check-songs",
+    ok: confirmed > 0,
+    summary: `${confirmed} of ${songs.length} titles confirmed as real recordings.${dropped.length ? ` Dropped, not found: ${dropped.join(", ")}.` : ""}${songs.length - confirmed - dropped.length ? ` ${songs.length - confirmed - dropped.length} couldn't be checked and are marked so.` : ""}`,
+    items: [],
+  });
+  return kept;
 }

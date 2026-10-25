@@ -77,7 +77,7 @@ export function KitView({ kit, log, shareUrl }: { kit: Kit; log?: LogEntry[]; sh
             </div>
           );
         })}
-        <p className="text-xs text-muted-foreground">Artists come from Qloo&apos;s taste data for the era and place; the song titles are the AI&apos;s picks. Links open a search; nothing is hosted here.</p>
+        <p className="text-xs text-muted-foreground">Artists come from Qloo&apos;s taste data for the era and place; the song titles are the AI&apos;s picks, checked on MusicBrainz. Links open a search; nothing is hosted here.</p>
       </section>
 
       {screen.length > 0 && <Picks id="screen" title="Films and TV to talk about" items={screen} />}
@@ -146,6 +146,9 @@ function SongRow({ song, artist, on, onOpen }: { song: KitItem; artist?: KitItem
           {artist && <Cite item={artist} />}
         </ItemTitle>
         {song.why && <ItemDescription>{song.why}</ItemDescription>}
+        {song.check && (
+          <ItemDescription className="text-xs">{song.check === "musicbrainz" ? "Title confirmed on MusicBrainz" : "Title not checked: confirm before playing"}</ItemDescription>
+        )}
       </ItemContent>
       {song.links && (
         <ItemActions className="flex-wrap">

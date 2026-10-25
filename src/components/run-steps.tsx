@@ -9,7 +9,7 @@ import type { RunEvent } from "@/lib/run-events";
 
 export type StepItem =
   | { kind: "note"; key: string; text: string }
-  | { kind: "step"; key: string; label: string; status: "running" | "ok" | "failed"; summary?: string; items: KitItem[]; via?: "notonq" | "qloo" | "mixed"; fellBack?: boolean }
+  | { kind: "step"; key: string; tool: string; label: string; status: "running" | "ok" | "failed"; summary?: string; items: KitItem[]; via?: "notonq" | "qloo" | "mixed"; fellBack?: boolean }
   | { kind: "curating"; key: string; itemCount: number; done: boolean };
 
 /** Folds one run event into the step list. */
@@ -18,7 +18,7 @@ export function applyStepEvent(items: StepItem[], event: RunEvent, n: number): S
     case "note":
       return [...items, { kind: "note", key: `n${n}`, text: event.text }];
     case "step-start":
-      return [...items, { kind: "step", key: event.id, label: event.label, status: "running", items: [] }];
+      return [...items, { kind: "step", key: event.id, tool: event.tool, label: event.label, status: "running", items: [] }];
     case "step-end":
       return items.map((x) => (x.kind === "step" && x.key === event.id ? { ...x, status: event.ok ? "ok" : "failed", summary: event.summary, items: event.items, via: event.via, fellBack: event.fellBack } : x));
     case "curating":
@@ -33,7 +33,7 @@ export function applyStepEvent(items: StepItem[], event: RunEvent, n: number): S
 
 type Step = Extract<StepItem, { kind: "step" }>;
 
-const viaText = (s: Step) => (s.fellBack ? "Qloo direct (NotOnQ didn't answer)" : s.via === "mixed" ? "NotOnQ and Qloo direct" : s.via ? VIA[s.via] : "Qloo");
+const viaText = (s: Step) => (s.tool === "check_songs" ? "MusicBrainz" : s.fellBack ? "Qloo direct (NotOnQ didn't answer)" : s.via === "mixed" ? "NotOnQ and Qloo direct" : s.via ? VIA[s.via] : "Qloo");
 
 /** The run as shadcn's Trace: one row per research step (expand it for what came back and its sources). */
 export function RunSteps({ items }: { items: StepItem[] }) {
@@ -65,7 +65,7 @@ export function RunSteps({ items }: { items: StepItem[] }) {
               <TraceLine status={item.status === "running" ? "running" : item.status === "failed" ? "error" : undefined}>
                 <TraceIcon>{item.status === "running" ? <Spinner /> : item.status === "failed" ? <CircleAlert /> : <CircleCheck className="text-emerald-600" />}</TraceIcon>
                 <TraceTitle>{item.label}</TraceTitle>
-                <TraceDescription>{item.status === "running" ? "Qloo" : viaText(item)}</TraceDescription>
+                <TraceDescription>{item.status === "running" ? (item.tool === "check_songs" ? "MusicBrainz" : "Qloo") : viaText(item)}</TraceDescription>
               </TraceLine>
             </TraceCollapsibleTrigger>
             <TraceCollapsibleContent>
