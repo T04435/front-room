@@ -3,6 +3,17 @@
 Qloo Agentic Hackathon 2026, 4th entry. Working name "music care" (the name and brand come from the BRAND session).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-25 · Vercel (HQ)
+
+- **Done:** the Vercel project music-care (prj_xcUR1zKmWfJHcMTuMlD2TOiGfZFZ), with the Next.js preset and
+  autoExposeSystemEnvs. Repo variables VERCEL_ORG_ID, VERCEL_PROJECT_ID and PRODUCTION_URL=https://music-care.vercel.app.
+  A QLOO_API_KEY placeholder is set in every environment.
+- **Pending:**
+  - Neon via the integration, waiting on the user's OK.
+  - The user's own steps: the VERCEL_TOKEN secret, AI_GATEWAY_API_KEY locally, and Neon preview branching.
+- **No preview yet for PR #1.** The PR predates the project, so the next real push builds the first preview. No
+  push just to trigger it.
+
 ## 2026-10-25 · Scope: reminiscence, not only music (the user, via HQ)
 
 - **"music care" is only a working slug.** The kit is reminiscence across what Qloo knows about someone's youth.
