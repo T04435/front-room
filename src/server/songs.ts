@@ -9,6 +9,46 @@ const schema = z.object({
   songs: z.array(z.object({ ref: z.string(), title: z.string().describe("A well-known recording by that artist, its exact title"), year: z.number().int().nullable() })),
 });
 
+/**
+ * Offline (demo rehearsals, QA, e2e): real, well-known recordings for the fixture artists, so the gallery reads true
+ * without the model. Any other artist gets a placeholder that MusicBrainz won't confirm.
+ */
+const OFFLINE_SONGS: Record<string, { title: string; year: number }> = {
+  "The Beatles": { title: "She Loves You", year: 1963 },
+  "The Kinks": { title: "Waterloo Sunset", year: 1967 },
+  "The Who": { title: "My Generation", year: 1965 },
+  "The Zombies": { title: "She's Not There", year: 1964 },
+  "Otis Redding": { title: "(Sittin' On) The Dock of the Bay", year: 1968 },
+  "The Hollies": { title: "Bus Stop", year: 1966 },
+  "Herman's Hermits": { title: "I'm Into Something Good", year: 1964 },
+  "Dusty Springfield": { title: "I Only Want to Be With You", year: 1963 },
+  "David Bowie": { title: "Starman", year: 1972 },
+  "T. Rex": { title: "Get It On", year: 1971 },
+  Slade: { title: "Cum On Feel the Noize", year: 1973 },
+  "Roxy Music": { title: "Virginia Plain", year: 1972 },
+  "Elton John": { title: "Your Song", year: 1970 },
+  ABBA: { title: "Waterloo", year: 1974 },
+  "The Carpenters": { title: "(They Long to Be) Close to You", year: 1970 },
+  "10cc": { title: "I'm Not in Love", year: 1975 },
+  "Cilla Black": { title: "Anyone Who Had a Heart", year: 1964 },
+  "Elvis Presley": { title: "Heartbreak Hotel", year: 1956 },
+  "Buddy Holly": { title: "That'll Be the Day", year: 1957 },
+  "Lonnie Donegan": { title: "Rock Island Line", year: 1955 },
+  "Cliff Richard": { title: "Living Doll", year: 1959 },
+  "Frank Sinatra": { title: "Young at Heart", year: 1953 },
+  "Doris Day": { title: "Que Sera, Sera (Whatever Will Be, Will Be)", year: 1956 },
+  "Bill Haley & His Comets": { title: "Rock Around the Clock", year: 1954 },
+  "Connie Francis": { title: "Who's Sorry Now?", year: 1958 },
+  Madonna: { title: "Like a Virgin", year: 1984 },
+  "Duran Duran": { title: "Rio", year: 1982 },
+  "Whitney Houston": { title: "I Wanna Dance With Somebody (Who Loves Me)", year: 1987 },
+  "Wham!": { title: "Wake Me Up Before You Go-Go", year: 1984 },
+  "Culture Club": { title: "Karma Chameleon", year: 1983 },
+  "Michael Jackson": { title: "Billie Jean", year: 1982 },
+  "Kate Bush": { title: "Wuthering Heights", year: 1978 },
+  "Dire Straits": { title: "Sultans of Swing", year: 1978 },
+};
+
 export type ArtistAsk = { ref: string; artist: string; from: number; to: number; place?: string };
 
 /**
@@ -21,7 +61,7 @@ export async function pickSongs(artists: ArtistAsk[], abortSignal?: AbortSignal)
     ? new MockLanguageModelV4({
         modelId: "offline-songs",
         doGenerate: async () => ({
-          content: [{ type: "text", text: JSON.stringify({ songs: artists.map((a, i) => ({ ref: a.ref, title: `Test song ${i + 1}`, year: a.from })) }) }],
+          content: [{ type: "text", text: JSON.stringify({ songs: artists.map((a, i) => ({ ref: a.ref, ...(OFFLINE_SONGS[a.artist] ?? { title: `Test song ${i + 1}`, year: a.from }) })) }) }],
           finishReason: { unified: "stop", raw: undefined },
           usage: { inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 0, text: 0, reasoning: 0 } },
           warnings: [],

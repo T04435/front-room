@@ -35,7 +35,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <footer className="border-t">
             <div className="mx-auto grid max-w-4xl gap-3 px-4 py-4">
               <p className="text-xs text-muted-foreground">
-                Taste data from Qloo. Kits are AI-generated suggestions for engagement, not medical advice or treatment. Songs open on Spotify or YouTube; nothing is hosted here.
+                Taste data from Qloo. Suggestions are AI-generated, for engagement, not medical advice or treatment. Songs open on Spotify or YouTube; nothing is hosted here.
               </p>
               <div className="flex justify-center">
                 <VersionBadge />

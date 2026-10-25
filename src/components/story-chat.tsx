@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowUp, Check, Pencil, Sparkles, X } from "lucide-react";
+import { ArrowUp, Check, Mic, MicOff, Pencil, Sparkles, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { applyStepEvent, RunSteps, type StepItem } from "@/components/run-steps";
 import { PlaceSearch, SteerQuestion, TextInput, YearInput } from "@/components/story-inputs";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
@@ -58,6 +58,16 @@ function nextAsk(p: Person): Ask | null {
   if (noTo) return { kind: "to", placeId: noTo.id };
   if (!p.steerAsked && !p.steers.length) return { kind: "steer" };
   return null;
+}
+
+/** Whether an ask is still open for this person (it may have been answered in a story told since). */
+function stillNeeded(ask: Ask, p: Person): boolean {
+  if (ask.kind === "name") return !p.preferredName.trim();
+  if (ask.kind === "born") return birthYearOf(p) === null;
+  if (ask.kind === "place") return !p.places.length;
+  if (ask.kind === "steer") return !p.steerAsked && !p.steers.length;
+  const pl = p.places.find((x) => x.id === ask.placeId);
+  return Boolean(pl && !pl.yearsUnknown && (ask.kind === "from" ? pl.fromYear === null : pl.toYear === null));
 }
 
 /**
@@ -123,9 +133,15 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
 
   /** After something's settled: ask the next thing needed, or offer to find things. */
   function carryOn(p: Person, pendingWidgets = 0) {
+    // Questions answered since they were asked close themselves.
+    const open = msgs.filter((m): m is Extract<Msg, { kind: "ask" }> => "kind" in m && m.kind === "ask" && !resolved.has(m.id));
+    const answered = open.filter((m) => !stillNeeded(m.ask, p));
+    if (answered.length) setResolved((r) => new Set([...r, ...answered.map((m) => m.id)]));
     if (pendingWidgets > 0) return;
     const ask = nextAsk(p);
-    if (ask) return push({ id: id(), from: "agent", kind: "ask", ask });
+    const asked = ask && open.some((m) => stillNeeded(m.ask, p) && JSON.stringify(m.ask) === JSON.stringify(ask));
+    if (ask && !asked) return push({ id: id(), from: "agent", kind: "ask", ask });
+    if (ask) return;
     if (missingMinimum(p).length === 0) {
       const changed = by !== null && p.places.some((pl) => p.researched[researchKey(pl, birthYearOf(p)!)] !== researchInputs(p, pl));
       if ((changed || !hasGallery) && !offered.current) {
@@ -233,7 +249,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
               <Link href={`/p/${person.id}`}>{name}&apos;s gallery</Link>
             </Button>
           )}
-          {!ro && missingMinimum(person).length === 0 && (stale || !hasGallery) && (
+          {/* Always there ("that's enough, go for it"): pressed early, it asks only for what's missing. */}
+          {!ro && (stale || !hasGallery) && (
             <Button size="sm" onClick={() => void find()} disabled={busy}>
               <Sparkles aria-hidden /> Find things for {name}
             </Button>
@@ -323,6 +340,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
               className="max-h-48 min-h-14"
               maxLength={8000}
             />
+            <TalkButton onText={(t) => setText((x) => `${x}${x && !x.endsWith(" ") ? " " : ""}${t}`)} />
             <Button size="icon" aria-label="Send" onClick={() => void send()} disabled={busy || text.trim().length < 3}>
               <ArrowUp aria-hidden />
             </Button>
@@ -331,6 +349,45 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
         </div>
       )}
     </div>
+  );
+}
+
+type Recognition = { lang: string; continuous: boolean; interimResults: boolean; start: () => void; stop: () => void; onresult: ((e: { resultIndex: number; results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null; onend: (() => void) | null; onerror: (() => void) | null };
+const speechApi = (): (new () => Recognition) | null => {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+};
+const noop = () => () => {};
+
+/** Talk: the browser's speech recognition, into the text box to check before sending. Hidden where there's none (dictation still works). */
+function TalkButton({ onText }: { onText: (t: string) => void }) {
+  const supported = useSyncExternalStore(noop, () => speechApi() !== null, () => false);
+  const [on, setOn] = useState(false);
+  const rec = useRef<Recognition | null>(null);
+  useEffect(() => () => rec.current?.stop(), []);
+  if (!supported) return null;
+  function toggle() {
+    if (on) return rec.current?.stop();
+    const Api = speechApi();
+    if (!Api) return;
+    const r = new Api();
+    r.lang = "en-GB";
+    r.continuous = true;
+    r.interimResults = false;
+    r.onresult = (e) => {
+      for (let i = e.resultIndex; i < e.results.length; i++) if (e.results[i].isFinal) onText(e.results[i][0].transcript.trim());
+    };
+    r.onend = () => setOn(false);
+    r.onerror = () => setOn(false);
+    rec.current = r;
+    r.start();
+    setOn(true);
+  }
+  return (
+    <Button size="icon" variant={on ? "destructive" : "outline"} aria-label={on ? "Stop talking" : "Talk"} aria-pressed={on} onClick={toggle}>
+      {on ? <MicOff aria-hidden /> : <Mic aria-hidden />}
+    </Button>
   );
 }
 

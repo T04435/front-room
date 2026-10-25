@@ -7,27 +7,80 @@ import type { QlooParams, Result, Transport } from "@/lib/qloo-transport";
  */
 const e = (id: string, name: string, extra: Record<string, unknown> = {}) => ({ entity_id: `fx-${id}`, name, popularity: 0.9, ...extra });
 
+const ARTISTS_50S = ["Elvis Presley", "Buddy Holly", "Lonnie Donegan", "Cliff Richard", "Frank Sinatra", "Doris Day", "Bill Haley & His Comets", "Connie Francis"];
 const ARTISTS_60S = ["The Beatles", "The Kinks", "The Who", "The Zombies", "Otis Redding", "The Hollies", "Herman's Hermits", "Dusty Springfield"];
 const ARTISTS_70S = ["David Bowie", "T. Rex", "Slade", "Roxy Music", "Elton John", "ABBA", "The Carpenters", "10cc"];
+const ARTISTS_80S = ["Madonna", "Duran Duran", "Whitney Houston", "Wham!", "Culture Club", "Michael Jackson", "Kate Bush", "Dire Straits"];
 const FILMS = [
-  ["The Sound of Music", 1965],
-  ["The Jungle Book", 1967],
-  ["Who's Afraid of Virginia Woolf?", 1966],
-  ["Oliver!", 1968],
+  ["Singin' in the Rain", 1952],
+  ["Rebel Without a Cause", 1955],
+  ["Some Like It Hot", 1959],
+  ["Breakfast at Tiffany's", 1961],
   ["Mary Poppins", 1964],
+  ["The Sound of Music", 1965],
+  ["Who's Afraid of Virginia Woolf?", 1966],
+  ["The Jungle Book", 1967],
+  ["Oliver!", 1968],
   ["Butch Cassidy and the Sundance Kid", 1969],
+  ["The Godfather", 1972],
+  ["Star Wars", 1977],
+  ["Grease", 1978],
+  ["E.T. the Extra-Terrestrial", 1982],
+  ["Back to the Future", 1985],
 ] as const;
 const TV = [
+  ["Hancock's Half Hour", 1956],
   ["Coronation Street", 1960],
+  ["Doctor Who", 1963],
   ["Top of the Pops", 1964],
+  ["Dad's Army", 1968],
   ["The Old Grey Whistle Test", 1971],
+  ["Fawlty Towers", 1975],
+  ["Only Fools and Horses", 1981],
+  ["EastEnders", 1985],
 ] as const;
 
-const PLACES = [
-  ["Palace Theatre Manchester", "Grand Victorian auditorium in central Manchester"],
-  ["Manchester Central Library", "Monumental 1930s neoclassical city library"],
-  ["Old Trafford Cricket Ground", "Historic Test-match cricket venue"],
-] as const;
+const PLACES: Record<string, [name: string, description: string][]> = {
+  manchester: [
+    ["Palace Theatre Manchester", "Grand Victorian auditorium in central Manchester"],
+    ["Manchester Central Library", "Monumental 1930s neoclassical city library"],
+    ["Old Trafford Cricket Ground", "Historic Test-match cricket venue"],
+  ],
+  liverpool: [
+    ["The Cavern Club", "The cellar club where the Merseybeat bands played"],
+    ["Royal Liver Building", "Waterfront landmark with the Liver Birds"],
+    ["Liverpool Empire Theatre", "Variety and concert theatre on Lime Street"],
+  ],
+  blackpool: [
+    ["The Blackpool Tower", "Victorian tower with its famous ballroom"],
+    ["Blackpool Pleasure Beach", "Seafront amusement park"],
+    ["Winter Gardens Blackpool", "Ballrooms, theatres and conference halls"],
+  ],
+  leeds: [
+    ["Leeds Grand Theatre", "Victorian theatre and opera house"],
+    ["Kirkgate Market", "One of Europe's largest covered markets"],
+    ["Roundhay Park", "Large park with lakes and gardens"],
+  ],
+  london: [
+    ["Royal Albert Hall", "Victorian concert hall in Kensington"],
+    ["London Palladium", "West End variety theatre"],
+    ["Kew Gardens", "Botanic gardens by the Thames"],
+  ],
+  glasgow: [
+    ["Barrowland Ballroom", "East End dance hall and concert venue"],
+    ["Kelvingrove Art Gallery and Museum", "Red sandstone museum in the West End"],
+    ["The Barras", "Weekend street market in the East End"],
+  ],
+};
+const placesFor = (town: string) => PLACES[town.toLowerCase().replace(/,.*/, "").trim()] ?? [[`${town} Town Hall`, `The town hall in ${town}`], [`${town} Market`, `The market in ${town}`]];
+
+/** Films or TV in the release years asked for (all of them if none fall there, as Qloo leans popular). */
+function inYears(list: readonly (readonly [string, number])[], p: QlooParams) {
+  const min = Number(p["filter.release_year.min"] ?? 0);
+  const max = Number(p["filter.release_year.max"] ?? 9999);
+  const hit = list.filter(([, y]) => y >= min && y <= max);
+  return hit.length ? hit : list;
+}
 
 function answer(path: string, p: QlooParams): unknown {
   const place = String(p["signal.location.query"] ?? "");
@@ -44,12 +97,12 @@ function answer(path: string, p: QlooParams): unknown {
   const type = String(p["filter.type"]);
   if (type === "urn:entity:artist") {
     const tags = String(p["filter.tags"] ?? "");
-    const names = tags.includes("70s") ? ARTISTS_70S : ARTISTS_60S;
+    const names = tags.includes("80s") ? ARTISTS_80S : tags.includes("70s") ? ARTISTS_70S : tags.includes("50s") ? ARTISTS_50S : ARTISTS_60S;
     return { results: { entities: names.map((n) => e(`a-${n}`, n)) } };
   }
-  if (type === "urn:entity:movie") return { results: { entities: FILMS.map(([n, y]) => e(`f-${n}`, n, { properties: { release_year: y } })) } };
-  if (type === "urn:entity:place") return { results: { entities: PLACES.map(([n, d]) => e(`p-${n}`, n, { properties: { description: d } })) } };
-  if (type === "urn:entity:tv_show") return { results: { entities: TV.map(([n, y]) => e(`t-${n}`, n, { properties: { release_year: y } })) } };
+  if (type === "urn:entity:movie") return { results: { entities: inYears(FILMS, p).map(([n, y]) => e(`f-${n}`, n, { properties: { release_year: y } })) } };
+  if (type === "urn:entity:place") return { results: { entities: placesFor(String(p["filter.location.query"] ?? "Manchester")).map(([n, d]) => e(`p-${n}`, n, { properties: { description: d } })) } };
+  if (type === "urn:entity:tv_show") return { results: { entities: inYears(TV, p).map(([n, y]) => e(`t-${n}`, n, { properties: { release_year: y } })) } };
   return { results: { entities: [] } };
 }
 

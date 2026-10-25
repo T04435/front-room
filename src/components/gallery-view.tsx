@@ -3,17 +3,18 @@
 import { BookOpen, Check, ExternalLink, Eye, Film, Heart, MapPin, MessageCircleHeart, Music, OctagonX, Play as PlayIcon, Sparkles, ThumbsDown, TriangleAlert, Tv, Undo2, Waves } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { CopyLink } from "@/components/person-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { TYPE_WORD, type Gallery, type GalleryItem, type GalleryType } from "@/lib/gallery";
 import { RESPONSE_LABELS, RESPONSES } from "@/lib/kit";
 import type { Play } from "@/lib/learning";
-import type { Person } from "@/lib/person";
+import { HEARD_KINDS, type Person, type StaffHeard } from "@/lib/person";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<GalleryType, typeof Music> = { song: Music, film: Film, tv: Tv, book: BookOpen, place: MapPin };
@@ -26,6 +27,10 @@ const TILE: Record<GalleryType, string> = {
 };
 const SHELF: Record<GalleryType, string> = { song: "Songs", film: "Films", tv: "On the telly", book: "Books", place: "Places they knew" };
 const LOG_ICON = { calm: Waves, engaged: Eye, sang: Music, upset: TriangleAlert } as const;
+const HEARD_LABELS: Record<StaffHeard["kind"], string> = { name: "A name", place: "A place", job: "A job", song: "A song", dance: "A dance", other: "Something else" };
+const noop = () => () => {};
+/** After 17:00 on this device: calm first, as the brief's evening default. Off during server render. */
+const useEvening = () => useSyncExternalStore(noop, () => new Date().getHours() >= 17, () => false);
 const hm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 /** A small tag on a tile: why it's here, or how it's gone. */
@@ -53,6 +58,23 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
   const name = person.preferredName;
   const [findingTries, setFindingTries] = useState(triesDue);
   const [since] = useState(() => new Date().toISOString());
+  const evening = useEvening();
+  const isOpen = open !== null;
+
+  // Keep the screen on while something's playing (refusal is fine).
+  useEffect(() => {
+    if (!isOpen || !("wakeLock" in navigator)) return;
+    let lock: WakeLockSentinel | null = null;
+    let live = true;
+    navigator.wakeLock
+      .request("screen")
+      .then((l) => (live ? (lock = l) : void l.release()))
+      .catch(() => {});
+    return () => {
+      live = false;
+      void lock?.release().catch(() => {});
+    };
+  }, [isOpen]);
 
   // What works changed since the new tries were found: find new ones like it, quietly, then show them.
   useEffect(() => {
@@ -150,7 +172,15 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
         )}
       </div>
 
-      {gallery.works.length > 0 && <Shelf title={`Works for ${name}`} hint="Sang along or engaged on two days" items={gallery.works} onOpen={setOpen} big />}
+      {gallery.works.length > 0 && (
+        <Shelf
+          title={`Works for ${name}`}
+          hint={evening ? "Evening: the calm ones first" : "Sang along or engaged on two days"}
+          items={evening ? [...gallery.works].sort((a, b) => (b.stat?.calmSessions ?? 0) - (a.stat?.calmSessions ?? 0)) : gallery.works}
+          onOpen={setOpen}
+          big
+        />
+      )}
       {gallery.newTries.length > 0 && <Shelf title="New tries" hint="Like what works for them" items={gallery.newTries} onOpen={setOpen} />}
       {findingTries && gallery.newTries.length === 0 && <p className="text-sm text-muted-foreground">Finding new tries like what works for {name}…</p>}
       {(["song", "film", "tv", "book", "place"] as const).map((t) => (gallery.shelves[t].length ? <Shelf key={t} title={SHELF[t]} items={gallery.shelves[t]} onOpen={setOpen} /> : null))}
@@ -220,6 +250,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
                 </Button>
               </div>
 
+              {mine.length > 0 && !ro && <LearnedSomething key={open.key} person={person} name={name} onSaved={() => router.refresh()} />}
+
               {open.cardId && !ro && (
                 <div className="flex flex-wrap items-center gap-2 border-t pt-3 text-sm">
                   <span className="text-muted-foreground">From Qloo for their years.</span>
@@ -271,5 +303,43 @@ function Shelf({ title, hint, items, onOpen, big }: { title: string; hint?: stri
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
     </section>
+  );
+}
+
+/** "Learned something?" after a play: a name, a place, a job…, saved as staff-heard for the family to confirm in the story chat. */
+function LearnedSomething({ person, name, onSaved }: { person: Person; name: string; onSaved: () => void }) {
+  const [kind, setKind] = useState<StaffHeard["kind"] | null>(null);
+  const [text, setText] = useState("");
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  async function save() {
+    if (!kind || !text.trim()) return;
+    setState("saving");
+    const heard: StaffHeard = { id: `sh-${Date.now().toString(36)}`, kind, text: text.trim(), at: new Date().toISOString() };
+    const res = await fetch(`/api/people/${person.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ staffHeard: [...person.staffHeard, heard] }) }).catch(() => null);
+    if (!res?.ok) return setState("failed");
+    setState("saved");
+    onSaved();
+  }
+  if (state === "saved") return <p className="border-t pt-3 text-sm">Noted for {name}&apos;s family to confirm in Get to know them better.</p>;
+  return (
+    <div className="grid gap-2 border-t pt-3">
+      <span className="text-sm font-medium">Learned something new about {name}?</span>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="What you learned">
+        {HEARD_KINDS.map((k) => (
+          <Button key={k} size="xs" variant={kind === k ? "default" : "outline"} aria-pressed={kind === k} onClick={() => setKind(k)}>
+            {HEARD_LABELS[k]}
+          </Button>
+        ))}
+      </div>
+      {kind && (
+        <div className="flex gap-2">
+          <Input aria-label="What they said" value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder={kind === "song" ? "e.g. Hummed Moon River" : "In a few words"} />
+          <Button onClick={() => void save()} disabled={!text.trim() || state === "saving"}>
+            Save
+          </Button>
+        </div>
+      )}
+      {state === "failed" && <p className="text-sm text-destructive">That didn&apos;t save. Try again.</p>}
+    </div>
   );
 }

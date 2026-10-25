@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps<"/p/[id]/story">): Promise<Metadata> {
   const person = await getPerson((await params).id).catch(() => null);
-  return { title: `Get to know ${person?.preferredName ?? "them"} · ${APP_NAME}`, robots: { index: false } };
+  const name = person?.preferredName || "Their";
+  const found = Object.entries(person?.suggestions ?? {}).some(([k, cs]) => k !== "new-tries" && cs.length);
+  return { title: `${found ? `Get to know ${name} better` : `${name}’s story`} · ${APP_NAME}`, robots: { index: false } };
 }
 
 /** Get to know them better: the same chat, opening with what's known and what would help next. `?find=1` looks things up. */
