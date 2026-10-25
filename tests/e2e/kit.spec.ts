@@ -1,15 +1,16 @@
 import { expect, test } from "@playwright/test";
 
 test("the demo builds a cited session kit, logs a response and lists the kit as saved", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/quick");
   await page.getByRole("button", { name: "Margaret, born 1950, Manchester" }).click();
   await page.getByRole("button", { name: "Build the session kit" }).click();
 
-  await expect(page.getByText("Artists of the era, popular around their hometown")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Songs Margaret may know/ })).toBeVisible();
   const kit = page.getByRole("article", { name: "Session kit" });
   await expect(kit.getByRole("heading", { name: /Margaret's session kit · Manchester, United Kingdom, 1965–1975/ })).toBeVisible();
   await expect(kit.getByText("AI-generated", { exact: true })).toBeVisible();
-  await expect(kit.getByRole("link", { name: /on Spotify/ })).toHaveCount(7);
+  // Fixture songs MusicBrainz can't confirm are dropped while five remain.
+  await expect(kit.getByRole("link", { name: /on Spotify/ })).toHaveCount(5);
   await expect(kit.getByRole("heading", { name: "Films and TV to talk about" })).toBeVisible();
   await expect(kit.getByRole("heading", { name: "Places from their hometown" })).toBeVisible();
   await expect(kit.getByText("Palace Theatre Manchester").first()).toBeVisible();
@@ -22,12 +23,12 @@ test("the demo builds a cited session kit, logs a response and lists the kit as 
   await page.reload();
   await expect(page.getByRole("list", { name: "Logged responses" })).toContainText("Sang along");
 
-  await page.getByRole("link", { name: "Saved kits" }).click();
+  await page.goto("/kits");
   await expect(page.getByRole("link", { name: /^Margaret · Manchester, United Kingdom, 1965–1975/ })).toContainText("1 response logged");
 });
 
 test("the family marks a song and a place not for them, and the kit is built again from the saved kit", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/quick");
   await page.getByRole("button", { name: "Margaret, born 1950, Manchester" }).click();
   await page.getByRole("button", { name: "Build the session kit" }).click();
   await page.getByRole("link", { name: "Open the saved kit" }).click();
@@ -38,19 +39,19 @@ test("the family marks a song and a place not for them, and the kit is built aga
   await expect(page.getByText("2 marked not for them")).toBeVisible();
   await page.getByRole("button", { name: "Build again without these" }).click();
 
-  await expect(page).toHaveURL(/\/$/);
+  await expect(page).toHaveURL(/\/quick/);
   await expect(page.getByRole("heading", { name: /Margaret's session kit · Manchester/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Places from their hometown" })).toBeVisible();
   await expect(page.getByRole("article", { name: "Session kit" }).getByText("Palace Theatre Manchester")).toHaveCount(0);
 });
 
 test("an unknown hometown asks for a nearby town inline, and answering carries on", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/quick");
   await page.getByLabel("Birth year").fill("1948");
   await page.getByLabel("Where they grew up").fill("Zzzton");
   await page.getByRole("button", { name: "Build the session kit" }).click();
   const ask = page.getByRole("region", { name: "The run needs your answer" });
-  await expect(ask).toContainText('Qloo doesn\'t know "Zzzton" yet');
+  await expect(ask).toContainText("Qloo knows little about Zzzton on its own");
   await ask.getByLabel("Nearby town or city").fill("Liverpool");
   await ask.getByRole("button", { name: "Carry on" }).click();
   await expect(page.getByRole("heading", { name: /session kit · Liverpool/ })).toBeVisible();
@@ -58,7 +59,7 @@ test("an unknown hometown asks for a nearby town inline, and answering carries o
 
 test("the footer's version badge and /api/version agree", async ({ page, request }) => {
   const version = (await (await request.get("/api/version")).json()) as { version: string; shortSha: string };
-  await page.goto("/");
+  await page.goto("/quick");
   await expect(page.locator("footer")).toContainText(`v${version.version} @ ${version.shortSha}`);
 });
 

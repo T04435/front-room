@@ -6,7 +6,7 @@ import type { CallLog, QlooParams } from "@/lib/qloo-transport";
 import type { RunEvent } from "@/lib/run-events";
 import { offline } from "@/server/env";
 import { checkSong } from "@/server/musicbrainz";
-import { QlooError, qlooGet } from "@/server/qloo";
+import { NO_HORROR, QlooError, qlooGet } from "@/server/qloo";
 import { pickSongs } from "@/server/songs";
 
 type Emit = (event: RunEvent) => void;
@@ -175,7 +175,8 @@ async function researchPlace(p: Person, place: Place, era: ReturnType<typeof era
 
   // Films and TV from the era's release years, popular around the place.
   for (const [kind, type, n] of [["film", "urn:entity:movie", PER_PLACE.films], ["tv", "urn:entity:tv_show", PER_PLACE.tv]] as const) {
-    const base = { "filter.type": type, "filter.release_year.min": era.from, "filter.release_year.max": era.to, take: 8 };
+    // No horror: it was in the live results (Halloween for Blackpool, 1972–80), and it isn't for a care home.
+    const base = { "filter.type": type, "filter.release_year.min": era.from, "filter.release_year.max": era.to, "filter.exclude.tags": NO_HORROR, take: 8 };
     const r = await get("/v2/insights", { ...base, "signal.location.query": where }, onCall);
     let found = parseInsights(r.data);
     // TV is thin by place (two shows for London in the probes): fall back to the era's TV anywhere.

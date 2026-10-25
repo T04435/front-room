@@ -29,3 +29,6 @@ function client(): Transport {
 export function qlooGet<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void): Promise<Result<T>> {
   return client().get<T>(path, params, onCall);
 }
+
+/** Films and TV leave out horror (Qloo's genre tag): not for a care home. */
+export const NO_HORROR = "urn:tag:genre:media:horror";

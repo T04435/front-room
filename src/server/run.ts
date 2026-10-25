@@ -8,7 +8,7 @@ import { curate } from "@/server/curate";
 import { offline } from "@/server/env";
 import { newKitId, saveKit } from "@/server/kits";
 import { checkSong } from "@/server/musicbrainz";
-import { QlooError, qlooGet } from "@/server/qloo";
+import { NO_HORROR, QlooError, qlooGet } from "@/server/qloo";
 
 type Emit = (event: RunEvent) => void;
 type OnCall = (log: CallLog) => void;
@@ -319,7 +319,7 @@ async function screen(state: RunState, kind: "film" | "tv", era: Era, where: str
   const type = kind === "film" ? "urn:entity:movie" : "urn:entity:tv_show";
   const years = describeEra(era);
   const word = kind === "film" ? "film" : "TV";
-  const base = { "filter.type": type, "filter.release_year.min": era.from, "filter.release_year.max": era.to, take: kind === "film" ? 10 : 8 };
+  const base = { "filter.type": type, "filter.release_year.min": era.from, "filter.release_year.max": era.to, "filter.exclude.tags": NO_HORROR, take: kind === "film" ? 10 : 8 };
   const added: KitItem[] = [];
   const r = await get("/v2/insights", { ...base, "signal.location.query": where }, onCall);
   for (const e of parseInsights(r.data).slice(0, 6)) {

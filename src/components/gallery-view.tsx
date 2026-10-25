@@ -110,7 +110,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
   const mine = open ? logged.filter((p) => p.itemKey === open.key && p.response !== "none" && p.at >= since) : [];
 
   return (
-    <div className="grid gap-8">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-8">
       <div className="grid gap-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="grid gap-1">
@@ -241,7 +241,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
 
 function Shelf({ title, hint, items, onOpen, big }: { title: string; hint?: string; items: GalleryItem[]; onOpen: (g: GalleryItem) => void; big?: boolean }) {
   return (
-    <section className="grid gap-2" aria-label={title}>
+    <section className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label={title}>
       <div className="flex items-baseline gap-2">
         <h2 className="text-xl font-semibold">{title}</h2>
         {hint && <span className="text-sm text-muted-foreground">{hint}</span>}

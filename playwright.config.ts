@@ -12,6 +12,9 @@ export default defineConfig({
   workers: process.env.CI ? "100%" : undefined,
   reporter: process.env.CI ? "github" : "list",
   globalSetup: "./tests/e2e/global-setup.ts",
+  // The dev server compiles each page on first visit, several at once: 5 s is too short for that.
+  expect: { timeout: 20_000 },
+  timeout: 90_000,
   use: { baseURL: `http://localhost:${PORT}`, trace: "retain-on-failure" },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
