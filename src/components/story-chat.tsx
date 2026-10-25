@@ -519,7 +519,7 @@ function AgentBody(props: BodyProps) {
     case "heard":
       return <Heard facts={m.facts} resolved={resolved} ro={ro} onConfirm={props.onConfirm} onDrop={props.onDrop} />;
     case "painful":
-      return resolved ? <span>{steerNote(m.fact.value, props.answer)}</span> : <SteerQuestion question={`You mentioned ${m.fact.value}. Shall I steer clear of that in what I suggest?`} onAnswer={props.onSteer} />;
+      return resolved ? <span>{steerNote(m.fact.value, props.answer)}</span> : <SteerQuestion question={`You mentioned ${midSentence(m.fact.value)}. Shall I steer clear of that in what I suggest?`} onAnswer={props.onSteer} />;
     case "ask":
       return resolved ? <Settled question={askQuestion(m.ask, person, name)} answer={props.answer} /> : <AskInput ask={m.ask} person={person} name={name} onAnswer={props.onAnswer} />;
     case "helps":

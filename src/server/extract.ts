@@ -81,7 +81,8 @@ function offlineExtractor(text: string, person: Person): LanguageModel {
   const moved = text.match(/moved to ([A-Z][a-z]+)/);
   if (moved) f("place", moved[1], moved[0], { fromYear: marriedYear, detail: "lived" });
   if (married) f("moment", "Married", married[0], { fromYear: marriedYear, detail: "wedding" });
-  const danced = text.match(/danced at the ([A-Z][a-z]+)[^.]*/i);
+  // Stop at "and …", so the quote is just the dancing ("danced at the Cavern every Saturday").
+  const danced = text.match(/danced at the ([A-Z][a-z]+)(?: every [A-Za-z]+| on [A-Za-z]+s)?/i);
   if (danced) f("moment", `Danced at the ${danced[1]}`, danced[0], { detail: "dance", extra: `the ${danced[1]}` });
   const brother = text.match(/(brother|sister) ([A-Z][a-z]+)/);
   if (brother && /died|never talks|don't mention|upset/i.test(text)) f("painful", `${brother[1][0].toUpperCase()}${brother[1].slice(1)} ${brother[2]}`, brother[0]);
