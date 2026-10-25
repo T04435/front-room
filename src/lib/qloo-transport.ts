@@ -46,8 +46,6 @@ export type TransportOptions = {
   cacheTtlMs?: number;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
-  /** The app's label in NotOnQ's ledger. */
-  appLabel?: string;
 };
 
 export type Result<T> = { data: T; via: Via };
@@ -82,11 +80,11 @@ export function createTransport(options: TransportOptions): Transport {
     if (at > t) await sleep(at - t);
   }
 
-  async function call(endpoint: Endpoint, url: string, timeoutMs: number, extra: Record<string, string> = {}): Promise<unknown> {
+  async function call(endpoint: Endpoint, url: string, timeoutMs: number): Promise<unknown> {
     let response: Response;
     try {
       response = await doFetch(url, {
-        headers: { "X-Api-Key": endpoint.apiKey, Accept: "application/json", ...extra },
+        headers: { "X-Api-Key": endpoint.apiKey, Accept: "application/json" },
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (error) {
@@ -115,8 +113,7 @@ export function createTransport(options: TransportOptions): Transport {
   async function fetchOnce(path: string, query: string, log: Partial<CallLog>): Promise<Result<unknown>> {
     if (options.notonq) {
       try {
-        const extra: Record<string, string> = options.appLabel ? { "X-NotOnQ-App": options.appLabel } : {};
-        const data = await call(options.notonq, `${options.notonq.baseUrl}${path}?${query}`, notonqTimeout, extra);
+        const data = await call(options.notonq, `${options.notonq.baseUrl}${path}?${query}`, notonqTimeout);
         log.via = "notonq";
         return { data, via: "notonq" };
       } catch (error) {

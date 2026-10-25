@@ -33,10 +33,12 @@ Playwright. Live Qloo was probed through NotOnQ, and the shapes match the parser
   and `/api/version`, and GhostQ's `release.yml` and `.releaserc.json`.
 
 **Decisions taken without asking (defaults):**
-- **NotOnQ keys.** NotOnQ has no keys of its own (per NotOnQ's log). The client sends our `QLOO_API_KEY` to NotOnQ
-  and names the app in `X-NotOnQ-App`: `music-care` on production, `music-care-dev` elsewhere, so its ledger shows
-  dev traffic apart. `NOTONQ_API_KEY` overrides the key if NotOnQ starts issuing them. `NOTONQ_DISABLED=1` goes
-  direct.
+- **NotOnQ keys and base (confirmed by HQ, 25 Oct).** NotOnQ issues no keys, so the same `QLOO_API_KEY` serves the
+  NotOnQ path and the direct fallback. The app names itself in the base URL: `https://notonq.vercel.app/q/app/music-care`
+  on Vercel (previews and production), and a local NotOnQ at `http://localhost:3400/q/app/music-care-dev` in
+  development, to save Vercel function time (the user's call). `NOTONQ_BASE_URL` overrides both. If local NotOnQ is
+  down, the Qloo fallback keeps dev working. `NOTONQ_DISABLED=1` goes
+  direct. Today NotOnQ fills gaps for artists only; films, TV and tags pass through to Qloo.
 - **Research is fixed steps, not tool calls the model picks.** Every later step depends on the place and the
   decade tags, and fixed steps are fast and cheap for a judging room. The model is the curator: it picks songs,
   orders them and writes the prompts. GhostQ also runs its "read the crowd" steps as fixed steps.

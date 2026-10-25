@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createTransport, queryString, type CallLog } from "@/lib/qloo-transport";
 
-const NOTONQ = { baseUrl: "https://notonq.test/q", apiKey: "nq-key" };
+const NOTONQ = { baseUrl: "https://notonq.test/q/app/music-care-dev", apiKey: "q-key" };
 const QLOO = { baseUrl: "https://qloo.test", apiKey: "q-key" };
 
-type Seen = { url: string; key: string | null; app: string | null };
+type Seen = { url: string; key: string | null };
 
 /** A fake fetch: answers by host, records every call. */
 function fakeFetch(answers: Record<string, () => Promise<Response> | Response>) {
@@ -12,7 +12,7 @@ function fakeFetch(answers: Record<string, () => Promise<Response> | Response>) 
   const fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     const headers = new Headers(init?.headers);
-    seen.push({ url, key: headers.get("X-Api-Key"), app: headers.get("X-NotOnQ-App") });
+    seen.push({ url, key: headers.get("X-Api-Key") });
     const host = new URL(url).host;
     const answer = answers[host];
     if (!answer) throw new TypeError("fetch failed");
@@ -25,13 +25,13 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 const noSleep = async () => {};
 
 describe("the Qloo transport", () => {
-  it("sends every call through NotOnQ first, with NotOnQ's key and the app label", async () => {
+  it("sends every call through NotOnQ first, named in the base URL, with the Qloo key", async () => {
     const { fetch, seen } = fakeFetch({ "notonq.test": () => json({ results: { entities: [{ name: "The Kinks" }] } }) });
-    const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep, appLabel: "music-care" });
+    const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep });
     const logs: CallLog[] = [];
     const r = await t.get<{ results: unknown }>("/v2/insights", { "filter.type": "urn:entity:artist" }, (l) => logs.push(l));
     expect(r.via).toBe("notonq");
-    expect(seen).toEqual([{ url: "https://notonq.test/q/v2/insights?filter.type=urn%3Aentity%3Aartist", key: "nq-key", app: "music-care" }]);
+    expect(seen).toEqual([{ url: "https://notonq.test/q/app/music-care-dev/v2/insights?filter.type=urn%3Aentity%3Aartist", key: "q-key" }]);
     expect(logs[0]).toMatchObject({ via: "notonq", fellBack: false, cached: false });
   });
 
@@ -42,7 +42,7 @@ describe("the Qloo transport", () => {
     const r = await t.get("/search", { query: "Manchester" }, (l) => logs.push(l));
     expect(r).toEqual({ data: { ok: true }, via: "qloo" });
     expect(seen.map((s) => [new URL(s.url).host, s.key])).toEqual([
-      ["notonq.test", "nq-key"],
+      ["notonq.test", "q-key"],
       ["qloo.test", "q-key"],
     ]);
     expect(logs[0]).toMatchObject({ via: "qloo", fellBack: true });

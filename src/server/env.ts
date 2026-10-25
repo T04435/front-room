@@ -18,12 +18,12 @@ const schema = z.object({
   QLOO_API_KEY: secret,
   QLOO_API_BASE_URL: z.url().default("https://hackathon.api.qloo.com"),
   /**
-   * NotOnQ's drop-in API: every Qloo call goes through it first and falls back to Qloo directly. NotOnQ has no keys of
-   * its own yet, so it takes our Qloo key (NOTONQ_API_KEY overrides it if NotOnQ starts issuing them) and the app
-   * names itself (music-care in production, music-care-dev elsewhere) so its ledger shows the traffic apart.
+   * NotOnQ's drop-in API: every Qloo call goes through it first, with our own QLOO_API_KEY (NotOnQ issues no keys),
+   * and falls back to Qloo directly. The app names itself in the base URL, so NotOnQ's ledger shows the traffic
+   * apart: production's /q/app/music-care on Vercel, a local NotOnQ's /q/app/music-care-dev in development, unless
+   * NOTONQ_BASE_URL is set.
    */
-  NOTONQ_API_KEY: secret,
-  NOTONQ_BASE_URL: z.url().default("https://notonq.vercel.app/q"),
+  NOTONQ_BASE_URL: z.url().optional(),
   /** "1": skip NotOnQ and call Qloo directly. */
   NOTONQ_DISABLED: z.string().optional(),
   VERCEL_ENV: z.string().optional(),
@@ -45,7 +45,7 @@ export function providerStatus() {
   return {
     offline: offline(),
     qloo: offline() || Boolean(env.QLOO_API_KEY),
-    notonq: !offline() && env.NOTONQ_DISABLED !== "1" && Boolean(env.NOTONQ_API_KEY || env.QLOO_API_KEY),
+    notonq: !offline() && env.NOTONQ_DISABLED !== "1" && Boolean(env.QLOO_API_KEY),
     aiGateway: offline() || Boolean(env.AI_GATEWAY_API_KEY || env.VERCEL_OIDC_TOKEN || env.VERCEL === "1"),
     database: Boolean(env.DATABASE_URL),
   };
