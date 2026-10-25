@@ -1,3 +1,5 @@
+import { KitApp } from "@/components/kit-app";
+
 export default function Home() {
-  return <h1 className="text-2xl font-semibold">Music Care</h1>;
+  return <KitApp />;
 }

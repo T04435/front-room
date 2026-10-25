@@ -1,0 +1,20 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { KitView } from "@/components/kit-view";
+import { kitTitle } from "@/lib/kit";
+import { getKit, getResponses } from "@/server/kits";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: PageProps<"/kits/[id]">): Promise<Metadata> {
+  const kit = await getKit((await params).id).catch(() => null);
+  return { title: kit ? `${kitTitle(kit)} · Music Care` : "Kit not found · Music Care", robots: { index: false } };
+}
+
+/** A saved kit, open to anyone with its link (no login), with its response log. */
+export default async function KitPage({ params }: PageProps<"/kits/[id]">) {
+  const { id } = await params;
+  const kit = await getKit(id);
+  if (!kit) notFound();
+  return <KitView kit={kit} log={await getResponses(id)} />;
+}
