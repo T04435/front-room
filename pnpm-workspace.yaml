@@ -1,0 +1,4 @@
+allowBuilds:
+  sharp: false
+  simple-git-hooks: false
+  unrs-resolver: false
