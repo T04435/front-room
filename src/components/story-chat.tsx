@@ -446,9 +446,23 @@ function opening(p: Person, paused: Paused[]): Msg[] {
   const by = p.birthYear ? `born ${p.birthYear}` : p.decade ? `born in the ${p.decade}s` : null;
   const places = p.places.map((x) => `${x.name}${x.fromYear ? ` ${x.fromYear}–${x.toYear ?? ""}` : ""}`).join(", ");
   return [
-    { id: "known", from: "agent", text: `Here's what I know about ${name}: ${[by, places, `${p.moments.length} big ${p.moments.length === 1 ? "moment" : "moments"}`, `${p.loves.length} ${p.loves.length === 1 ? "thing" : "things"} they love`, `${p.steers.length} ${p.steers.length === 1 ? "thing" : "things"} to steer clear of`].filter(Boolean).join(" · ")}.` },
+    { id: "known", from: "agent", text: `Here's what I know about ${name}: ${[by, places, p.moments.length ? `${p.moments.length} big ${p.moments.length === 1 ? "moment" : "moments"}` : null, p.loves.length ? `${p.loves.length} ${p.loves.length === 1 ? "thing" : "things"} they love` : null, p.steers.length ? `${p.steers.length} ${p.steers.length === 1 ? "thing" : "things"} to steer clear of` : null, p.languages.length ? `grew up speaking ${p.languages.join(", ")}` : null].filter(Boolean).join(" · ")}.` },
     ...(wouldHelpNext(p, paused, 0).length ? [{ id: "helps", from: "agent" as const, kind: "helps" as const }] : []),
   ];
+}
+
+/** The question an ask put, for its settled bubble (QA-55). */
+function askQuestion(ask: Ask, p: Person, name: string): string {
+  const pl = "placeId" in ask ? p.places.find((x) => x.id === ask.placeId)?.name : undefined;
+  return {
+    name: "The name they like",
+    born: `When ${name} was born`,
+    place: `Where ${name} grew up`,
+    from: `When ${name} moved to ${pl ?? "there"}`,
+    to: `Until when ${name} was in ${pl ?? "there"}`,
+    steer: "Anything to steer clear of",
+    language: "The language they grew up speaking",
+  }[ask.kind];
 }
 
 /** "brother Tom" mid-sentence; names and "The war" keep their capital. */
@@ -507,7 +521,7 @@ function AgentBody(props: BodyProps) {
     case "painful":
       return resolved ? <span>{steerNote(m.fact.value, props.answer)}</span> : <SteerQuestion question={`You mentioned ${m.fact.value}. Shall I steer clear of that in what I suggest?`} onAnswer={props.onSteer} />;
     case "ask":
-      return resolved ? <Settled answer={props.answer} /> : <AskInput ask={m.ask} person={person} name={name} onAnswer={props.onAnswer} />;
+      return resolved ? <Settled question={askQuestion(m.ask, person, name)} answer={props.answer} /> : <AskInput ask={m.ask} person={person} name={name} onAnswer={props.onAnswer} />;
     case "helps":
       return <HelpChips person={person} name={name} onHelp={props.onHelp} ro={ro} paused={props.paused} provenCalm={props.provenCalm} />;
     case "help":
@@ -746,7 +760,7 @@ function HelpInput({ help, person, onSave }: { help: Help; person: Person; onSav
       return (
         <span className="grid gap-2">
           <span>
-            {name} was upset during {help.itemTitle}. Shall I steer clear of it?
+            {help.tearful ? `${name} was tearful during ${help.itemTitle}. Tears can be part of a good moment: keep it, or steer clear?` : `${name} was upset during ${help.itemTitle}. Shall I steer clear of it?`}
           </span>
           <span className="flex flex-wrap gap-2">
             <Button size="xs" onClick={() => onSave(addSteer(person, help.itemTitle, "never", "item", "logged"), "Never")}>
@@ -755,9 +769,11 @@ function HelpInput({ help, person, onSave }: { help: Help; person: Person; onSav
             <Button size="xs" variant="outline" onClick={() => onSave({ ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] }, "Sad but OK")}>
               Sad but OK
             </Button>
-            <Button size="xs" variant="outline" onClick={() => onSave({ ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] }, "A one-off")}>
-              A one-off
-            </Button>
+            {!help.tearful && (
+              <Button size="xs" variant="outline" onClick={() => onSave({ ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] }, "A one-off")}>
+                A one-off
+              </Button>
+            )}
           </span>
         </span>
       );

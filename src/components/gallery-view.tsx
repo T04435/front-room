@@ -33,8 +33,8 @@ const noop = () => () => {};
 /** After 17:00 on this device: calm first, as the brief's evening default. Off during server render. */
 const useEvening = () => useSyncExternalStore(noop, () => new Date().getHours() >= 17, () => false);
 /**
- * Who the card speaks to: staff on shift, or family visiting (PR-12, PR-12a). A choice on this device wins; else the
- * clock (outside 09:00–17:00 reads as a visit); the example defaults to staff. Storage may be blocked: then the default.
+ * Who the card speaks to: staff on shift, or family visiting (PR-12, PR-12a). A choice on this device wins; else staff.
+ * Storage may be blocked: then staff.
  */
 const MODE_KEY = "fr-card-mode";
 const MODE_EVENT = "fr-card-mode";
@@ -54,16 +54,16 @@ const subscribeMode = (cb: () => void) => {
     window.removeEventListener("storage", cb);
   };
 };
-function useCardMode(example: boolean): ["staff" | "visit", (m: "staff" | "visit") => void] {
+function useCardMode(): ["staff" | "visit", (m: "staff" | "visit") => void] {
   const chosen = useSyncExternalStore(subscribeMode, readMode, () => null);
-  const byClock = useSyncExternalStore(noop, () => (new Date().getHours() < 9 || new Date().getHours() >= 17 ? "visit" : "staff"), () => "staff" as const);
   const set = (m: "staff" | "visit") => {
     try {
       localStorage.setItem(MODE_KEY, m);
     } catch {}
     window.dispatchEvent(new Event(MODE_EVENT));
   };
-  return [chosen ?? (example ? "staff" : byClock), set];
+  // Staff unless someone chose a visit on this device: a clock default flipped the card at an 18:00 demo (QA-52).
+  return [chosen ?? "staff", set];
 }
 // Times in the home's zone everywhere (QA-16); the demo homes are in the UK.
 const hm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
@@ -279,7 +279,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
           {open && (
             <div className="grid gap-4 px-4 pb-6">
               {settling && (
-                <Alert className="mt-8">
+                <Alert className="mt-8 max-sm:mt-12">
                   <Waves />
                   <AlertDescription>First, the basics: are they in pain, hungry or thirsty, needing the toilet, too hot or cold? Then try this, softly, and sit with them.</AlertDescription>
                 </Alert>
@@ -465,7 +465,7 @@ function LearnedSomething({ person, name, onSaved }: { person: Person; name: str
  */
 function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
   const name = person.preferredName;
-  const [mode, setMode] = useCardMode(Boolean(person.example));
+  const [mode, setMode] = useCardMode();
   const visiting = mode === "visit";
   const p = person.practical;
   const works = gallery.works.slice(0, 3).map((g) => (g.by ? `${g.title} (${g.by})` : g.title));
@@ -500,7 +500,7 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
           {visiting ? "Before you visit" : "Before you start"}
           <span className="flex rounded-lg border p-0.5 text-xs font-normal" role="group" aria-label="Who this card is for">
             {(["staff", "visit"] as const).map((m) => (
-              <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={cn("rounded-md px-2.5 py-1 max-sm:py-2", mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
+              <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={cn("rounded-md px-2.5 py-1 max-sm:min-h-10", mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
                 {m === "staff" ? "For staff" : "For a visit"}
               </button>
             ))}

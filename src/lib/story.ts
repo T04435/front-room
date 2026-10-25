@@ -120,7 +120,7 @@ export const placesWithoutYears = (p: Person) => p.places.filter((x) => x.fromYe
 
 /** A suggestion in the returning chat: tapping it opens its typed input. */
 export type Help =
-  | { id: string; kind: "upset"; label: string; itemKey: string; itemTitle: string }
+  | { id: string; kind: "upset"; label: string; itemKey: string; itemTitle: string; tearful?: boolean }
   | { id: string; kind: "steer" | "place" | "moment" | "calms" | "work" | "faith" | "hearing"; label: string }
   | { id: string; kind: "heard"; label: string; heardId: string };
 
@@ -138,7 +138,7 @@ export function wouldHelpNext(p: Person, paused: { key: string; title: string; l
   const steered = new Set(p.steers.map((s) => nameKey(s.label)));
   for (const u of paused) {
     if (p.resolvedUpsets.includes(u.key) || steered.has(nameKey(u.title))) continue;
-    out.push({ id: `up-${u.key}`, kind: "upset", label: u.tearful ? `${p.preferredName || "They"} was tearful during ${u.title}: keep it (sad but OK) or steer clear?` : u.lastUpsetAt ? `Upset during ${u.title} on ${day(u.lastUpsetAt)}: steer clear?` : `Tearful with ${u.title}: steer clear?`, itemKey: u.key, itemTitle: u.title });
+    out.push({ id: `up-${u.key}`, kind: "upset", label: u.tearful ? `${p.preferredName || "They"} was tearful during ${u.title}: keep it (sad but OK) or steer clear?` : u.lastUpsetAt ? `Upset during ${u.title} on ${day(u.lastUpsetAt)}: steer clear?` : `Tearful with ${u.title}: steer clear?`, itemKey: u.key, itemTitle: u.title, ...(u.tearful ? { tearful: true } : {}) });
   }
   if (!p.steerAsked && !p.steers.length) out.push({ id: "steer", kind: "steer", label: "Anything to steer clear of?" });
   const last = p.places.at(-1);

@@ -144,6 +144,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
         <CardContent className="grid gap-1">
           {p.hearing && <p>{p.hearing}</p>}
           {p.headphonesOk !== undefined && p.headphonesOk !== null && <p>{p.headphonesOk ? "Headphones are fine." : "No headphones."}</p>}
+          {person.languages.length > 0 && !person.languages.every((l) => /^english$/i.test(l)) && <p>Grew up speaking {person.languages.join(", ")}: a few words in it help.</p>}
           {p.work && <p>Work: {p.work}</p>}
           {p.faith && <p>{p.faith.stance === "keep_out" ? "Keep faith out of it." : p.faith.stance === "yes" ? `Faith: ${p.faith.label ?? "yes"}` : "No faith."}</p>}
           {heard.map((h) => (
