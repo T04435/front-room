@@ -81,6 +81,12 @@ export type KitItem = {
   minutes?: number;
   /** Songs: "musicbrainz" when MusicBrainz confirms the artist has a recording with this title; "unchecked" when it couldn't be asked. */
   check?: "musicbrainz" | "unchecked";
+  /** The same thing across a person's kits (src/lib/learning.ts itemKey), for what's proven, paused or resting. */
+  key?: string;
+  /** Why it's in a person's kit: proven before, the family said yes, matches their era, or a new try like something proven. */
+  reason?: "proven" | "family_yes" | "era_match" | "new_try";
+  /** New tries: what it's like ("Waterloo, 70s, Manchester"). */
+  like?: string;
 };
 
 // ---- What the curator writes, checked against the research --------------------------------------------------------
@@ -126,13 +132,17 @@ export type Kit = {
   summary: string;
   /** How many of the research calls went through NotOnQ, and how many fell back to Qloo directly. */
   sources: { notonq: number; qloo: number; fellBack: number };
+  /** A person's kit: whose, and the session goal. Absent on the one-off kits built from a brief. */
+  personId?: string;
+  goal?: "settle" | "chat" | "sing";
   model: string;
   createdAt: string;
 };
 
 export const RESPONSES = ["calm", "engaged", "sang", "upset"] as const;
-export type Response = (typeof RESPONSES)[number];
-export const RESPONSE_LABELS: Record<Response, string> = { calm: "Calm", engaged: "Engaged", sang: "Sang along", upset: "Upset" };
+/** "none": shown in a session with no reaction (session mode logs it on moving on); never a button. */
+export type Response = (typeof RESPONSES)[number] | "none";
+export const RESPONSE_LABELS: Record<Response, string> = { calm: "Calm", engaged: "Engaged", sang: "Sang along", upset: "Upset", none: "No reaction" };
 /** One tap; `itemRef` is what was on (a song playing, a film being talked about), if anything. */
 export type LogEntry = { id: number; response: Response; itemRef: string | null; at: string };
 

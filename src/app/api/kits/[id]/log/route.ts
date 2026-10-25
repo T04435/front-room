@@ -1,10 +1,11 @@
 import { z } from "zod";
 import { EXAMPLE_KIT_ID } from "@/lib/example-kit";
+import { isExampleKitId } from "@/lib/example-person";
 import { RESPONSES } from "@/lib/kit";
 import { getKit, getResponses, logResponse, undoResponse } from "@/server/kits";
 import { perVisitor, refusalResponse } from "@/server/limits";
 
-const body = z.object({ response: z.enum(RESPONSES), itemRef: z.string().max(8).nullable().optional() });
+const body = z.object({ response: z.enum([...RESPONSES, "none"]), itemRef: z.string().max(8).nullable().optional() });
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/kits/[id]/log">) {
   const { id } = await ctx.params;
@@ -16,7 +17,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/kits/[id]/l
 /** One tap: calm, engaged, sang along or upset, with what was on (a song, a film, a place) if anything. */
 export async function POST(request: Request, ctx: RouteContext<"/api/kits/[id]/log">) {
   const { id } = await ctx.params;
-  if (id === EXAMPLE_KIT_ID) return Response.json({ error: "The example kit is read-only. Build your own to log responses." }, { status: 403 });
+  if (id === EXAMPLE_KIT_ID || isExampleKitId(id)) return Response.json({ error: "The example is read-only. Try your own person to log responses." }, { status: 403 });
   const parsed = body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Pick a response" }, { status: 400 });
   const kit = await getKit(id);

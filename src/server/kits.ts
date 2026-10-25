@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { EXAMPLE_KIT, EXAMPLE_KIT_ID } from "@/lib/example-kit";
+import { EXAMPLE_KITS, EXAMPLE_LOGS, isExampleKitId } from "@/lib/example-person";
 import type { Kit, LogEntry, Response } from "@/lib/kit";
 import { db } from "@/server/db";
 
@@ -13,12 +14,13 @@ export const isKitId = (id: string) => /^[A-Za-z0-9_-]{10}$/.test(id);
 
 export async function saveKit(kit: Kit, owner: string | null): Promise<void> {
   const sql = await db();
-  await sql.query("INSERT INTO kits (id, owner, kit, created_at) VALUES ($1, $2, $3, $4)", [kit.id, owner, JSON.stringify(kit), kit.createdAt]);
+  await sql.query("INSERT INTO kits (id, owner, kit, created_at, person_id) VALUES ($1, $2, $3, $4, $5)", [kit.id, owner, JSON.stringify(kit), kit.createdAt, kit.personId ?? null]);
 }
 
 /** A saved kit, or the built-in example (no database needed, so it opens even with the database down). */
 export async function getKit(id: string): Promise<Kit | null> {
   if (id === EXAMPLE_KIT_ID) return EXAMPLE_KIT;
+  if (isExampleKitId(id)) return EXAMPLE_KITS.find((k) => k.id === id) ?? null;
   if (!isKitId(id)) return null;
   const sql = await db();
   const rows = await sql.query<{ kit: Kit | string }>("SELECT kit FROM kits WHERE id = $1", [id]);
@@ -57,6 +59,7 @@ export async function logResponse(kitId: string, response: Response, itemRef: st
 }
 
 export async function getResponses(kitId: string): Promise<LogEntry[]> {
+  if (isExampleKitId(kitId)) return EXAMPLE_LOGS.filter((l) => l.kitId === kitId);
   const sql = await db();
   const rows = await sql.query<{ id: number; response: Response; item_ref: string | null; at: string | Date }>(
     "SELECT id, response, item_ref, at FROM responses WHERE kit_id = $1 ORDER BY at, id",

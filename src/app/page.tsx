@@ -1,16 +1,60 @@
-import { KitApp } from "@/components/kit-app";
-import type { Brief } from "@/lib/kit";
-import { getKit } from "@/server/kits";
+import { Info, Plus } from "lucide-react";
+import { cookies } from "next/headers";
+import Link from "next/link";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { DEVICE_COOKIE } from "@/lib/device";
+import { listPeople } from "@/server/people";
 
 export const dynamic = "force-dynamic";
 
-/** The run page. `?from=<kit>&avoid=…`: rebuild that kit's brief without the items the family marked "not for them". */
-export default async function Home({ searchParams }: PageProps<"/">) {
-  const { from, avoid } = await searchParams;
-  const kit = typeof from === "string" ? await getKit(from).catch(() => null) : null;
-  const marks = (Array.isArray(avoid) ? avoid : avoid ? [avoid] : []).map((a) => a.slice(0, 120));
-  const start: Brief | undefined = kit
-    ? { name: kit.brief.name, birthYear: kit.brief.birthYear, place: kit.brief.place, likes: kit.brief.likes, avoid: [...new Set([...(kit.brief.avoid ?? []), ...marks])].slice(-30) }
-    : undefined;
-  return <KitApp start={start} />;
+const ago = (iso: string) => {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+  return days <= 0 ? "today" : days === 1 ? "yesterday" : new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+};
+
+/** People: the people this device looks after (created here, or opened from their link), and the example Margaret. */
+export default async function PeoplePage() {
+  const people = await listPeople((await cookies()).get(DEVICE_COOKIE)?.value ?? null).catch(() => []);
+  return (
+    <div className="grid gap-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="grid gap-1">
+          <h1 className="text-3xl font-semibold">People</h1>
+          <p className="text-muted-foreground">The people this device looks after. Anyone with a person&apos;s link can add to their story.</p>
+        </div>
+        <Button asChild>
+          <Link href="/people/new">
+            <Plus aria-hidden /> Add someone
+          </Link>
+        </Button>
+      </div>
+      <Alert>
+        <Info />
+        <AlertDescription>Use a fictional person for this demo. Front Room keeps no surname, address, diagnosis or medication.</AlertDescription>
+      </Alert>
+      <ItemGroup className="gap-2">
+        {people.map((p) => (
+          <Item key={p.id} variant={p.example ? "muted" : "outline"} asChild>
+            <Link href={`/p/${p.id}`}>
+              <ItemContent>
+                <ItemTitle>
+                  {p.example ? `Example: ${p.preferredName}` : p.preferredName}
+                  {p.example && <Badge variant="secondary">Read-only</Badge>}
+                </ItemTitle>
+                <ItemDescription>
+                  Story {p.completeness}% · {p.sessions ? `${p.sessions} ${p.sessions === 1 ? "session" : "sessions"}, last ${ago(p.lastSession!)}` : "no sessions yet"}
+                </ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <span className="text-sm text-muted-foreground">{p.example ? "Open" : p.ready && p.sessions ? "Next session" : "Continue"} →</span>
+              </ItemActions>
+            </Link>
+          </Item>
+        ))}
+      </ItemGroup>
+    </div>
+  );
 }

@@ -20,6 +20,25 @@ CREATE TABLE IF NOT EXISTS responses (
 );
 CREATE INDEX IF NOT EXISTS responses_kit ON responses (kit_id, at);
 
+-- People: one document per person (their confirmed story). The id is the private link.
+CREATE TABLE IF NOT EXISTS people (
+  id text PRIMARY KEY,
+  person jsonb NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- The people each device looks after: those it created, or opened from a link.
+CREATE TABLE IF NOT EXISTS device_people (
+  device_id text NOT NULL,
+  person_id text NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+  added_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (device_id, person_id)
+);
+
+-- A person's kits, for the learning across sessions.
+ALTER TABLE kits ADD COLUMN IF NOT EXISTS person_id text;
+CREATE INDEX IF NOT EXISTS kits_person ON kits (person_id, created_at);
+
 -- Rate-limit and budget counters, one row per key and window.
 CREATE TABLE IF NOT EXISTS usage (bucket text PRIMARY KEY, count integer NOT NULL, expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS settings (key text PRIMARY KEY, value text NOT NULL);

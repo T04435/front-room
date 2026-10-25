@@ -27,10 +27,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                 {APP_NAME}
               </Link>
               <Link href="/" className="text-muted-foreground hover:text-foreground">
-                New kit
-              </Link>
-              <Link href="/kits" className="text-muted-foreground hover:text-foreground">
-                Saved kits
+                People
               </Link>
             </nav>
           </header>

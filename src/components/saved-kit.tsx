@@ -14,7 +14,7 @@ export function SavedKit({ kit, log }: { kit: Kit; log?: LogEntry[] }) {
       onRebuild={(avoid) => {
         const q = new URLSearchParams({ from: kit.id });
         for (const a of avoid) q.append("avoid", a);
-        router.push(`/?${q}`);
+        router.push(`/quick?${q}`);
       }}
     />
   );
