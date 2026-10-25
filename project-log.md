@@ -4,6 +4,27 @@ Qloo Agentic Hackathon 2026, 4th entry: **Front Room** (renamed from the working
 brand comes from the Front Room design system).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-26 · Rebuilt around the person: a chat, then a gallery (the user)
+
+The session model (Settle, Chat, Sing; a kit per session) was wrong. What's found is per person, and a session is
+only a point in time that adds what was logged. The product is now:
+- **A new person: the page is a chat.** The Go-Between explains what helps (the "This is me" themes as chips). The
+  family talks, types or pastes. Each message is answered with "Here's what I heard" to confirm, and a follow-up that
+  digs into their words ("You said she always sang along to Abba. Which songs?"). Once the minimum is in, it offers
+  once to find things, and the Qloo look-up streams inside the chat, then opens the gallery.
+- **A person with things found: the page is a gallery.** Shelves of songs, films, TV, books and places ("Works for
+  them", "New tries", then by type). A tap opens a sheet: Spotify or YouTube (nothing hosted), and Calm, Engaged,
+  Sang along or Upset, with Undo and Stop. Logs are `plays` on the person, by item. The rules are the same (proven
+  after 2 good days, paused after an upset, resting after 3 days of nothing), and the shelves update on each log.
+- **Get to know them better** is the same chat, opening with what's known and what would help next (including
+  "Upset during X: steer clear?").
+- **New tries** come from Qloo, like what's proven (or the loved artists), checked on MusicBrainz.
+- Removed: the Ring a bell deck (its cards land in the gallery with Loved it and Not for them), session mode, the
+  goal buttons and per-session kits for people. Saved kits at `/kits` stay.
+- Live check on :3500 (fictional Margot, born 1950, Manchester then Blackpool): chat, look-up in the chat (29
+  things, songs checked), gallery, log, Undo, Stop pausing the item, the paused question in the chat, What works.
+- The e2e tests still describe the session model; they're rewritten before the next push.
+
 ## 2026-10-25 · Next list done: MusicBrainz check, family corrections, example kit
 
 - **MusicBrainz check.** Each song title the curator picks is looked up as a recording by its artist, one call a

@@ -41,6 +41,20 @@ CREATE TABLE IF NOT EXISTS device_people (
 ALTER TABLE kits ADD COLUMN IF NOT EXISTS person_id text;
 CREATE INDEX IF NOT EXISTS kits_person ON kits (person_id, created_at);
 
+-- What was played for a person from their gallery, and how they responded. The item key is the same thing across
+-- suggestions however it was spelled (src/lib/learning.ts itemKey); type, title and artist are kept for display.
+CREATE TABLE IF NOT EXISTS plays (
+  id serial PRIMARY KEY,
+  person_id text NOT NULL REFERENCES people (id) ON DELETE CASCADE,
+  item_key text NOT NULL,
+  item_type text NOT NULL,
+  title text NOT NULL,
+  by_name text,
+  response text NOT NULL, -- calm | engaged | sang | upset | none
+  at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS plays_person ON plays (person_id, at);
+
 -- Rate-limit and budget counters, one row per key and window.
 CREATE TABLE IF NOT EXISTS usage (bucket text PRIMARY KEY, count integer NOT NULL, expires_at timestamptz NOT NULL);
 CREATE TABLE IF NOT EXISTS settings (key text PRIMARY KEY, value text NOT NULL);

@@ -9,7 +9,6 @@ import { careNote } from "@/lib/care-note";
 import { EXAMPLE_KIT_ID } from "@/lib/example-kit";
 import { isExampleKitId } from "@/lib/example-person";
 import { kitTitle } from "@/lib/kit";
-import { GOAL_LABELS } from "@/lib/learning";
 import { getKit, getResponses } from "@/server/kits";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +31,7 @@ export default async function KitPage({ params }: PageProps<"/kits/[id]">) {
         <Card>
           <CardContent className="grid gap-2 pt-6">
             <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              {kit.goal ? GOAL_LABELS[kit.goal] : "Session"} · care note
+              Session · care note
             </span>
             <p>{careNote(kit, log, kit.createdAt, log.at(-1)?.at ?? kit.createdAt, process.env.FRONT_ROOM_TIME_ZONE || "Europe/London")}</p>
             <div>

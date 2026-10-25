@@ -1,6 +1,6 @@
 import { EXAMPLE_KIT } from "./example-kit";
 import type { Kit } from "./kit";
-import { itemKey, type Goal, type Logged } from "./learning";
+import { itemKey, type Goal, type Logged, type Play } from "./learning";
 import type { Person } from "./person";
 
 /**
@@ -90,3 +90,30 @@ export const EXAMPLE_LOGS: Logged[] = SESSIONS.flatMap((s, n) =>
 );
 
 export const isExampleKitId = (id: string) => /^margaret-k\d$/.test(id);
+
+/** Her past sessions as gallery plays (what the gallery learns from). */
+export const EXAMPLE_PLAYS: Play[] = EXAMPLE_LOGS.flatMap((l) => {
+  const item = keyed.find((i) => i.ref === l.itemRef);
+  return item ? [{ id: l.id, itemKey: item.key, type: item.type, title: item.title, by: item.by?.title, response: l.response, at: l.at }] : [];
+});
+
+/** Her gallery: the example kit's real research (25 Oct), plus three new tries like what works (a live run, 26 Oct). */
+EXAMPLE_PERSON.suggestions = {
+  "pl-mcr:example": keyed
+    .filter((i) => ["song", "film", "tv", "place"].includes(i.type))
+    .map((i) => ({
+      id: `ex-${i.ref}`,
+      placeId: "pl-mcr",
+      type: i.type as "song" | "film" | "tv" | "place",
+      title: i.title,
+      ...(i.by ? { by: i.by.title } : {}),
+      year: i.year,
+      parts: i.parts,
+      source: i.source,
+    })),
+  "new-tries": [
+    { id: "ex-nt1", placeId: "pl-mcr", type: "song", title: "(Sittin' On) The Dock of the Bay", by: "Otis Redding", year: 1968, like: "You Don't Have to Say You Love Me", parts: ["60s", "like Dusty Springfield", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like Dusty Springfield, 60s, Manchester." },
+    { id: "ex-nt2", placeId: "pl-mcr", type: "song", title: "Walk On By", by: "Dionne Warwick", year: 1964, like: "You Don't Have to Say You Love Me", parts: ["60s", "like Dusty Springfield", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like Dusty Springfield, 60s, Manchester." },
+    { id: "ex-nt3", placeId: "pl-mcr", type: "song", title: "Mamma Mia", by: "ABBA", year: 1975, like: "Waterloo", parts: ["70s", "like Waterloo", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like ABBA, 70s, Manchester." },
+  ],
+};

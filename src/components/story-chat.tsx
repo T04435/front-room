@@ -1,303 +1,491 @@
 "use client";
 
-import { ArrowRight, Check, CircleAlert, MessageSquareText, Pencil, Trash2, X } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { ArrowUp, Check, Pencil, Sparkles, X } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { applyStepEvent, RunSteps, type StepItem } from "@/components/run-steps";
 import { PlaceSearch, SteerQuestion, TextInput, YearInput } from "@/components/story-inputs";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Message, MessageContent } from "@/components/ui/message";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { birthYearOf, missingMinimum, type Fact, type Person } from "@/lib/person";
-import { addPlace, addSteer, applyFact, describeFact, placesWithoutYears, storyPatch, uid, wouldHelpNext, type Help } from "@/lib/story";
+import { birthYearOf, missingMinimum, researchInputs, researchKey, type Fact, type Person } from "@/lib/person";
+import type { RunEvent } from "@/lib/run-events";
+import { addPlace, addSteer, applyFact, describeFact, storyPatch, uid, wouldHelpNext, type Help } from "@/lib/story";
 
 type Candidate = Fact & { id: string };
 type Paused = { key: string; title: string; lastUpsetAt: string | null };
 
-/** "This is me" themes as hint chips: each adds a starter line to the box. */
+/** One thing the Go-Between can ask for, as a typed input in its message. */
+type Ask = { kind: "name" } | { kind: "born" } | { kind: "place" } | { kind: "from"; placeId: string } | { kind: "to"; placeId: string } | { kind: "steer" };
+
+type Msg =
+  | { id: string; from: "you"; text: string }
+  | { id: string; from: "agent"; text: string }
+  | { id: string; from: "agent"; kind: "heard"; facts: Candidate[] }
+  | { id: string; from: "agent"; kind: "painful"; fact: Candidate }
+  | { id: string; from: "agent"; kind: "ask"; ask: Ask }
+  | { id: string; from: "agent"; kind: "helps" }
+  | { id: string; from: "agent"; kind: "help"; help: Help }
+  | { id: string; from: "agent"; kind: "find" }
+  | { id: string; from: "agent"; kind: "finding" }
+  | { id: string; from: "agent"; kind: "found" };
+
+/** What helps, from the Alzheimer's Society's "This is me": each adds a starter line to the box. */
 const HINTS: { label: string; starter: (n: string) => string }[] = [
-  { label: "grew up", starter: (n) => `${n} grew up in ` },
-  { label: "lived after", starter: () => "Later they lived in " },
-  { label: "work", starter: (n) => `${n} worked as ` },
-  { label: "family and big moments", starter: () => "A big moment was " },
-  { label: "faith", starter: () => "Faith: " },
-  { label: "music, films and shows", starter: (n) => `${n} loved ` },
-  { label: "what calms them", starter: () => "What calms them is " },
-  { label: "what upsets them", starter: () => "Please steer clear of " },
+  { label: "Where they grew up", starter: (n) => `${n} grew up in ` },
+  { label: "Where they lived after", starter: () => "Later they lived in " },
+  { label: "Their work", starter: (n) => `${n} worked as ` },
+  { label: "Family and big moments", starter: () => "A big moment was " },
+  { label: "Faith", starter: () => "Faith: " },
+  { label: "Music, films and shows", starter: (n) => `${n} loved ` },
+  { label: "What calms them", starter: () => "What calms them is " },
+  { label: "What upsets them", starter: () => "Please steer clear of " },
 ];
 
-const KIND_LABEL: Partial<Record<Fact["kind"], string>> = { place: "Place", moment: "Moment", love: "Love", birthYear: "Born", decade: "Born", preferredName: "Name" };
+const id = () => Math.random().toString(36).slice(2, 10);
+
+/** The next single thing to ask for, most needed first: the minimum, then years at each place, then steer-clear. */
+function nextAsk(p: Person): Ask | null {
+  if (!p.preferredName.trim()) return { kind: "name" };
+  if (birthYearOf(p) === null) return { kind: "born" };
+  if (!p.places.length) return { kind: "place" };
+  const noFrom = p.places.find((x, i) => x.fromYear === null && i > 0 && !x.yearsUnknown);
+  if (noFrom) return { kind: "from", placeId: noFrom.id };
+  const noTo = p.places.find((x, i) => x.toYear === null && i < p.places.length - 1 && !x.yearsUnknown);
+  if (noTo) return { kind: "to", placeId: noTo.id };
+  if (!p.steerAsked && !p.steers.length) return { kind: "steer" };
+  return null;
+}
 
 /**
- * The story chat (v2 brief, P0 2 and 3): talk, type or paste, in any order; "here's what I heard" cards to confirm (only
- * confirmed facts are saved; the text is thrown away); missing details as typed inputs; painful mentions as a
- * steer-clear question. Coming back, it opens with what's known and what would help next. "That's enough, go for it"
- * is always there. No Qloo calls here, except the place search.
+ * The story chat: a conversation with the Go-Between. It says what helps (the "This is me" themes), then the family
+ * talks, types or pastes in any order. Each time, it replies with what it heard (to confirm; only confirmed facts are
+ * kept, the words are not), a steer-clear question for anything painful, and one question that digs into what was
+ * said. When it knows enough it offers to find things for them with Qloo, right here, then opens their gallery.
  */
-export function StoryChat({ initial, paused, provenCalm }: { initial: Person; paused: Paused[]; provenCalm: number }) {
-  const router = useRouter();
+export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: Person; paused: Paused[]; provenCalm: number; autoFind?: boolean }) {
   const [person, setPerson] = useState(initial);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [cards, setCards] = useState<Candidate[]>([]);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [goPressed, setGoPressed] = useState(false);
-  const [openHelp, setOpenHelp] = useState<string | null>(null);
+  const [steps, setSteps] = useState<StepItem[]>([]);
+  const [msgs, setMsgs] = useState<Msg[]>(() => opening(initial, paused));
+  const [resolved, setResolved] = useState<Set<string>>(new Set());
+  const endRef = useRef<HTMLDivElement>(null);
+  const started = useRef(false);
+  // The "find things" offer is made once; it comes back only after a look-up, when the story changes again.
+  const offered = useRef(false);
   const ro = Boolean(person.example);
   const name = person.preferredName || "them";
-  const returning = initial.places.length > 0 || initial.loves.length > 0;
-  const missing = missingMinimum(person);
+  const by = birthYearOf(person);
+  const stale = by !== null && person.places.some((pl) => person.researched[researchKey(pl, by)] !== researchInputs(person, pl));
+  // New tries alone don't make a gallery (as on the person page): it takes a look-up.
+  const hasGallery = Object.entries(person.suggestions).some(([k, cs]) => k !== "new-tries" && cs.length);
 
-  /** Saves a change to the story (optimistic; reverted on failure). */
-  async function save(next: Person) {
-    const before = person;
+  // Braces: scrollIntoView returns a Promise in newer browsers, and an effect may only return a clean-up function.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [msgs.length, steps.length]);
+
+  // Arriving with ?find=1 (the gallery's "Find more"): look things up straight away.
+  useEffect(() => {
+    if (!autoFind || ro || started.current || !stale) return;
+    const t = setTimeout(() => {
+      if (started.current) return;
+      started.current = true;
+      void find();
+    }, 0);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once on arrival.
+  }, []);
+
+  const push = (...m: Msg[]) => setMsgs((xs) => [...xs, ...m]);
+  const say = (t: string) => push({ id: id(), from: "agent", text: t });
+  const done = (msgId: string) => setResolved((s) => new Set(s).add(msgId));
+
+  /** Saves the story; returns the saved person (or the old one if it failed). */
+  async function save(next: Person): Promise<Person> {
     setPerson(next);
     try {
       const res = await fetch(`/api/people/${person.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(storyPatch(next)) });
       if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "That didn't save.");
-      setPerson((await res.json()) as Person);
+      const saved = (await res.json()) as Person;
+      setPerson(saved);
+      return saved;
     } catch (e) {
-      setPerson(before);
-      setError(e instanceof Error ? e.message : "That didn't save. Try again.");
+      setPerson(person);
+      say(e instanceof Error ? e.message : "That didn't save. Try again.");
+      return person;
+    }
+  }
+
+  /** After something's settled: ask the next thing needed, or offer to find things. */
+  function carryOn(p: Person, pendingWidgets = 0) {
+    if (pendingWidgets > 0) return;
+    const ask = nextAsk(p);
+    if (ask) return push({ id: id(), from: "agent", kind: "ask", ask });
+    if (missingMinimum(p).length === 0) {
+      const changed = by !== null && p.places.some((pl) => p.researched[researchKey(pl, birthYearOf(p)!)] !== researchInputs(p, pl));
+      if ((changed || !hasGallery) && !offered.current) {
+        offered.current = true;
+        push({ id: id(), from: "agent", kind: "find" });
+      }
     }
   }
 
   async function send() {
-    if (text.trim().length < 3) return;
+    const words = text.trim();
+    if (words.length < 3 || busy) return;
+    setText("");
+    push({ id: id(), from: "you", text: words });
     setBusy(true);
-    setError(null);
     try {
-      const res = await fetch(`/api/people/${person.id}/extract`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-      const body = (await res.json()) as { facts?: Candidate[]; error?: string };
+      const res = await fetch(`/api/people/${person.id}/extract`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: words }) });
+      const body = (await res.json()) as { facts?: Candidate[]; followUps?: string[]; error?: string };
       if (!res.ok || !body.facts) throw new Error(body.error ?? "That didn't go through.");
-      setCards((c) => [...c, ...body.facts!]);
-      // The words themselves aren't kept: only the facts confirmed from them.
-      setText("");
-      if (!body.facts.length) setError("Nothing to add from that. Try a place, a year, or something they loved.");
+      const plain = body.facts.filter((f) => f.kind !== "painful");
+      const painful = body.facts.filter((f) => f.kind === "painful");
+      if (!body.facts.length) say(`I couldn't pick anything out of that. A place, a year, or something ${name} loved helps most.`);
+      push(
+        ...(plain.length ? [{ id: id(), from: "agent" as const, kind: "heard" as const, facts: plain }] : []),
+        ...painful.map((fact) => ({ id: id(), from: "agent" as const, kind: "painful" as const, fact })),
+        ...(body.followUps?.length ? [{ id: id(), from: "agent" as const, text: body.followUps[0] }] : []),
+      );
+      if (!plain.length && !painful.length) carryOn(person);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "That didn't go through. Try again.");
+      say(e instanceof Error ? e.message : "That didn't go through. Try again.");
     } finally {
       setBusy(false);
     }
   }
 
-  const drop = (id: string) => setCards((c) => c.filter((x) => x.id !== id));
-  async function confirm(c: Candidate) {
-    drop(c.id);
-    await save(applyFact(person, c));
-  }
-  async function confirmAll() {
-    const ok = cards.filter((c) => c.kind !== "painful");
-    let next = person;
-    for (const c of ok) next = applyFact(next, c);
-    setCards((cs) => cs.filter((c) => c.kind === "painful"));
-    await save(next);
-  }
-
-  function go() {
-    if (missing.length) {
-      setGoPressed(true);
-      document.getElementById("missing")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  async function find() {
+    if (missingMinimum(person).length) {
+      const ask = nextAsk(person);
+      say(`Before I look things up I need ${missingMinimum(person).map((m) => ({ preferredName: "the name they like", birthYear: "roughly when they were born", place: "where they grew up" })[m]).join(" and ")}.`);
+      if (ask) push({ id: id(), from: "agent", kind: "ask", ask });
       return;
     }
-    router.push(`/p/${person.id}/bell`);
+    push({ id: id(), from: "agent", kind: "finding" });
+    offered.current = false;
+    setBusy(true);
+    setSteps([]);
+    try {
+      const res = await fetch(`/api/people/${person.id}/research`, { method: "POST" });
+      if (res.status === 409) {
+        push({ id: id(), from: "agent", kind: "found" });
+        return;
+      }
+      if (!res.ok || !res.body) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "The look-up couldn't start.");
+      const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+      let buffer = "";
+      let n = 0;
+      let failed: string | null = null;
+      for (;;) {
+        const { value, done: end } = await reader.read();
+        if (end) break;
+        buffer += value;
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const event = JSON.parse(line) as RunEvent;
+          setSteps((xs) => applyStepEvent(xs, event, n++));
+          if (event.type === "error") failed = event.message;
+        }
+      }
+      if (failed) say(failed);
+      else {
+        setPerson((await (await fetch(`/api/people/${person.id}`)).json()) as Person);
+        push({ id: id(), from: "agent", kind: "found" });
+      }
+    } catch (e) {
+      say(e instanceof Error ? e.message : "The look-up stopped. Try again in a minute.");
+    } finally {
+      setBusy(false);
+    }
   }
 
-  const helps = wouldHelpNext(person, paused, provenCalm);
-  const noYears = placesWithoutYears(person);
+  /** Confirms facts from a "here's what I heard" message; what's left unresolved there stays to answer. */
+  async function confirmFacts(msgId: string, facts: Candidate[]) {
+    let next = person;
+    for (const f of facts) next = applyFact(next, f);
+    done(msgId);
+    const saved = await save(next);
+    carryOn(saved, msgs.filter((m) => "kind" in m && m.kind === "painful" && !resolved.has(m.id)).length);
+  }
+
+  async function answerAsk(msgId: string, shown: string, next: Person) {
+    done(msgId);
+    push({ id: id(), from: "you", text: shown });
+    carryOn(await save(next));
+  }
 
   return (
-    <div className="grid gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-3xl font-semibold">{person.preferredName ? `${person.preferredName}’s story` : "Their story"}</h1>
-          <p className="text-sm text-muted-foreground">{returning ? "Pick up where you left off, or just tell us more." : "Tell us about them, in any order. Talk, type or paste."}</p>
+    <div className="mx-auto grid max-w-2xl gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold">{hasGallery ? `Get to know ${name} better` : `${person.preferredName ? `${person.preferredName}’s` : "Their"} story`}</h1>
+        <div className="flex gap-2">
+          {hasGallery && (
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/p/${person.id}`}>{name}&apos;s gallery</Link>
+            </Button>
+          )}
+          {!ro && missingMinimum(person).length === 0 && (stale || !hasGallery) && (
+            <Button size="sm" onClick={() => void find()} disabled={busy}>
+              <Sparkles aria-hidden /> Find things for {name}
+            </Button>
+          )}
         </div>
-        {!ro && (
-          <Button onClick={go}>
-            That&apos;s enough, go for it <ArrowRight aria-hidden />
-          </Button>
-        )}
       </div>
 
-      {ro && (
-        <Alert>
-          <AlertDescription>The example is read-only. Try your own person to tell a story.</AlertDescription>
-        </Alert>
-      )}
-
-      {returning && <Known person={person} onSave={save} ro={ro} />}
-
-      {!ro && returning && helps.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Would help next</CardTitle>
-            <CardDescription>Tap one, or just keep telling stories below.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            <div className="flex flex-wrap gap-2">
-              {helps.map((h) => (
-                <Button key={h.id} size="sm" variant={openHelp === h.id ? "default" : h.kind === "upset" ? "destructive" : "outline"} onClick={() => setOpenHelp(openHelp === h.id ? null : h.id)}>
-                  {h.label}
-                </Button>
-              ))}
-            </div>
-            {openHelp && <HelpInput help={helps.find((h) => h.id === openHelp)!} person={person} onSave={(p) => (setOpenHelp(null), save(p))} />}
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid gap-3" aria-live="polite">
+        {msgs.map((m) =>
+          m.from === "you" ? (
+            <Message key={m.id} align="end">
+              <Bubble align="end">
+                <BubbleContent className="text-base whitespace-pre-wrap">{m.text}</BubbleContent>
+              </Bubble>
+            </Message>
+          ) : (
+            <Message key={m.id}>
+              <MessageContent className="grid w-full gap-1">
+                <span className="text-xs font-medium text-muted-foreground">Go-Between</span>
+                <Bubble variant="secondary" className="max-w-full">
+                  <BubbleContent className="grid gap-3 text-base">
+                    <AgentBody
+                      m={m}
+                      person={person}
+                      name={name}
+                      ro={ro}
+                      busy={busy}
+                      resolved={resolved.has(m.id)}
+                      steps={steps}
+                      onHint={(starter) => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${starter}`)}
+                      onConfirm={(facts) => void confirmFacts(m.id, facts)}
+                      onDrop={() => done(m.id)}
+                      onSteer={async (level) => {
+                        if (!("fact" in m)) return;
+                        done(m.id);
+                        push({ id: id(), from: "you", text: level === "never" ? "Never" : level === "sad_ok" ? "Sad but OK" : "No need" });
+                        const saved = await save(addSteer(person, m.fact.value, level, /^[A-Z]/.test(m.fact.value) && !/^The /.test(m.fact.value) ? "person" : "topic"));
+                        carryOn(saved);
+                      }}
+                      onAnswer={(shown, next) => void answerAsk(m.id, shown, next)}
+                      paused={paused}
+                      provenCalm={provenCalm}
+                      onHelp={(h) => {
+                        push({ id: id(), from: "you", text: h.label }, { id: id(), from: "agent", kind: "help", help: h });
+                      }}
+                      onFind={() => {
+                        done(m.id);
+                        void find();
+                      }}
+                      galleryHref={`/p/${person.id}`}
+                    />
+                  </BubbleContent>
+                </Bubble>
+              </MessageContent>
+            </Message>
+          ),
+        )}
+        {busy && !msgs.some((m) => "kind" in m && m.kind === "finding" && !resolved.has(m.id)) && (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner /> The Go-Between is reading that…
+          </p>
+        )}
+        <div ref={endRef} className="scroll-mb-56" />
+      </div>
 
       {!ro && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquareText className="size-4" aria-hidden /> Tell us about {name}
-            </CardTitle>
-            <CardDescription>Any order. Use your phone&apos;s dictation to talk, or paste a “This is me” or a note. We keep only what you confirm.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <div className="flex flex-wrap gap-1.5" aria-label="Things that help">
-              {HINTS.map((h) => (
-                <Button key={h.label} type="button" size="xs" variant="secondary" onClick={() => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`)}>
-                  {h.label}
-                </Button>
-              ))}
-            </div>
+        <div className="sticky bottom-0 grid gap-2 border-t bg-background pt-3 pb-4">
+          <div className="flex flex-wrap gap-1.5" aria-label="What helps">
+            {HINTS.map((h) => (
+              <Button key={h.label} size="xs" variant="secondary" onClick={() => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`)}>
+                {h.label}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-end gap-2">
             <Textarea
-              aria-label="Their story"
+              aria-label={`Tell the Go-Between about ${name}`}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Mum grew up in Manchester, born 1950. Danced at the Ritz every Saturday…"
-              className="min-h-32"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              placeholder={`Tell me about ${name}. Talk (your phone's dictation), type or paste.`}
+              className="max-h-48 min-h-14"
               maxLength={8000}
             />
-            <div className="flex flex-wrap items-center gap-2">
-              <Button onClick={() => void send()} disabled={busy || text.trim().length < 3}>
-                {busy ? <Spinner /> : null} {busy ? "Reading it…" : "Add to the story"}
-              </Button>
-              <span className="text-xs text-muted-foreground">The words themselves aren&apos;t kept.</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {error && (
-        <Alert variant="destructive">
-          <CircleAlert />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {cards.length > 0 && (
-        <section aria-labelledby="heard" className="grid gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 id="heard" className="text-xl font-semibold">
-              Here&apos;s what I heard
-            </h2>
-            {cards.some((c) => c.kind !== "painful") && (
-              <Button size="sm" onClick={() => void confirmAll()}>
-                <Check aria-hidden /> All right
-              </Button>
-            )}
+            <Button size="icon" aria-label="Send" onClick={() => void send()} disabled={busy || text.trim().length < 3}>
+              <ArrowUp aria-hidden />
+            </Button>
           </div>
-          {cards.map((c) =>
-            c.kind === "painful" ? (
-              <Card key={c.id} className="border-destructive/40">
-                <CardContent className="grid gap-2 pt-6">
-                  <SteerQuestion
-                    question={`You mentioned ${c.value}. Steer clear of ${/^(the |loud )/i.test(c.value) ? "it" : "them"} in sessions?`}
-                    onAnswer={(level) => {
-                      drop(c.id);
-                      void save(addSteer(person, c.value, level, /^[A-Z]/.test(c.value) && !/^The /.test(c.value) ? "person" : "topic"));
-                    }}
-                  />
-                  {c.quote && <p className="text-xs text-muted-foreground">“{c.quote}”</p>}
-                </CardContent>
-              </Card>
-            ) : (
-              <Card key={c.id}>
-                <CardContent className="grid gap-2 pt-6">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {KIND_LABEL[c.kind] && <Badge variant="outline">{KIND_LABEL[c.kind]}</Badge>}
-                    {editing === c.id ? (
-                      <EditFact fact={c} onDone={(f) => (setEditing(null), setCards((cs) => cs.map((x) => (x.id === c.id ? { ...x, ...f } : x))))} />
-                    ) : (
-                      <span className="font-medium">{describeFact(c)}</span>
-                    )}
-                  </div>
-                  {c.quote && <p className="text-xs text-muted-foreground">“{c.quote}”</p>}
-                  {editing !== c.id && (
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" onClick={() => void confirm(c)}>
-                        <Check aria-hidden /> Yes
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditing(c.id)}>
-                        <Pencil aria-hidden /> Edit
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => drop(c.id)}>
-                        <X aria-hidden /> Remove
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ),
-          )}
-        </section>
-      )}
-
-      {!ro && (missing.length > 0 || noYears.length > 0 || (!person.steerAsked && !person.steers.length && person.places.length > 0)) && (
-        <Card id="missing" className={goPressed && missing.length ? "border-primary" : undefined}>
-          <CardHeader>
-            <CardTitle>{missing.length ? "To build anything we need" : "A few details"}</CardTitle>
-            <CardDescription>{missing.length ? `The name ${name} likes, a birth year (a decade is fine) and one place.` : "These make the suggestions better. Skip any you don't know."}</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-5">
-            {missing.includes("preferredName") && <TextInput id="m-name" label="The name they like to be called" onSave={(v) => void save({ ...person, preferredName: v.slice(0, 40) })} />}
-            {missing.includes("birthYear") && (
-              <YearInput
-                id="m-born"
-                label={`When was ${name} born?`}
-                value={null}
-                min={1915}
-                max={1995}
-                onSave={(y, choice) => y && void save(choice === "decade" ? { ...person, decade: y } : { ...person, birthYear: y })}
-                choices={[1930, 1940, 1950, 1960].map((d) => ({ label: `${d}s`, value: d, choice: "decade" }))}
-              />
-            )}
-            {missing.includes("place") && <PlaceSearch id="m-place" label={`Where did ${name} grow up?`} onPick={(pl) => void save(addPlace(person, { name: pl.name, label: pl.label, fromYear: birthYearOf(person), toYear: null, role: "grew up" }))} />}
-            {missing.includes("birthYear") && (
-              <p className="-mt-3 text-xs text-muted-foreground">Picking a decade keeps just the decade (the year stays unknown).</p>
-            )}
-            {noYears.slice(0, 2).map((pl) =>
-              pl.fromYear === null ? (
-                <YearInput key={pl.id} id={`from-${pl.id}`} label={`When did ${name} move to ${pl.name}?`} value={null} onSave={(y) => void save({ ...person, places: person.places.map((x) => (x.id === pl.id ? { ...x, fromYear: y } : x)) })} choices={[{ label: "Not sure", value: null }]} />
-              ) : (
-                <YearInput
-                  key={pl.id}
-                  id={`to-${pl.id}`}
-                  label={`Until when was ${name} in ${pl.name}?`}
-                  value={null}
-                  onSave={(y) => void save({ ...person, places: person.places.map((x) => (x.id === pl.id ? { ...x, toYear: y ?? x.toYear } : x)) })}
-                  choices={[{ label: "Not sure", value: null }]}
-                />
-              ),
-            )}
-            {!person.steerAsked && !person.steers.length && person.places.length > 0 && (
-              <SteerTopic person={person} onSave={(p) => void save(p)} />
-            )}
-          </CardContent>
-        </Card>
+          <p className="text-xs text-muted-foreground">Only what you confirm is kept; the words themselves aren&apos;t.</p>
+        </div>
       )}
     </div>
   );
 }
 
-/** Edit a candidate before confirming it: the value, and its years where it has them. */
+/** The chat's first messages: a new person gets the invitation; someone known gets what's known and what would help next. */
+function opening(p: Person, paused: Paused[]): Msg[] {
+  const name = p.preferredName || "them";
+  const known = p.places.length > 0 || p.loves.length > 0;
+  if (!known) {
+    return [
+      { id: "hello", from: "agent", text: `Hello. I'm the Go-Between. Tell me about ${name}, in any order: talk, type, or paste a “This is me” if you have one.` },
+      { id: "helps-hint", from: "agent", text: `What helps me most: where ${name} grew up and lived, roughly when they were born, their work, family and big moments, the music, films and shows they loved, and what calms or upsets them. Tap a suggestion below to start, or just tell me.` },
+    ];
+  }
+  const by = p.birthYear ? `born ${p.birthYear}` : p.decade ? `born in the ${p.decade}s` : null;
+  const places = p.places.map((x) => `${x.name}${x.fromYear ? ` ${x.fromYear}–${x.toYear ?? ""}` : ""}`).join(", ");
+  return [
+    { id: "known", from: "agent", text: `Here's what I know about ${name}: ${[by, places, `${p.moments.length} big moments`, `${p.loves.length} things they love`, `${p.steers.length} ${p.steers.length === 1 ? "thing" : "things"} to steer clear of`].filter(Boolean).join(" · ")}.` },
+    ...(wouldHelpNext(p, paused, 0).length ? [{ id: "helps", from: "agent" as const, kind: "helps" as const }] : []),
+  ];
+}
+
+type BodyProps = {
+  m: Extract<Msg, { from: "agent" }>;
+  person: Person;
+  name: string;
+  ro: boolean;
+  busy: boolean;
+  resolved: boolean;
+  steps: StepItem[];
+  onHint: (starter: string) => void;
+  onConfirm: (facts: Candidate[]) => void;
+  onDrop: () => void;
+  onSteer: (level: "never" | "sad_ok" | "no_need") => void;
+  onAnswer: (shown: string, next: Person) => void;
+  onHelp: (h: Help) => void;
+  onFind: () => void;
+  galleryHref: string;
+  paused: Paused[];
+  provenCalm: number;
+};
+
+function AgentBody(props: BodyProps) {
+  const { m, person, name, ro, resolved } = props;
+  if (!("kind" in m)) return <span className="whitespace-pre-wrap">{m.text}</span>;
+  switch (m.kind) {
+    case "heard":
+      return <Heard facts={m.facts} resolved={resolved} ro={ro} onConfirm={props.onConfirm} onDrop={props.onDrop} />;
+    case "painful":
+      return resolved ? <span>You mentioned {m.fact.value}. Noted.</span> : <SteerQuestion question={`You mentioned ${m.fact.value}. Shall I steer clear of that in what I suggest?`} onAnswer={props.onSteer} />;
+    case "ask":
+      return resolved ? <span className="text-muted-foreground">Thanks.</span> : <AskInput ask={m.ask} person={person} name={name} onAnswer={props.onAnswer} />;
+    case "helps":
+      return <HelpChips person={person} name={name} onHelp={props.onHelp} ro={ro} paused={props.paused} provenCalm={props.provenCalm} />;
+    case "help":
+      return resolved ? <span className="text-muted-foreground">Thanks.</span> : <HelpInput help={m.help} person={person} onSave={(p, shown) => props.onAnswer(shown, p)} />;
+    case "find":
+      return resolved ? (
+        <span>Looking things up for {name}.</span>
+      ) : (
+        <span className="grid gap-2">
+          <span>I know enough to find songs, films, TV and places for {name}&apos;s years and places. Keep telling me if you like; the more I know, the better I dig.</span>
+          <span>
+            <Button size="sm" onClick={props.onFind} disabled={props.busy || ro}>
+              <Sparkles aria-hidden /> Find things for {name}
+            </Button>
+          </span>
+        </span>
+      );
+    case "finding":
+      return (
+        <span className="grid gap-2">
+          <span>Looking through {person.places.map((p) => p.name).join(" and ")} for the years {name} was young.</span>
+          {props.steps.length > 0 && <RunSteps items={props.steps} />}
+        </span>
+      );
+    case "found":
+      return (
+        <span className="grid gap-2">
+          <span>Done. {name}&apos;s gallery is ready: things to play and talk about. Come back here any time to tell me more.</span>
+          <span>
+            <Button asChild size="sm">
+              <Link href={props.galleryHref}>Open {name}&apos;s gallery</Link>
+            </Button>
+          </span>
+        </span>
+      );
+  }
+}
+
+/** "Here's what I heard": each fact with Yes, Edit or Remove, and All right for the lot. */
+function Heard({ facts, resolved, ro, onConfirm, onDrop }: { facts: Candidate[]; resolved: boolean; ro: boolean; onConfirm: (f: Candidate[]) => void; onDrop: () => void }) {
+  const [list, setList] = useState(facts);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [kept, setKept] = useState<Candidate[]>([]);
+  if (resolved) return <span>Got it: {kept.length ? kept.map(describeFact).join(" · ") : "nothing kept from that"}.</span>;
+  const finish = (k: Candidate[]) => {
+    setKept(k);
+    setList([]);
+    if (k.length) onConfirm(k);
+    else onDrop();
+  };
+  return (
+    <span className="grid gap-2">
+      <span className="font-medium">Here&apos;s what I heard:</span>
+      {list.map((f) => (
+        <span key={f.id} className="grid gap-1 rounded-md border bg-background p-2 text-foreground">
+          {editing === f.id ? (
+            <EditFact fact={f} onDone={(n) => (setEditing(null), setList((xs) => xs.map((x) => (x.id === f.id ? { ...x, ...n } : x))))} />
+          ) : (
+            <span className="font-medium">{describeFact(f)}</span>
+          )}
+          {f.quote && <span className="text-xs text-muted-foreground">“{f.quote}”</span>}
+          {editing !== f.id && !ro && (
+            <span className="flex flex-wrap gap-1.5">
+              <Button
+                size="xs"
+                onClick={() => {
+                  const k = [...kept, f];
+                  const rest = list.filter((x) => x.id !== f.id);
+                  setKept(k);
+                  setList(rest);
+                  if (!rest.length) finish(k);
+                }}
+              >
+                <Check aria-hidden /> Yes
+              </Button>
+              <Button size="xs" variant="outline" onClick={() => setEditing(f.id)}>
+                <Pencil aria-hidden /> Edit
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={() => {
+                  const rest = list.filter((x) => x.id !== f.id);
+                  setList(rest);
+                  if (!rest.length) finish(kept);
+                }}
+              >
+                <X aria-hidden /> Remove
+              </Button>
+            </span>
+          )}
+        </span>
+      ))}
+      {list.length > 1 && !ro && (
+        <span>
+          <Button size="sm" onClick={() => finish([...kept, ...list])}>
+            <Check aria-hidden /> All right
+          </Button>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function EditFact({ fact, onDone }: { fact: Candidate; onDone: (f: Partial<Fact>) => void }) {
   const [value, setValue] = useState(fact.value);
   const [from, setFrom] = useState(fact.fromYear ? String(fact.fromYear) : "");
@@ -306,215 +494,179 @@ function EditFact({ fact, onDone }: { fact: Candidate; onDone: (f: Partial<Fact>
   return (
     <span className="flex flex-wrap items-center gap-2">
       <Input aria-label="What it is" value={value} onChange={(e) => setValue(e.target.value)} className="h-8 w-56" />
-      {(fact.kind === "place" || fact.kind === "moment" || fact.kind === "birthYear" || fact.kind === "love") && (
-        <Input aria-label="From year" inputMode="numeric" placeholder="year" value={from} onChange={(e) => setFrom(e.target.value.replace(/\D/g, "").slice(0, 4))} className="h-8 w-20" />
-      )}
-      {fact.kind === "place" && <Input aria-label="Until year" inputMode="numeric" placeholder="until" value={to} onChange={(e) => setTo(e.target.value.replace(/\D/g, "").slice(0, 4))} className="h-8 w-20" />}
-      <Button size="sm" onClick={() => onDone({ value: value.trim() || fact.value, fromYear: yr(from), toYear: yr(to) })}>
+      {["place", "moment", "birthYear", "love"].includes(fact.kind) && <Input aria-label="Year" inputMode="numeric" placeholder="year" value={from} onChange={(e) => setFrom(e.target.value.replace(/\D/g, "").slice(0, 4))} className="h-8 w-20" />}
+      {fact.kind === "place" && <Input aria-label="Until" inputMode="numeric" placeholder="until" value={to} onChange={(e) => setTo(e.target.value.replace(/\D/g, "").slice(0, 4))} className="h-8 w-20" />}
+      <Button size="xs" onClick={() => onDone({ value: value.trim() || fact.value, fromYear: yr(from), toYear: yr(to) })}>
         Done
       </Button>
     </span>
   );
 }
 
-/** The steer-clear question when nothing's been flagged yet: a label, or "nothing to steer clear of". */
-function SteerTopic({ person, onSave }: { person: Person; onSave: (p: Person) => void }) {
+/** One question, with the input that fits it. */
+function AskInput({ ask, person, name, onAnswer }: { ask: Ask; person: Person; name: string; onAnswer: (shown: string, next: Person) => void }) {
+  switch (ask.kind) {
+    case "name":
+      return <TextInput id="a-name" label="What name do they like to be called?" onSave={(v) => onAnswer(v, { ...person, preferredName: v.slice(0, 40) })} />;
+    case "born":
+      return (
+        <YearInput
+          id="a-born"
+          label={`Roughly when was ${name} born? A decade is fine.`}
+          value={null}
+          min={1915}
+          max={1995}
+          choices={[1930, 1940, 1950, 1960].map((d) => ({ label: `${d}s`, value: d, choice: "decade" }))}
+          onSave={(y, choice) => y && onAnswer(choice === "decade" ? `The ${y}s` : String(y), choice === "decade" ? { ...person, decade: y } : { ...person, birthYear: y })}
+        />
+      );
+    case "place":
+      return <PlaceSearch id="a-place" label={`Where did ${name} grow up?`} onPick={(pl) => onAnswer(pl.label ?? pl.name, addPlace(person, { name: pl.name, label: pl.label, fromYear: birthYearOf(person), toYear: null, role: "grew up" }))} />;
+    case "from":
+    case "to": {
+      const pl = person.places.find((x) => x.id === ask.placeId)!;
+      const field = ask.kind === "from" ? "fromYear" : "toYear";
+      return (
+        <YearInput
+          id={`a-${ask.kind}-${pl.id}`}
+          label={ask.kind === "from" ? `When did ${name} move to ${pl.name}?` : `Until when was ${name} in ${pl.name}?`}
+          value={null}
+          choices={[{ label: "Not sure", value: null }]}
+          onSave={(y) => onAnswer(y ? String(y) : "Not sure", { ...person, places: person.places.map((x) => (x.id === pl.id ? (y ? { ...x, [field]: y } : { ...x, yearsUnknown: true }) : x)) })}
+        />
+      );
+    }
+    case "steer":
+      return <SteerTopic person={person} name={name} onSave={(p, shown) => onAnswer(shown, p)} />;
+  }
+}
+
+function SteerTopic({ person, name, onSave }: { person: Person; name: string; onSave: (p: Person, shown: string) => void }) {
   const [label, setLabel] = useState("");
   return (
-    <div className="grid gap-2">
-      <p className="font-medium">Anything to steer clear of in sessions? A person, a topic, a sound.</p>
-      <p className="text-xs text-muted-foreground">Just a short label. No reason needed.</p>
-      <div className="flex flex-wrap gap-2">
-        <Input aria-label="Something to steer clear of" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. The war, loud bangs" className="sm:w-64" maxLength={60} />
-        <Button size="sm" disabled={label.trim().length < 2} onClick={() => onSave(addSteer(person, label, "never"))}>
+    <span className="grid gap-2">
+      <span>Is there anything I should steer clear of for {name}? A person, a topic, a sound. Just a short label; no reason needed.</span>
+      <span className="flex flex-wrap gap-2">
+        <Input aria-label="Something to steer clear of" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. The war, loud bangs" className="h-8 sm:w-64" maxLength={60} />
+        <Button size="xs" disabled={label.trim().length < 2} onClick={() => onSave(addSteer(person, label, "never"), `Steer clear of ${label.trim()}`)}>
           Never
         </Button>
-        <Button size="sm" variant="outline" disabled={label.trim().length < 2} onClick={() => onSave(addSteer(person, label, "sad_ok"))}>
+        <Button size="xs" variant="outline" disabled={label.trim().length < 2} onClick={() => onSave(addSteer(person, label, "sad_ok"), `${label.trim()}: sad but OK`)}>
           Sad but OK
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => onSave({ ...person, steerAsked: true })}>
-          Nothing to steer clear of
+        <Button size="xs" variant="ghost" onClick={() => onSave({ ...person, steerAsked: true }, "Nothing to steer clear of")}>
+          Nothing
         </Button>
-      </div>
-    </div>
+      </span>
+    </span>
   );
 }
 
-/** What's known: the story so far, each line removable. */
-function Known({ person, onSave, ro }: { person: Person; onSave: (p: Person) => void; ro: boolean }) {
-  const rm = (label: string, next: Person) =>
-    ro ? null : (
-      <Button size="icon-xs" variant="ghost" aria-label={`Remove ${label}`} onClick={() => onSave(next)}>
-        <Trash2 aria-hidden />
-      </Button>
-    );
-  const born = person.birthYear ? `Born ${person.birthYear}` : person.decade ? `Born in the ${person.decade}s` : null;
+/** What would help next, as chips: tapping one asks its question in the chat. */
+function HelpChips({ person, name, onHelp, ro, paused, provenCalm }: { person: Person; name: string; onHelp: (h: Help) => void; ro: boolean; paused: Paused[]; provenCalm: number }) {
+  const helps = wouldHelpNext(person, paused, provenCalm);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>What we know</CardTitle>
-        <CardDescription>
-          {[born, `${person.places.length} places`, `${person.moments.length} moments`, `${person.loves.length} loves`, `${person.steers.length} steer-clears`].filter(Boolean).join(" · ")}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-3 text-sm">
-        {person.places.length > 0 && (
-          <Row label="Places">
-            {person.places.map((p) => (
-              <span key={p.id} className="inline-flex items-center">
-                {p.name}
-                {p.fromYear ? ` ${p.fromYear}–${p.toYear ?? "?"}` : ""}
-                {rm(p.name, { ...person, places: person.places.filter((x) => x.id !== p.id) })}
-              </span>
-            ))}
-          </Row>
-        )}
-        {person.moments.length > 0 && (
-          <Row label="Moments">
-            {person.moments.map((m) => (
-              <span key={m.id} className="inline-flex items-center">
-                {m.label}
-                {m.year ? `, ${m.year}` : ""}
-                {rm(m.label, { ...person, moments: person.moments.filter((x) => x.id !== m.id) })}
-              </span>
-            ))}
-          </Row>
-        )}
-        {person.loves.length > 0 && (
-          <Row label="Loves">
-            {person.loves.map((l) => (
-              <span key={l.id} className="inline-flex items-center">
-                {l.title}
-                {l.by ? ` (${l.by})` : ""}
-                {l.source === "ring_a_bell" ? <Badge variant="outline">rang a bell</Badge> : l.source === "staff_heard" ? <Badge variant="outline">staff heard</Badge> : null}
-                {rm(l.title, { ...person, loves: person.loves.filter((x) => x.id !== l.id) })}
-              </span>
-            ))}
-          </Row>
-        )}
-        {person.steers.length > 0 && (
-          <Row label="Steer clear">
-            {person.steers.map((s) => (
-              <span key={s.id} className="inline-flex items-center">
-                {s.label} ({s.level === "never" ? "never" : "sad but OK"})
-                {rm(s.label, { ...person, steers: person.steers.filter((x) => x.id !== s.id) })}
-              </span>
-            ))}
-          </Row>
-        )}
-        {Object.entries({ Calms: person.practical.calms, Work: person.practical.work, Hearing: person.practical.hearing, Greeting: person.practical.greeting, "Best time": person.practical.bestTime }).map(([k, v]) =>
-          v ? (
-            <Row key={k} label={k}>
-              <span>{v}</span>
-            </Row>
-          ) : null,
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid gap-1 sm:grid-cols-[7rem_1fr]">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="flex flex-wrap gap-x-3 gap-y-1">{children}</span>
-    </div>
+    <span className="grid gap-2">
+      <span>What would help me most next for {name}:</span>
+      <span className="flex flex-wrap gap-1.5">
+        {helps.map((h) => (
+          <Button key={h.id} size="xs" variant={h.kind === "upset" ? "destructive" : "outline"} disabled={ro} onClick={() => onHelp(h)}>
+            {h.label}
+          </Button>
+        ))}
+      </span>
+      <span className="text-muted-foreground">Or just tell me more below.</span>
+    </span>
   );
 }
 
 /** The typed input behind a "would help next" chip. */
-function HelpInput({ help, person, onSave }: { help: Help; person: Person; onSave: (p: Person) => void }) {
+function HelpInput({ help, person, onSave }: { help: Help; person: Person; onSave: (p: Person, shown: string) => void }) {
   const name = person.preferredName || "they";
   switch (help.kind) {
     case "upset":
       return (
-        <div className="grid gap-2">
-          <p className="font-medium">
-            {name} was upset during {help.itemTitle}. Steer clear of it?
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => onSave(addSteer(person, help.itemTitle, "never", "item", "logged"))}>
+        <span className="grid gap-2">
+          <span>
+            {name} was upset during {help.itemTitle}. Shall I steer clear of it?
+          </span>
+          <span className="flex flex-wrap gap-2">
+            <Button size="xs" onClick={() => onSave(addSteer(person, help.itemTitle, "never", "item", "logged"), "Never")}>
               Never
             </Button>
-            <Button size="sm" variant="outline" onClick={() => onSave({ ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] })}>
+            <Button size="xs" variant="outline" onClick={() => onSave({ ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] }, "Sad but OK")}>
               Sad but OK
             </Button>
-            <Button size="sm" variant="outline" onClick={() => onSave({ ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] })}>
+            <Button size="xs" variant="outline" onClick={() => onSave({ ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] }, "A one-off")}>
               A one-off
             </Button>
-          </div>
-        </div>
+          </span>
+        </span>
       );
     case "steer":
-      return <SteerTopic person={person} onSave={onSave} />;
+      return <SteerTopic person={person} name={name} onSave={onSave} />;
     case "place":
-      return (
-        <PlaceSearch
-          id="h-place"
-          label={help.label}
-          onPick={(pl) => onSave(addPlace(person, { name: pl.name, label: pl.label, fromYear: person.places.at(-1)?.toYear ?? null, toYear: null, role: "lived" }))}
-        />
-      );
+      return <PlaceSearch id="h-place" label={help.label} onPick={(pl) => onSave(addPlace(person, { name: pl.name, label: pl.label, fromYear: person.places.at(-1)?.toYear ?? null, toYear: null, role: "lived" }), pl.label ?? pl.name)} />;
     case "moment":
       return (
         <TextInput
           id="h-moment"
-          label="A wedding, dancing, a move: what and when"
+          label="A wedding, dancing, a move: what and when?"
           placeholder="e.g. Married at St Mary's in 1972"
           onSave={(t) => {
             const year = t.match(/(19|20)\d\d/)?.[0];
             const kind = /marri|wedd/i.test(t) ? "wedding" : /danc/i.test(t) ? "dance" : /mov/i.test(t) ? "move" : /servic|army|navy|raf/i.test(t) ? "service" : "other";
-            onSave({ ...person, moments: [...person.moments, { id: uid("mo"), kind, year: year ? Number(year) : null, label: t }] });
+            onSave({ ...person, moments: [...person.moments, { id: uid("mo"), kind, year: year ? Number(year) : null, label: t }] }, t);
           }}
         />
       );
     case "calms":
-      return <TextInput id="h-calms" label={`What calms ${name}?`} placeholder="e.g. Dusty, softly; holding a hand" onSave={(t) => onSave({ ...person, practical: { ...person.practical, calms: t } })} />;
+      return <TextInput id="h-calms" label={`What calms ${name}?`} placeholder="e.g. Dusty, softly; holding a hand" onSave={(t) => onSave({ ...person, practical: { ...person.practical, calms: t } }, t)} />;
     case "work":
-      return <TextInput id="h-work" label="Their work, trade or skills" placeholder="e.g. A shop on Market Street; sewing" onSave={(t) => onSave({ ...person, practical: { ...person.practical, work: t } })} />;
+      return <TextInput id="h-work" label="Their work, trade or skills?" placeholder="e.g. A shop on Market Street; sewing" onSave={(t) => onSave({ ...person, practical: { ...person.practical, work: t } }, t)} />;
     case "faith":
       return (
-        <div className="grid gap-2">
-          <p className="font-medium">Faith in sessions?</p>
-          <div className="flex flex-wrap gap-2">
-            <TextInput id="h-faith" label="Yes: which (hymns, festivals)" onSave={(t) => onSave({ ...person, practical: { ...person.practical, faith: { stance: "yes", label: t.slice(0, 60) } } })} />
-            <Button size="sm" variant="outline" className="self-end" onClick={() => onSave({ ...person, practical: { ...person.practical, faith: { stance: "keep_out" } } })}>
+        <span className="grid gap-2">
+          <TextInput id="h-faith" label="Faith in what I suggest: which (hymns, festivals)?" onSave={(t) => onSave({ ...person, practical: { ...person.practical, faith: { stance: "yes", label: t.slice(0, 60) } } }, t)} />
+          <span>
+            <Button size="xs" variant="outline" onClick={() => onSave({ ...person, practical: { ...person.practical, faith: { stance: "keep_out" } } }, "Keep faith out")}>
               Keep it out
             </Button>
-          </div>
-        </div>
+          </span>
+        </span>
       );
     case "hearing":
       return (
-        <div className="grid gap-2">
-          <TextInput id="h-hearing" label="Hearing" placeholder="e.g. Hears better on the left" onSave={(t) => onSave({ ...person, practical: { ...person.practical, hearing: t } })} />
-          <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="grid gap-2">
+          <TextInput id="h-hearing" label="Hearing?" placeholder="e.g. Hears better on the left" onSave={(t) => onSave({ ...person, practical: { ...person.practical, hearing: t } }, t)} />
+          <span className="flex flex-wrap items-center gap-2">
             Headphones:
-            <Button size="sm" variant="outline" onClick={() => onSave({ ...person, practical: { ...person.practical, headphonesOk: true } })}>
+            <Button size="xs" variant="outline" onClick={() => onSave({ ...person, practical: { ...person.practical, headphonesOk: true } }, "Headphones are fine")}>
               Fine
             </Button>
-            <Button size="sm" variant="outline" onClick={() => onSave({ ...person, practical: { ...person.practical, headphonesOk: false } })}>
+            <Button size="xs" variant="outline" onClick={() => onSave({ ...person, practical: { ...person.practical, headphonesOk: false } }, "No headphones")}>
               No headphones
             </Button>
-          </div>
-        </div>
+          </span>
+        </span>
       );
     case "heard": {
-      const h = person.staffHeard.find((x) => x.id === help.heardId)!;
+      const h = person.staffHeard.find((x) => x.id === help.heardId);
+      if (!h) return null;
       return (
-        <div className="grid gap-2">
-          <p className="font-medium">Staff heard in a session: “{h.text}”. Is that right?</p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => onSave({ ...person, staffHeard: person.staffHeard.map((x) => (x.id === h.id ? { ...x, confirmed: true } : x)) })}>
-              Yes, keep it
+        <span className="grid gap-2">
+          <span>Someone caring for {name} heard: “{h.text}”. Is that right?</span>
+          <span className="flex flex-wrap gap-2">
+            <Button size="xs" onClick={() => onSave({ ...person, staffHeard: person.staffHeard.map((x) => (x.id === h.id ? { ...x, confirmed: true } : x)) }, "Yes, that's right")}>
+              Yes
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => onSave({ ...person, staffHeard: person.staffHeard.filter((x) => x.id !== h.id) })}>
+            <Button size="xs" variant="ghost" onClick={() => onSave({ ...person, staffHeard: person.staffHeard.filter((x) => x.id !== h.id) }, "Not right")}>
               Not right
             </Button>
-          </div>
-        </div>
+          </span>
+        </span>
       );
     }
   }
 }
+

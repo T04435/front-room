@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EXAMPLE_KITS, EXAMPLE_LOGS } from "@/lib/example-person";
-import { defaultGoal, itemKey, itemStats, provenCalm, topProven, type Logged } from "@/lib/learning";
+import { itemKey, itemStats, playStats, provenCalm, topProven, type Logged } from "@/lib/learning";
+import { EXAMPLE_PLAYS } from "@/lib/example-person";
 import type { Kit } from "@/lib/kit";
 
 const NOW = new Date("2026-10-25T12:00:00Z");
@@ -42,12 +43,16 @@ describe("kits that learn (the example Margaret's five sessions)", () => {
   });
 });
 
-describe("item keys and goals", () => {
+describe("the gallery learns from plays (a session is a day)", () => {
+  it("gives the example the same states from her plays", () => {
+    const stats = playStats(EXAMPLE_PLAYS, [], NOW);
+    const st = (t: string) => [...stats.values()].find((s) => s.title === t)?.state;
+    expect([st("Waterloo"), st("Yesterday"), st("Lola"), st("Maggie May")]).toEqual(["proven", "paused", "resting", "tried"]);
+  });
+});
+
+describe("item keys", () => {
   it("keys an item the same way however it's spelled", () => {
     expect(itemKey({ type: "song", title: "Waterloo!", by: { title: "ABBA" } })).toBe(itemKey({ type: "song", title: "waterloo", by: "Abba" }));
-  });
-  it("suggests Settle after 17:00", () => {
-    expect(defaultGoal(18)).toBe("settle");
-    expect(defaultGoal(10)).toBe("chat");
   });
 });

@@ -8,21 +8,10 @@ import { nameKey } from "./qloo-parse";
  * - Upset once → paused: out of the next kit until someone answers (never, sad but OK, or a one-off).
  * - No reaction in 3 sessions (and never a good one) → resting for 30 days.
  */
+export type Goal = "settle" | "chat" | "sing";
 export const PROVEN_SESSIONS = 2;
 export const RESTING_SESSIONS = 3;
 export const RESTING_DAYS = 30;
-
-export const GOALS = ["settle", "chat", "sing"] as const;
-export type Goal = (typeof GOALS)[number];
-export const GOAL_LABELS: Record<Goal, string> = { settle: "Settle", chat: "Chat", sing: "Sing" };
-export const GOAL_HINTS: Record<Goal, string> = {
-  settle: "Calm, proven things only and few questions. For evenings and before personal care.",
-  chat: "One to one, with prompts, films and places.",
-  sing: "Builds to a singalong at the end. Good for a group.",
-};
-
-/** Settle is the default after 17:00 (the Alzheimer's Association's evening guidance). */
-export const defaultGoal = (hour = new Date().getHours()): Goal => (hour >= 17 ? "settle" : "chat");
 
 /** The same thing across kits: its type and title (and a song's artist), however the curator spelled them. */
 export function itemKey(i: Pick<KitItem, "type" | "title"> & { by?: { title: string } | string }): string {
@@ -119,4 +108,47 @@ export function topProven(stats: Map<string, ItemStat>, n = 3): ItemStat[] {
 /** Proven items that settle: calm in at least one session and never upset. */
 export function provenCalm(stats: Map<string, ItemStat>): ItemStat[] {
   return [...stats.values()].filter((s) => s.calmSessions > 0 && s.upsetSessions === 0 && (s.state === "proven" || s.calmSessions >= PROVEN_SESSIONS)).sort((a, b) => b.calmSessions - a.calmSessions);
+}
+
+/** One play from a person's gallery: what, how they responded, when. */
+export type Play = { id: number; itemKey: string; type: KitItem["type"]; title: string; by?: string; response: Logged["response"]; at: string };
+
+/** The day a play happened, in the home's time zone: plays on one day count as one session. */
+const sessionDay = (iso: string, timeZone = "Europe/London") => new Date(iso).toLocaleDateString("en-CA", { timeZone });
+
+/**
+ * The same rules over plays from the gallery, with a session being a day: sang along or engaged on 2 days → proven;
+ * upset once → paused; no reaction on 3 days → resting for 30 days.
+ */
+export function playStats(plays: Play[], resolvedUpsets: string[] = [], now = new Date(), timeZone?: string): Map<string, ItemStat> {
+  const resolved = new Set(resolvedUpsets);
+  const byItemDay = new Map<string, Map<string, Play[]>>();
+  for (const p of plays) {
+    const days = byItemDay.get(p.itemKey) ?? new Map<string, Play[]>();
+    const d = sessionDay(p.at, timeZone);
+    days.set(d, [...(days.get(d) ?? []), p]);
+    byItemDay.set(p.itemKey, days);
+  }
+  const stats = new Map<string, ItemStat>();
+  for (const [key, days] of byItemDay) {
+    const first = [...days.values()][0][0];
+    const s: ItemStat = { key, type: first.type, title: first.title, by: first.by, plays: 0, sangSessions: 0, engagedSessions: 0, calmSessions: 0, upsetSessions: 0, quietSessions: 0, lastAt: null, lastUpsetAt: null, state: "new", label: "" };
+    for (const entries of days.values()) {
+      const tags = new Set(entries.map((e) => e.response));
+      const last = entries.map((e) => e.at).sort().at(-1)!;
+      s.plays++;
+      if (tags.has("sang")) s.sangSessions++;
+      if (tags.has("engaged")) s.engagedSessions++;
+      if (tags.has("calm")) s.calmSessions++;
+      if (tags.has("upset")) {
+        s.upsetSessions++;
+        if (!s.lastUpsetAt || last > s.lastUpsetAt) s.lastUpsetAt = last;
+      }
+      if ([...tags].every((t) => t === "none")) s.quietSessions++;
+      if (!s.lastAt || last > s.lastAt) s.lastAt = last;
+    }
+    Object.assign(s, stateOf(s, resolved.has(key), now));
+    stats.set(key, s);
+  }
+  return stats;
 }

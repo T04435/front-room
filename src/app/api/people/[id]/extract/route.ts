@@ -22,8 +22,8 @@ export async function POST(request: Request, ctx: RouteContext<"/api/people/[id]
   const refused = await perVisitor("chat", request);
   if (refused) return refusalResponse(refused);
   try {
-    const facts = await extractFacts(parsed.data.text, person, request.signal);
-    return Response.json({ facts: facts.map((f, i) => ({ ...f, id: `f${Date.now().toString(36)}${i}` })) }, { headers: { "Cache-Control": "no-store" } });
+    const { facts, followUps } = await extractFacts(parsed.data.text, person, request.signal);
+    return Response.json({ facts: facts.map((f, i) => ({ ...f, id: `f${Date.now().toString(36)}${i}` })), followUps }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("extract failed", error instanceof Error ? error.message : error);
     return Response.json({ error: "That didn't go through. Try again in a minute." }, { status: 502 });

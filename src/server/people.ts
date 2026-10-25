@@ -1,9 +1,9 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { EXAMPLE_KITS, EXAMPLE_LOGS, EXAMPLE_PERSON, EXAMPLE_PERSON_ID } from "@/lib/example-person";
+import { EXAMPLE_KITS, EXAMPLE_LOGS, EXAMPLE_PERSON, EXAMPLE_PERSON_ID, EXAMPLE_PLAYS } from "@/lib/example-person";
 import type { Kit } from "@/lib/kit";
-import type { Logged } from "@/lib/learning";
-import { completeness, missingMinimum, type Person, type PersonSummary } from "@/lib/person";
+import type { Logged, Play } from "@/lib/learning";
+import { completeness, type Person, type PersonSummary } from "@/lib/person";
 import { db } from "@/server/db";
 
 /** Person ids are the private link: 10 url-safe characters, unguessable. */
@@ -68,7 +68,7 @@ function summarise(p: Person, kits: { createdAt: string }[]): PersonSummary {
     completeness: completeness(p),
     sessions: kits.length,
     lastSession: kits.at(-1)?.createdAt ?? null,
-    ready: missingMinimum(p).length === 0,
+    ready: Object.values(p.suggestions).some((cs) => cs.length),
     example: Boolean(p.example),
   };
 }
@@ -80,18 +80,44 @@ export async function listPeople(deviceId: string | null): Promise<PersonSummary
     const sql = await db();
     const rows = await sql.query<{ person: Person | string; kits: number | string; last: string | Date | null }>(
       `SELECT p.person,
-              (SELECT count(*) FROM kits k WHERE k.person_id = p.id) AS kits,
-              (SELECT max(k.created_at) FROM kits k WHERE k.person_id = p.id) AS last
+              (SELECT count(DISTINCT date(pl.at)) FROM plays pl WHERE pl.person_id = p.id) AS kits,
+              (SELECT max(pl.at) FROM plays pl WHERE pl.person_id = p.id) AS last
          FROM device_people d JOIN people p ON p.id = d.person_id
         WHERE d.device_id = $1 ORDER BY p.updated_at DESC`,
       [deviceId],
     );
     for (const r of rows) {
       const p = parse(r.person);
-      const s = summarise(p, []);
+      // "Sessions" are days with plays; "ready" means their gallery has things in it.
+      const s = { ...summarise(p, []), ready: Object.values(p.suggestions).some((cs) => cs.length) };
       out.push({ ...s, sessions: Number(r.kits), lastSession: r.last ? new Date(r.last).toISOString() : null });
     }
   }
   out.push(summarise(EXAMPLE_PERSON, EXAMPLE_KITS));
   return out;
+}
+
+/** Everything played for a person from their gallery, oldest first. */
+export async function personPlays(personId: string): Promise<Play[]> {
+  if (personId === EXAMPLE_PERSON_ID) return EXAMPLE_PLAYS;
+  const sql = await db();
+  const rows = await sql.query<{ id: number; item_key: string; item_type: Play["type"]; title: string; by_name: string | null; response: Play["response"]; at: string | Date }>(
+    "SELECT id, item_key, item_type, title, by_name, response, at FROM plays WHERE person_id = $1 ORDER BY at, id",
+    [personId],
+  );
+  return rows.map((r) => ({ id: r.id, itemKey: r.item_key, type: r.item_type, title: r.title, ...(r.by_name ? { by: r.by_name } : {}), response: r.response, at: new Date(r.at).toISOString() }));
+}
+
+export async function addPlay(personId: string, play: Omit<Play, "id" | "at">): Promise<Play> {
+  const sql = await db();
+  const rows = await sql.query<{ id: number; at: string | Date }>(
+    "INSERT INTO plays (person_id, item_key, item_type, title, by_name, response) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, at",
+    [personId, play.itemKey, play.type, play.title, play.by ?? null, play.response],
+  );
+  return { ...play, id: rows[0].id, at: new Date(rows[0].at).toISOString() };
+}
+
+export async function undoPlay(personId: string, id: number): Promise<void> {
+  const sql = await db();
+  await sql.query("DELETE FROM plays WHERE person_id = $1 AND id = $2", [personId, id]);
 }

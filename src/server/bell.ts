@@ -162,6 +162,17 @@ async function researchPlace(p: Person, place: Place, era: ReturnType<typeof era
     }
   }
 
+  // Books like the ones the family mentioned (Qloo's book years are editions, so books come from their own loves).
+  for (const love of p.loves.filter((l) => l.type === "book").slice(0, 2)) {
+    const s = await get("/search", { query: love.title, types: "urn:entity:book", take: 5 }, onCall);
+    const match = pickByName(parseSearch(s.data), love.title);
+    if (!match) continue;
+    const r = await get("/v2/insights", { "filter.type": "urn:entity:book", "signal.interests.entities": match.id, take: 5 }, onCall);
+    for (const e of parseInsights(r.data).slice(0, 3)) {
+      if (nameKey(e.name) !== nameKey(match.name)) add({ placeId: place.id, type: "book", title: e.name, year: e.year, parts: ["book", `like ${match.name}`, "Qloo"], source: `Qloo: liked by readers of ${match.name}.`, qlooId: e.id });
+    }
+  }
+
   // Films and TV from the era's release years, popular around the place.
   for (const [kind, type, n] of [["film", "urn:entity:movie", PER_PLACE.films], ["tv", "urn:entity:tv_show", PER_PLACE.tv]] as const) {
     const base = { "filter.type": type, "filter.release_year.min": era.from, "filter.release_year.max": era.to, take: 8 };

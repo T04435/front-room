@@ -2,15 +2,12 @@ import { Check, ClipboardList, X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { GoalButtons } from "@/components/person-actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { APP_NAME } from "@/lib/app";
-import { careNote } from "@/lib/care-note";
-import { GOAL_LABELS, itemStats, provenCalm, topProven } from "@/lib/learning";
-import { missingMinimum } from "@/lib/person";
-import { getPerson, personKits, personLogs } from "@/server/people";
+import { careNoteForPlays } from "@/lib/care-note";
+import { playStats, provenCalm, topProven } from "@/lib/learning";
+import { getPerson, personPlays } from "@/server/people";
 
 export const dynamic = "force-dynamic";
 
@@ -33,15 +30,18 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
   const { id } = await params;
   const person = await getPerson(id);
   if (!person) notFound();
-  const [kits, logs] = await Promise.all([personKits(id), personLogs(id)]);
-  const stats = itemStats(kits, logs, person.resolvedUpsets);
+  const plays = await personPlays(id);
+  const stats = playStats(plays, person.resolvedUpsets, new Date(), HOME_TZ);
   const works = topProven(stats);
   const settles = provenCalm(stats).slice(0, 2);
   const paused = [...stats.values()].filter((s) => s.state === "paused");
   const resting = [...stats.values()].filter((s) => s.state === "resting");
-  const last = kits.at(-1);
-  const lastLogs = last ? logs.filter((l) => l.kitId === last.id) : [];
-  const note = last ? careNote(last, lastLogs, last.createdAt, lastLogs.at(-1)?.at ?? last.createdAt, HOME_TZ) : null;
+  // The last day with plays is the last session.
+  const dayOf = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: HOME_TZ });
+  const lastDay = plays.filter((p) => p.response !== "none").at(-1);
+  const lastPlays = lastDay ? plays.filter((p) => dayOf(p.at) === dayOf(lastDay.at)) : [];
+  const note = careNoteForPlays(lastPlays, HOME_TZ);
+  const days = new Set(plays.map((p) => dayOf(p.at))).size;
   const p = person.practical;
   const talks = person.moments.slice(0, 2);
 
@@ -56,7 +56,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
           {p.greeting ? <span className="text-muted-foreground"> · {p.greeting}</span> : null}
         </p>
         <p className="text-sm text-muted-foreground">
-          {kits.length} {kits.length === 1 ? "session" : "sessions"} logged{last ? ` · last ${day(last.createdAt)}` : ""}. Each line says when it was last confirmed.
+          {days} {days === 1 ? "day" : "days"} of play logged{lastDay ? ` · last ${day(lastDay.at)}` : ""}. Each line says when it was last confirmed.
         </p>
       </div>
 
@@ -129,7 +129,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
             </p>
           )}
           {p.bestTime && <p>Best time: {p.bestTime}</p>}
-          {!settles.length && !p.calms && <p className="text-sm text-muted-foreground">Not known yet. Settle sessions and the story chat fill this in.</p>}
+          {!settles.length && !p.calms && <p className="text-sm text-muted-foreground">Not known yet. Logging Calm in the gallery, and the story chat, fill this in.</p>}
         </CardContent>
       </Card>
 
@@ -147,39 +147,23 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
         </CardContent>
       </Card>
 
-      {last && note && (
+      {note && lastDay && (
         <Card>
           <CardHeader>
-            <CardTitle>Last session</CardTitle>
+            <CardTitle>Last session · {day(lastDay.at)}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2">
             <p>{note}</p>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline">{last.goal ? GOAL_LABELS[last.goal] : "Session"}</Badge>
-              <Button asChild size="sm" variant="ghost">
-                <Link href={`/kits/${last.id}`}>Open it</Link>
-              </Button>
-            </div>
+            <p className="text-xs text-muted-foreground">A care note: observations, not a clinical score. Copy it into the home&apos;s records.</p>
           </CardContent>
         </Card>
       )}
 
-      {missingMinimum(person).length === 0 && (
-        <section className="grid gap-2">
-          <h2 className="text-xl font-semibold">{person.example ? "Their next session (a preview)" : "Start a session"}</h2>
-          {person.example ? (
-            <div className="flex flex-wrap gap-2">
-              {(["settle", "chat", "sing"] as const).map((g) => (
-                <Button key={g} asChild variant={g === "chat" ? "default" : "outline"}>
-                  <Link href={`/p/${id}/session?goal=${g}`}>{GOAL_LABELS[g]} preview</Link>
-                </Button>
-              ))}
-            </div>
-          ) : (
-            <GoalButtons personId={id} />
-          )}
-        </section>
-      )}
+      <div>
+        <Button asChild>
+          <Link href={`/p/${id}`}>Play something for {person.preferredName}</Link>
+        </Button>
+      </div>
     </div>
   );
 }

@@ -45,11 +45,11 @@ export default async function PeoplePage() {
                   {p.example && <Badge variant="secondary">Read-only</Badge>}
                 </ItemTitle>
                 <ItemDescription>
-                  Story {p.completeness}% · {p.sessions ? `${p.sessions} ${p.sessions === 1 ? "session" : "sessions"}, last ${ago(p.lastSession!)}` : "no sessions yet"}
+                  Story {p.completeness}% · {p.sessions ? `played for on ${p.sessions} ${p.sessions === 1 ? "day" : "days"}, last ${ago(p.lastSession!)}` : p.ready ? "gallery ready, nothing played yet" : "story in progress"}
                 </ItemDescription>
               </ItemContent>
               <ItemActions>
-                <span className="text-sm text-muted-foreground">{p.example ? "Open" : p.ready && p.sessions ? "Next session" : "Continue"} →</span>
+                <span className="text-sm text-muted-foreground">{p.example ? "Open" : p.ready ? "Play something" : "Continue the story"} →</span>
               </ItemActions>
             </Link>
           </Item>

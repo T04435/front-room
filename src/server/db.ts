@@ -1,6 +1,7 @@
 import "server-only";
 import { neon } from "@neondatabase/serverless";
 import { migrate, type Sql } from "@/lib/migrate";
+import { SCHEMA } from "@/lib/schema";
 import { env, offline } from "@/server/env";
 
 /**
@@ -9,7 +10,9 @@ import { env, offline } from "@/server/env";
  */
 // On globalThis: Next's dev server loads route handlers and pages in separate module graphs, and two PGlite instances on
 // one data folder don't see each other's writes.
-const store = globalThis as typeof globalThis & { __frontRoomDb?: Promise<Sql> | null };
+// The schema it was set up with is kept too: in development a changed schema is applied on the next request, without
+// a restart (every statement is IF NOT EXISTS, so running it again is safe).
+const store = globalThis as typeof globalThis & { __frontRoomDb?: Promise<Sql> | null; __frontRoomSchema?: string };
 
 async function open(): Promise<Sql> {
   let sql: Sql;
@@ -30,10 +33,16 @@ async function open(): Promise<Sql> {
     sql = { query: async <T,>(text: string, params?: unknown[]) => (await db.query<T>(text, params ?? [])).rows };
   }
   await migrate(sql);
+  store.__frontRoomSchema = SCHEMA;
   return sql;
 }
 
 export function db(): Promise<Sql> {
+  const current = store.__frontRoomDb;
+  if (current && store.__frontRoomSchema !== SCHEMA) {
+    store.__frontRoomSchema = SCHEMA;
+    store.__frontRoomDb = current.then(async (sql) => (await migrate(sql), sql));
+  }
   store.__frontRoomDb ??= open().catch((e) => {
     store.__frontRoomDb = null;
     throw e;

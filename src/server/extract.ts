@@ -20,10 +20,12 @@ Kinds:
 - work: jobs, trades, skills. faith: faith or festivals they keep (or "keep it out"). hearing: hearing and headphones. language: languages they speak. greeting: how they like to be greeted. bestTime: their best time of day.
 
 Every fact has a quote: the teller's own words it came from, short (under 15 words), copied exactly.
-Don't record pronouns, surnames, addresses, diagnoses or medication, even if said.`;
+Don't record pronouns, surnames, addresses, diagnoses or medication, even if said.
+
+followUps: one or two short, warm questions for the teller (the family or carer, not the person) that dig into what they just said, toward what a "This is me" still lacks: the years at a place, what they did there, the songs at a dance or a wedding, what they loved, what calms or upsets them. Ground them in their words ("You said they moved to Blackpool when they married. What did they do there?"). Use the person's name or "they". Never ask about anything painful they mentioned.`;
 
 /** The facts in what someone told us. Nothing is saved here: the page shows them as "here's what I heard" to confirm. */
-export async function extractFacts(text: string, person: Person, abortSignal?: AbortSignal): Promise<Fact[]> {
+export async function extractFacts(text: string, person: Person, abortSignal?: AbortSignal): Promise<{ facts: Fact[]; followUps: string[] }> {
   const model = offline() ? offlineExtractor(text) : MODELS.curator;
   const known = [
     person.preferredName ? `Name they like: ${person.preferredName}` : null,
@@ -42,12 +44,13 @@ export async function extractFacts(text: string, person: Person, abortSignal?: A
         maxOutputTokens: 3000,
         abortSignal: AbortSignal.any([AbortSignal.timeout(LIMITS.curatorTimeoutMs), ...(abortSignal ? [abortSignal] : [])]),
       })
-    ).output.facts;
+    ).output;
+  const tidy = (o: { facts: Fact[]; followUps: string[] }) => ({ facts: clean(o.facts, text), followUps: o.followUps.filter((q) => q.trim() && !/remember/i.test(q)).slice(0, 2) });
   try {
-    return clean(await once(), text);
+    return tidy(await once());
   } catch (error) {
     if (!NoObjectGeneratedError.isInstance(error) || abortSignal?.aborted) throw error;
-    return clean(await once(), text);
+    return tidy(await once());
   }
 }
 
@@ -85,7 +88,7 @@ function offlineExtractor(text: string): LanguageModel {
   return new MockLanguageModelV4({
     modelId: "offline-extractor",
     doGenerate: async () => ({
-      content: [{ type: "text", text: JSON.stringify({ facts }) }],
+      content: [{ type: "text", text: JSON.stringify({ facts, followUps: moved ? [`You said they moved to ${moved[1]}. What did they do there?`] : ["Where did they grow up?"] }) }],
       finishReason: { unified: "stop", raw: undefined },
       usage: { inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 0, text: 0, reasoning: 0 } },
       warnings: [],

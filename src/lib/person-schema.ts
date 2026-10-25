@@ -15,7 +15,7 @@ export const personPatchSchema = z
     decade: year,
     languages: z.array(text(30)).max(5),
     consent: consentSchema.nullable(),
-    places: z.array(z.object({ id, name: text(80).min(1), label: text(120).optional(), fromYear: year, toYear: year, role: text(60).optional() })).max(12),
+    places: z.array(z.object({ id, name: text(80).min(1), label: text(120).optional(), fromYear: year, toYear: year, role: text(60).optional(), yearsUnknown: z.boolean().optional() })).max(12),
     moments: z.array(z.object({ id, kind: z.enum(MOMENT_KINDS), year, label: text(120).min(1), venue: text(80).optional() })).max(30),
     loves: z
       .array(

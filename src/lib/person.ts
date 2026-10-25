@@ -9,14 +9,15 @@ import { nameKey } from "./qloo-parse";
 export const CONSENT_BY = ["self", "family", "staff"] as const;
 export const CONSENT_BASIS = ["agreed", "best_interests"] as const;
 export const MOMENT_KINDS = ["wedding", "dance", "move", "service", "other"] as const;
-export const LOVE_TYPES = ["song", "artist", "film", "tv", "place", "team", "dance", "other"] as const;
+export const LOVE_TYPES = ["song", "artist", "film", "tv", "book", "place", "team", "dance", "other"] as const;
 export const LOVE_SOURCES = ["family", "ring_a_bell", "staff_heard", "self"] as const;
 export const STEER_KINDS = ["topic", "person", "item", "sound"] as const;
 export const STEER_LEVELS = ["never", "sad_ok"] as const;
 export const HEARD_KINDS = ["name", "place", "job", "song", "dance", "other"] as const;
 
 export type Consent = { by: (typeof CONSENT_BY)[number]; basis: (typeof CONSENT_BASIS)[number]; role?: string; at: string };
-export type Place = { id: string; name: string; label?: string; fromYear: number | null; toYear: number | null; role?: string };
+/** `yearsUnknown`: the family said they're not sure of the years, so the chat stops asking. */
+export type Place = { id: string; name: string; label?: string; fromYear: number | null; toYear: number | null; role?: string; yearsUnknown?: boolean };
 export type Moment = { id: string; kind: (typeof MOMENT_KINDS)[number]; year: number | null; label: string; venue?: string };
 export type Love = {
   id: string;
@@ -42,11 +43,16 @@ export type Practical = {
 };
 export type StaffHeard = { id: string; kind: (typeof HEARD_KINDS)[number]; text: string; at: string; kitId?: string; confirmed?: boolean };
 
-/** A Ring a bell? card: one Qloo suggestion for a place and era, and the family's answer once given. */
+/**
+ * One thing in the person's gallery from Qloo: for a place and era, like something they love, or a new try like
+ * something that works. The family's quick answer once given ("Loved it" or "Not for them").
+ */
 export type Suggestion = {
   id: string;
   placeId: string;
-  type: "song" | "artist" | "film" | "tv" | "place";
+  type: "song" | "artist" | "film" | "tv" | "book" | "place";
+  /** New tries: what it's like ("Waterloo"), found because that works for them. */
+  like?: string;
   title: string;
   by?: string;
   year: number | null;
@@ -192,14 +198,18 @@ export const factSchema = z.object({
   /** For places: the years there, if said. For moments and loves: the year, if said. For birthYear/decade: the year. */
   fromYear: z.number().int().nullable(),
   toYear: z.number().int().nullable(),
-  /** Moments: wedding, dance, move, service, other. Loves: song, artist, film, tv, place, team, dance, other. Places: grew up, lived, worked. */
+  /** Moments: wedding, dance, move, service, other. Loves: song, artist, film, tv, book, place, team, dance, other. Places: grew up, lived, worked. */
   detail: z.string().nullable(),
   /** A song's artist, or a moment's venue. */
   extra: z.string().nullable(),
   /** The teller's own words this came from, short. */
   quote: z.string(),
 });
-export const extractionSchema = z.object({ facts: z.array(factSchema) });
+export const extractionSchema = z.object({
+  facts: z.array(factSchema),
+  /** One or two questions that dig into what was just said, toward what's still missing ("What did Margot do in Blackpool?"). */
+  followUps: z.array(z.string()),
+});
 export type Fact = z.infer<typeof factSchema>;
 
 /** A person as anyone may read it: the example is marked so the page can make it read-only. */
