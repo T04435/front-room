@@ -17,6 +17,8 @@ const sha = process.env.APP_SHA || process.env.VERCEL_GIT_COMMIT_SHA || git("git
 const dirty = !process.env.VERCEL && git("git status --porcelain") !== "";
 
 const nextConfig: NextConfig = {
+  // E2e runs its own dev server next to the one on :3500, so it builds into its own folder.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
     NEXT_PUBLIC_APP_SHA: sha,

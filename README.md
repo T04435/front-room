@@ -1,2 +1,46 @@
 # music-care
-Era-matched music care for people with dementia: works out the songs, films and TV of someone's youth from their birth year and hometown, using Qloo taste data (working name).
+
+Era-matched music sessions for people living with dementia, built for carers and families (working name). Enter a
+birth year and where someone grew up. A live research run works out the music, films and TV of the years they were 15
+to 25 in that place, using Qloo taste data. It then builds a session kit: a 20-minute playlist ordered calm → familiar →
+singalong (opening in Spotify or YouTube), conversation prompts for staff, and a one-tap response log. Every item
+cites its source. Kits are AI-generated suggestions for engagement, not treatment.
+
+## Run it
+
+```bash
+pnpm install
+pnpm dev            # http://localhost:3500
+```
+
+`.env.local` (see `.env.example`) needs:
+- `QLOO_API_KEY`;
+- `AI_GATEWAY_API_KEY` (on Vercel, the project's OIDC token is used instead).
+
+Without `DATABASE_URL`, kits are saved in a local PGlite database in `.data/`.
+
+`MUSIC_CARE_OFFLINE=1 pnpm dev` runs with fixture data and a mock curator: no paid calls.
+
+## Data path
+
+Every Qloo call goes through [NotOnQ](https://notonq.vercel.app)'s drop-in API first (the same paths and shapes as
+Qloo). On any NotOnQ error, or after 4 s, the same request goes straight to Qloo. Each source in a kit says which way
+its data came.
+
+## Checks
+
+```bash
+pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e
+```
+
+E2e starts its own offline server on :3510 and refuses to run against a server that isn't offline.
+
+## Releases
+
+Commits follow Conventional Commits (commitlint hook). Merging to `main` runs `.github/workflows/release.yml`:
+1. semantic-release works out the version;
+2. Vercel deploys it to production;
+3. a smoke check reads `/api/version`;
+4. only then are the tag and GitHub release made.
+
+MIT licensed.
