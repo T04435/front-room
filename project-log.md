@@ -4,6 +4,25 @@ Qloo Agentic Hackathon 2026, 4th entry: **Front Room** (renamed from the working
 brand comes from the Front Room design system).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-27 (early) · Overnight loop result: product-v2.5.1, features frozen for the 18:00 demo
+
+- **Tags (local, none pushed):**
+  - `product-v2.0`: chat, then gallery.
+  - `v2.1`: Talk, Learned something, realistic offline data.
+  - `v2.2`: handover first, the family's songs, Tearful, QA pass 1.
+  - `v2.3`: Product PR-1..9 (gentle films, a hook and prompt on every card, film songs, places from the story, Start
+    here), QA pass 2.
+  - `v2.4`: Product PR-10..12a (first language, Tearful asks the family, staff/visit card), QA pass 3.
+  - `v2.5`: QA pass 4, features frozen.
+  - `v2.5.1`: rehearsal fixes.
+- **QA:** four passes. QA pass 4 found 0 blockers. Product signed off v2.4 and froze features.
+- **Rehearsal:** the 30-second Joan script (`DEMO.md`) ran on the production build: Cilla Black from the family
+  first, a new try, the Cavern Club from her story, the staff card, no war films.
+- **For the user to decide:**
+  - pushing `feat/mvp`;
+  - a few live Qloo calls to check non-UK places and record the video;
+  - pictures on cards (Qloo images, licensing).
+
 ## 2026-10-26 (night) · Overnight loop: research and QA, product-v2.1 → v2.2 (the user: no pushes, mock data only)
 
 The user asked for a loop until the demo on 27 Oct at 18:00: check the build against the product, align with Product
