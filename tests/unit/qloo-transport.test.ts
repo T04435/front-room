@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTransport, queryString, type CallLog } from "@/lib/qloo-transport";
 
-const NOTONQ = { baseUrl: "https://notonq.test/q/app/music-care-dev", apiKey: "q-key" };
+const NOTONQ = { baseUrl: "https://notonq.test/q/app/front-room-dev", apiKey: "q-key" };
 const QLOO = { baseUrl: "https://qloo.test", apiKey: "q-key" };
 
 type Seen = { url: string; key: string | null };
@@ -31,7 +31,7 @@ describe("the Qloo transport", () => {
     const logs: CallLog[] = [];
     const r = await t.get<{ results: unknown }>("/v2/insights", { "filter.type": "urn:entity:artist" }, (l) => logs.push(l));
     expect(r.via).toBe("notonq");
-    expect(seen).toEqual([{ url: "https://notonq.test/q/app/music-care-dev/v2/insights?filter.type=urn%3Aentity%3Aartist", key: "q-key" }]);
+    expect(seen).toEqual([{ url: "https://notonq.test/q/app/front-room-dev/v2/insights?filter.type=urn%3Aentity%3Aartist", key: "q-key" }]);
     expect(logs[0]).toMatchObject({ via: "notonq", fellBack: false, cached: false });
   });
 

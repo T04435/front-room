@@ -20,7 +20,7 @@ const schema = z.object({
   /**
    * NotOnQ's drop-in API: every Qloo call goes through it first, with our own QLOO_API_KEY (NotOnQ issues no keys),
    * and falls back to Qloo directly. The app names itself in the base URL, so NotOnQ's ledger shows the traffic
-   * apart: production's /q/app/music-care on Vercel, a local NotOnQ's /q/app/music-care-dev in development, unless
+   * apart: production's /q/app/front-room on Vercel, a local NotOnQ's /q/app/front-room-dev in development, unless
    * NOTONQ_BASE_URL is set.
    */
   NOTONQ_BASE_URL: z.url().optional(),
@@ -34,12 +34,12 @@ const schema = z.object({
   /** Neon Postgres (Vercel integration): saved kits and response logs. Without it, PGlite in .data/. */
   DATABASE_URL: secret,
   /** "1": tests and e2e. Fixture Qloo data and a mock model; nothing paid is called. */
-  MUSIC_CARE_OFFLINE: z.string().optional(),
+  FRONT_ROOM_OFFLINE: z.string().optional(),
 });
 
 export const env = schema.parse(process.env);
 
-export const offline = () => env.MUSIC_CARE_OFFLINE === "1";
+export const offline = () => env.FRONT_ROOM_OFFLINE === "1";
 
 export function providerStatus() {
   return {

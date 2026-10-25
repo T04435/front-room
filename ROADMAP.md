@@ -3,7 +3,7 @@
 ## V1: MVP (today, 25 Oct 2026)
 - A birth year and hometown go in. The run researches the music, films, TV and places of the years they were 15 to 25.
 - Out comes a cited session kit: playlist, films, TV and places to talk about, prompts, a one-tap response log, and saved, shareable kits.
-- Then the brand from the BRAND session, and a rename from the working slug "music-care".
+- Then the Front Room brand from its design system (the rename from the working slug "music-care" is done).
 
 ## V2: an MCP App (planned 27–28 Oct, about 1 day, after the MVP and the brand port). Out of scope for the MVP.
 The official MCP UI extension (`io.modelcontextprotocol/ui`, stable since 26 Jan 2026) renders in Claude and ChatGPT.

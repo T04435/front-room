@@ -61,7 +61,7 @@ jobs:
         run: |
           want=${{ steps.version.outputs.next }}
           for i in $(seq 1 12); do
-            got=$(curl -fsS "${{ vars.PRODUCTION_URL || 'https://music-care.vercel.app' }}/api/version?ci=$GITHUB_RUN_ID-$i" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).version)}catch{console.log("")}})')
+            got=$(curl -fsS "${{ vars.PRODUCTION_URL || 'https://front-room.vercel.app' }}/api/version?ci=$GITHUB_RUN_ID-$i" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).version)}catch{console.log("")}})')
             echo "try $i: /api/version says '$got', want '$want'"
             [ "$got" = "$want" ] && exit 0
             sleep 10

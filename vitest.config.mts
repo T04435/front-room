@@ -10,5 +10,5 @@ export default defineConfig({
     },
   },
   // Offline: fixture Qloo answers and a mock curator, so unit tests never spend a paid call.
-  test: { include: ["tests/unit/**/*.test.ts"], environment: "node", env: { MUSIC_CARE_OFFLINE: "1", DATABASE_URL: "" }, testTimeout: 20_000 },
+  test: { include: ["tests/unit/**/*.test.ts"], environment: "node", env: { FRONT_ROOM_OFFLINE: "1", DATABASE_URL: "" }, testTimeout: 20_000 },
 });

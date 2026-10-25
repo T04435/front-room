@@ -9,7 +9,7 @@ import { env, offline } from "@/server/env";
  */
 // On globalThis: Next's dev server loads route handlers and pages in separate module graphs, and two PGlite instances on
 // one data folder don't see each other's writes.
-const store = globalThis as typeof globalThis & { __musicCareDb?: Promise<Sql> | null };
+const store = globalThis as typeof globalThis & { __frontRoomDb?: Promise<Sql> | null };
 
 async function open(): Promise<Sql> {
   let sql: Sql;
@@ -32,9 +32,9 @@ async function open(): Promise<Sql> {
 }
 
 export function db(): Promise<Sql> {
-  store.__musicCareDb ??= open().catch((e) => {
-    store.__musicCareDb = null;
+  store.__frontRoomDb ??= open().catch((e) => {
+    store.__frontRoomDb = null;
     throw e;
   });
-  return store.__musicCareDb;
+  return store.__frontRoomDb;
 }

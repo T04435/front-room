@@ -6,9 +6,9 @@ import { db } from "@/server/db";
 /**
  * Daily budgets and per-visitor limits, sized for a judging room, so a busy room can't run up Qloo (one key shared by
  * every entry) or the model. When a limit is hit the app says so plainly and points to saved kits, which always open.
- * - Visitors are counted per device (the `mc_device` cookie), with a looser per-network (hashed IP) ceiling behind it.
+ * - Visitors are counted per device (the `fr_device` cookie), with a looser per-network (hashed IP) ceiling behind it.
  * - "Limits off until <time>" (judging days) skips the per-visitor limits and swaps in the higher judging budgets. Set it
- *   with MUSIC_CARE_LIMITS_OFF_UNTIL, or the `settings` row `limits_off_until` (no redeploy).
+ *   with FRONT_ROOM_LIMITS_OFF_UNTIL, or the `settings` row `limits_off_until` (no redeploy).
  * Every number is an env var. Counters live in the database (table `usage`).
  */
 const num = (value: string | undefined, fallback: number) => {
@@ -20,14 +20,14 @@ export function limits() {
   const e = process.env;
   return {
     /** Kits built per UTC day (one model call each, about US$0.02). */
-    runsPerDay: num(e.MUSIC_CARE_RUNS_PER_DAY, 300),
-    runsPerDayJudging: num(e.MUSIC_CARE_RUNS_PER_DAY_JUDGING, 1000),
+    runsPerDay: num(e.FRONT_ROOM_RUNS_PER_DAY, 300),
+    runsPerDayJudging: num(e.FRONT_ROOM_RUNS_PER_DAY_JUDGING, 1000),
     /** Live (uncached) Qloo calls per UTC day; a run makes about 8. */
-    qlooPerDay: num(e.MUSIC_CARE_QLOO_PER_DAY, 2500),
-    qlooPerDayJudging: num(e.MUSIC_CARE_QLOO_PER_DAY_JUDGING, 8000),
-    qlooPerRun: num(e.MUSIC_CARE_QLOO_PER_RUN, 12),
-    device: { run: num(e.MUSIC_CARE_RUNS_PER_DEVICE_HOUR, 20), log: num(e.MUSIC_CARE_LOGS_PER_DEVICE_HOUR, 600) },
-    network: { run: num(e.MUSIC_CARE_RUNS_PER_IP_HOUR, 200), log: num(e.MUSIC_CARE_LOGS_PER_IP_HOUR, 6000) },
+    qlooPerDay: num(e.FRONT_ROOM_QLOO_PER_DAY, 2500),
+    qlooPerDayJudging: num(e.FRONT_ROOM_QLOO_PER_DAY_JUDGING, 8000),
+    qlooPerRun: num(e.FRONT_ROOM_QLOO_PER_RUN, 12),
+    device: { run: num(e.FRONT_ROOM_RUNS_PER_DEVICE_HOUR, 20), log: num(e.FRONT_ROOM_LOGS_PER_DEVICE_HOUR, 600) },
+    network: { run: num(e.FRONT_ROOM_RUNS_PER_IP_HOUR, 200), log: num(e.FRONT_ROOM_LOGS_PER_IP_HOUR, 6000) },
   };
 }
 
@@ -59,7 +59,7 @@ async function read(name: string): Promise<number> {
 let offCache: { until: number; read: number } | null = null;
 
 async function offUntil(): Promise<number> {
-  const fromEnv = Date.parse(process.env.MUSIC_CARE_LIMITS_OFF_UNTIL ?? "");
+  const fromEnv = Date.parse(process.env.FRONT_ROOM_LIMITS_OFF_UNTIL ?? "");
   if (Number.isFinite(fromEnv)) return fromEnv;
   if (offCache && Date.now() - offCache.read < 30_000) return offCache.until;
   try {
@@ -77,7 +77,7 @@ export async function limitsOff(): Promise<boolean> {
   return (await offUntil()) > Date.now();
 }
 
-const hash = (value: string) => createHash("sha256").update(`music-care:${value}`).digest("hex").slice(0, 16);
+const hash = (value: string) => createHash("sha256").update(`front-room:${value}`).digest("hex").slice(0, 16);
 
 /** A network's id for the backstop: a hash of the IP Vercel saw, never the IP itself. */
 export function visitor(request: Request): string {

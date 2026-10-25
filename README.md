@@ -1,4 +1,4 @@
-# music-care (working name)
+# Front Room
 
 Reminiscence session kits for people living with dementia, built for carers and families. Enter a birth year and
 where someone grew up. A live research run works out the music, films, TV and places of the years they were 15 to 25
@@ -24,7 +24,7 @@ pnpm dev            # http://localhost:3500
 
 Without `DATABASE_URL`, kits are saved in a local PGlite database in `.data/`.
 
-`MUSIC_CARE_OFFLINE=1 pnpm dev` runs with fixture data and a mock curator: no paid calls.
+`FRONT_ROOM_OFFLINE=1 pnpm dev` runs with fixture data and a mock curator: no paid calls.
 
 ## Data path
 

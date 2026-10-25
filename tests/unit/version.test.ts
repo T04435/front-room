@@ -9,8 +9,8 @@ const base: AppVersion = {
   branch: "feat/sing",
   dirty: false,
   builtAt: "2026-10-23T00:00:00.000Z",
-  releaseUrl: "https://github.com/T04435/music-care/releases/tag/v1.1.0",
-  commitUrl: "https://github.com/T04435/music-care/commit/3f1addd0000000000000000000000000000000000",
+  releaseUrl: "https://github.com/T04435/front-room/releases/tag/v1.1.0",
+  commitUrl: "https://github.com/T04435/front-room/commit/3f1addd0000000000000000000000000000000000",
 };
 
 describe("versionLabel and versionText", () => {

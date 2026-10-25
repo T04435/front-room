@@ -1,7 +1,7 @@
 import type { QlooParams, Result, Transport } from "@/lib/qloo-transport";
 
 /**
- * Offline answers in Qloo's shapes (MUSIC_CARE_OFFLINE=1: unit tests and e2e), so test runs never spend the shared Qloo
+ * Offline answers in Qloo's shapes (FRONT_ROOM_OFFLINE=1: unit tests and e2e), so test runs never spend the shared Qloo
  * key. Modelled on the live era probes of 25 Oct (decade tags plus a place, films by release year). Unknown places and
  * "Nowhere" give no results, to exercise the inline question.
  */

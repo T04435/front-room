@@ -22,6 +22,6 @@ export default defineConfig({
     url: `http://localhost:${PORT}/api/health`,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { MUSIC_CARE_OFFLINE: "1", DATABASE_URL: "", NEXT_DIST_DIR: ".next-e2e" },
+    env: { FRONT_ROOM_OFFLINE: "1", DATABASE_URL: "", NEXT_DIST_DIR: ".next-e2e" },
   },
 });

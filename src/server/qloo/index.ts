@@ -13,7 +13,7 @@ let transport: Transport | null = null;
  */
 export function notonqBase(): string {
   if (env.NOTONQ_BASE_URL) return env.NOTONQ_BASE_URL;
-  return env.VERCEL_ENV ? "https://notonq.vercel.app/q/app/music-care" : "http://localhost:3400/q/app/music-care-dev";
+  return env.VERCEL_ENV ? "https://notonq.vercel.app/q/app/front-room" : "http://localhost:3400/q/app/front-room-dev";
 }
 
 /** The app's one Qloo client: NotOnQ first, Qloo directly on any NotOnQ error or after 4 s (src/lib/qloo-transport.ts). */

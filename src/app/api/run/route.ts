@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid details" }, { status: 400 });
   const status = providerStatus();
   if (!status.qloo || !status.aiGateway) {
-    console.error("music-care not configured", { qloo: status.qloo, aiGateway: status.aiGateway });
+    console.error("front-room not configured", { qloo: status.qloo, aiGateway: status.aiGateway });
     return Response.json({ error: "New kits can't be built right now. Saved kits still open." }, { status: 503 });
   }
   const refused = (await perVisitor("run", request)) ?? (await takeRun());

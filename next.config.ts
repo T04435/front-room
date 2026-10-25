@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APP_BRANCH: process.env.VERCEL_GIT_COMMIT_REF || git("git rev-parse --abbrev-ref HEAD"),
     NEXT_PUBLIC_APP_DIRTY: dirty ? "1" : "",
     NEXT_PUBLIC_APP_BUILT_AT: new Date().toISOString(),
-    NEXT_PUBLIC_APP_REPO: "https://github.com/T04435/music-care",
+    NEXT_PUBLIC_APP_REPO: "https://github.com/T04435/front-room",
   },
   // PGlite (the local database until Neon exists) loads WASM the bundler would break.
   serverExternalPackages: ["@electric-sql/pglite"],

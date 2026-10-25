@@ -1,7 +1,20 @@
 # Project log (DEV)
 
-Qloo Agentic Hackathon 2026, 4th entry. Working name "music care" (the name and brand come from the BRAND session).
+Qloo Agentic Hackathon 2026, 4th entry: **Front Room** (renamed from the working slug "music-care" on 25 Oct; the
+brand comes from the Front Room design system).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
+
+## 2026-10-25 · Renamed to Front Room (HQ)
+
+- **Outside the repo (HQ):** GitHub is T04435/front-room (the old name redirects; origin is updated). The Vercel
+  project is front-room (same id) at https://front-room.vercel.app, with PRODUCTION_URL updated. The local folder is
+  `~/projects/CUBANOSDEV/hackathon-projects/front-room/front-room`, with a symlink at the old path.
+- **In the repo:**
+  - the package name, README, `APP_NAME = "Front Room"` (page title and metadata) and the repo links;
+  - the NotOnQ app paths: `/q/app/front-room` on Vercel, `/q/app/front-room-dev` locally;
+  - env vars `MUSIC_CARE_*` → `FRONT_ROOM_*` (offline mode, limits);
+  - the device cookie `mc_device` → `fr_device`.
+  Entries below keep the old names as they were then.
 
 ## 2026-10-25 · Vercel (HQ)
 
