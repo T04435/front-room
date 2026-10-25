@@ -115,7 +115,8 @@ const EXAMPLE_GENRES: Record<string, string[]> = {
 /** Her gallery: the example kit's real research (25 Oct), plus three new tries like what works (a live run, 26 Oct). */
 EXAMPLE_PERSON.suggestions = {
   "pl-mcr:example": keyed
-    .filter((i) => ["song", "film", "tv", "place"].includes(i.type))
+    // "The Midland" is a hotel, not a place she'd talk about (QA-43).
+    .filter((i) => ["song", "film", "tv", "place"].includes(i.type) && i.title !== "The Midland")
     .map((i) => ({
       id: `ex-${i.ref}`,
       placeId: "pl-mcr",

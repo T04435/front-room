@@ -92,7 +92,7 @@ describe("Product's v2.3 rules (the example Margaret, who has 'Loud bangs' in st
   it("PR-2: every card has a hook tied to her and an open prompt, never 'remember'", () => {
     const all = [...g.works, ...g.newTries, ...Object.values(g.shelves).flat()];
     expect(all.every((x) => x.hook.length > 10 && x.prompt.ask.endsWith("?") && !/remember/i.test(x.prompt.ask + x.hook))).toBe(true);
-    expect(g.shelves.film[0].hook).toBe("Out in 1965, when Margaret was 15, in Manchester.");
+    expect(g.shelves.film[0].hook).toBe("Out in 1965, when Margaret was 15 and living in Manchester.");
   });
 
   it("PR-4: films offer a song from them, TV the theme tune", () => {

@@ -87,6 +87,8 @@ function offlineExtractor(text: string, person: Person): LanguageModel {
   if (brother && /died|never talks|don't mention|upset/i.test(text)) f("painful", `${brother[1][0].toUpperCase()}${brother[1].slice(1)} ${brother[2]}`, brother[0]);
   const spoke = text.match(/(?:grew up speaking|spoke|speaks) ([A-Z][a-z]+(?: [A-Z][a-z]+)?)/);
   if (spoke) f("language", spoke[1], spoke[0]);
+  const sang = text.match(/(?:always sang|danced to) ([^.,]+?)(?: by ([A-Z][\w .']+?))?(?:[.,]|$)/i);
+  if (sang) f("love", sang[1].trim().replace(/^["“]|["”]$/g, ""), sang[0], { detail: "song", extra: sang[2]?.trim() ?? null });
   const worked = text.match(/worked (?:in|at|as) ([^.,]+)/i);
   if (worked) f("work", worked[1].trim(), worked[0]);
   const loved = text.match(/loved ([A-Z][\w ]+?)(?:[.,]|$)/);

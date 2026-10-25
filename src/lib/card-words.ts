@@ -7,13 +7,27 @@ import type { Person } from "./person";
  */
 export type Prompt = { ask: string; might: string };
 
+const SONG_PROMPTS: Prompt[] = [
+  { ask: "Did you ever dance to this? Where was it playing?", might: "A dance hall, a wedding, the radio at home, a name." },
+  { ask: "Who did you listen to this with?", might: "A friend, a sister, a sweetheart, the people at work." },
+  { ask: "Can you hum the start of this one?", might: "A hum, a line, a laugh, or just tapping along." },
+];
+// The same song always gets the same prompt; different songs get different ones.
+const pick = <T,>(xs: T[], key: string) => xs[[...key].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7) % xs.length];
+
 const PROMPTS: Record<"song" | "film" | "tv" | "book" | "place", (title: string) => Prompt> = {
-  song: () => ({ ask: "Did you ever dance to this? Where was it playing?", might: "A dance hall, a wedding, the radio at home, a name." }),
+  song: (title) => pick(SONG_PROMPTS, title),
   film: () => ({ ask: "Did you see this at the pictures? Who did you go with?", might: "A friend or a sweetheart, the cinema's name, a favourite song from it." }),
   tv: () => ({ ask: "Did you watch this at home? Who watched it with you?", might: "Family round the set, a favourite character, a catchphrase." }),
   book: () => ({ ask: "Did you read this? What was it about?", might: "Where they read it, who lent it, a character." }),
-  place: (title) => ({ ask: `Did you ever go to ${title}? What was it like?`, might: "A night out, who they went with, what they wore." }),
+  // Today's brand names off ("O2 Ritz Manchester" → "the Ritz Manchester"), and "the Cavern Club" mid-sentence.
+  place: (title) => ({ ask: `Did you ever go to ${placeName(title)}? What was it like?`, might: "A night out, who they went with, what they wore." }),
 };
+
+function placeName(title: string): string {
+  if (title.startsWith("O2 ")) return `the ${title.slice(3)}`;
+  return title.replace(/^The /, "the ");
+}
 
 export const promptFor = (type: keyof typeof PROMPTS, title: string): Prompt => PROMPTS[type](title);
 
@@ -23,9 +37,16 @@ export function hookFor(p: Pick<Person, "preferredName" | "birthYear" | "decade"
   if (item.origin === "family") return `The family says ${name} loved this.`;
   const by = p.birthYear ?? (p.decade !== null ? p.decade + 5 : null);
   const place = p.places.find((x) => x.id === item.placeId)?.name;
-  if (item.origin === "new_try") return item.like ? `New: people who like ${item.like} like this too.` : "Something new to try.";
+  // Where they were that year, from their own places (not where Qloo looked): the line a carer reads aloud (QA-40).
+  const thenAt = item.year ? p.places.find((x) => x.fromYear !== null && x.fromYear <= item.year! && (x.toYear === null || item.year! < x.toYear))?.name : undefined;
+  // New tries say why, tied to them (QA-42).
+  if (item.origin === "new_try") {
+    const age = item.year && by ? item.year - by : null;
+    const when = age && age >= 5 && age <= 60 ? ` Out in ${item.year}, when ${name} was ${age}.` : "";
+    return `${item.like ? `New for ${name}: people who like ${item.like} like this too.` : `Something new for ${name} to try.`}${when}`;
+  }
   if (item.type === "place") return place ? `In ${place}, from when ${name} lived there. Still there today.` : `From ${name}'s years and places.`;
-  if (item.year && by && item.year - by >= 5 && item.year - by <= 60) return `Out in ${item.year}, when ${name} was ${item.year - by}${place ? `, in ${place}` : ""}.`;
+  if (item.year && by && item.year - by >= 5 && item.year - by <= 60) return `Out in ${item.year}, when ${name} was ${item.year - by}${thenAt ? ` and living in ${thenAt}` : ""}.`;
   return place ? `Popular in ${place} in ${name}'s young years.` : `From ${name}'s young years.`;
 }
 

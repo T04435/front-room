@@ -231,7 +231,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
       </div>
 
       {stopped && (
-        <Alert>
+        <Alert role="status" className="fixed inset-x-4 bottom-4 z-50 shadow-lg sm:mx-auto sm:max-w-xl">
           <Waves />
           <AlertDescription className="flex flex-wrap items-start justify-between gap-2">
             <span>{stopped}</span>
@@ -244,7 +244,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
 
       <Handover person={person} gallery={gallery} />
 
-      {startHere.length > 1 && <Shelf title="Start here" hint="Three to begin with" items={startHere} onOpen={setOpen} big limit={3} />}
+      {startHere.length > 1 && <Shelf title="Start here" hint="Three to begin with" items={startHere} onOpen={setOpen} limit={3} grid />}
 
       {gallery.works.length > 0 && (
         <Shelf
@@ -369,7 +369,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
 }
 
 /** A shelf: four at a time (fewer choices with someone waiting), and More for the rest. */
-function Shelf({ title, hint, items, onOpen, big, limit = 4 }: { title: string; hint?: string; items: GalleryItem[]; onOpen: (g: GalleryItem) => void; big?: boolean; limit?: number }) {
+function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: string; hint?: string; items: GalleryItem[]; onOpen: (g: GalleryItem) => void; big?: boolean; limit?: number; grid?: boolean }) {
   const [all, setAll] = useState(false);
   const shown = all ? items : items.slice(0, limit);
   return (
@@ -379,12 +379,13 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4 }: { title: string; 
         {hint && <span className="text-sm text-muted-foreground">{hint}</span>}
       </div>
       <ScrollArea className="w-full whitespace-nowrap">
-        <ul className="flex gap-3 p-1 pb-3">
+        {/* Start here: all three in view on a phone, no sideways scroll (QA-44). */}
+        <ul className={grid ? "grid grid-cols-3 gap-2 p-1 pb-3" : "flex gap-3 p-1 pb-3"}>
           {shown.map((g) => {
             const Icon = ICON[g.type];
             const tag = tagOf(g);
             return (
-              <li key={g.key} className={cn("shrink-0", big ? "w-52" : "w-44")}>
+              <li key={g.key} className={cn("shrink-0", grid ? "min-w-0" : big ? "w-52" : "w-44")}>
                 <button type="button" onClick={() => onOpen(g)} className="group grid w-full gap-2 rounded-lg text-left whitespace-normal focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none" aria-label={`${g.title}${g.by ? ` by ${g.by}` : ""}: ${g.type === "place" || g.type === "book" ? "open" : "play"}`}>
                   <span className={cn("relative flex aspect-square w-full items-center justify-center rounded-lg", TILE[g.type])}>
                     <Icon className="size-10 opacity-70" aria-hidden />
@@ -515,7 +516,7 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
             </div>
           ))}
         </dl>
-        <Link href={`/p/${person.id}/works`} className="mt-2 inline-block text-sm underline underline-offset-4">
+        <Link href={`/p/${person.id}/works`} className="mt-1 inline-block py-2 text-sm underline underline-offset-4">
           The full handover card
         </Link>
       </CardContent>

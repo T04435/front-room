@@ -56,6 +56,9 @@ export function linksFor(type: GalleryType, title: string, by?: string, year?: n
   return [{ label: "Photos", href: `https://www.google.com/search?tbm=isch&q=${q(title)}` }];
 }
 
+/** Places of everyday life: dance halls, cinemas, theatres, grounds, markets, piers, parks, towers, stations, shops. */
+const EVERYDAY = /ballroom|dance|cinema|picture|theatre|palace|ground|football|market|pier|park|tower|pleasure|station|store|club|empire|hall\b|gardens/i;
+
 export type Gallery = {
   /** Proven: what works for them, best first. */
   works: GalleryItem[];
@@ -103,12 +106,17 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   const state = (g: GalleryItem) => g.stat?.state;
   const live = all.filter((g) => state(g) !== "paused" && state(g) !== "resting");
   // The family's picks and the story first; gentle films before harsh ones.
+  // Songs from their teens and twenties first (the reminiscence bump, about 18); everyday places before galleries.
+  const by = p.birthYear ?? (p.decade !== null ? p.decade + 5 : null);
+  const bump = (g: GalleryItem) => (g.type === "song" && g.year && by ? Math.max(0, 10 - Math.abs(g.year - by - 18) / 2) : 0);
+  const everyday = (g: GalleryItem) => (g.type === "place" && EVERYDAY.test(g.title) ? 10 : 0);
   const score = (g: GalleryItem) =>
-    (g.answer === "yes" || g.origin === "family" ? 50 : 0) + (g.story ? 40 : 0) + (isHarsh(g.genres) ? -30 : isGentle(g.genres) ? 5 : 0) + (g.stat?.sangSessions ?? 0) * 3 + (g.stat?.engagedSessions ?? 0) * 2 + (g.stat?.calmSessions ?? 0);
+    (g.answer === "yes" || g.origin === "family" ? 50 : 0) + (g.story ? 40 : 0) + (isHarsh(g.genres) ? -30 : isGentle(g.genres) ? 5 : 0) + bump(g) + everyday(g) + (g.stat?.sangSessions ?? 0) * 3 + (g.stat?.engagedSessions ?? 0) * 2 + (g.stat?.calmSessions ?? 0);
   const shelf = (t: GalleryType) => live.filter((g) => g.type === t && g.origin !== "new_try").sort((a, b) => score(b) - score(a));
   return {
     works: live.filter((g) => state(g) === "proven").sort((a, b) => score(b) - score(a)),
-    shelves: { song: shelf("song"), film: shelf("film"), tv: shelf("tv"), book: shelf("book"), place: shelf("place") },
+    // Places: at most five (PR-5).
+    shelves: { song: shelf("song"), film: shelf("film"), tv: shelf("tv"), book: shelf("book"), place: shelf("place").slice(0, 5) },
     newTries: live.filter((g) => g.origin === "new_try"),
     paused: all.filter((g) => state(g) === "paused"),
     resting: all.filter((g) => state(g) === "resting"),

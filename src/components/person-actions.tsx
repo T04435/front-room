@@ -34,6 +34,7 @@ export function CopyLink({ path }: { path: string }) {
     <Button
       variant="outline"
       size="sm"
+      className="max-sm:h-11"
       onClick={async () => {
         if (!(await copy(`${window.location.origin}${path}`))) return;
         setCopied(true);

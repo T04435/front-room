@@ -84,7 +84,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
               <Check className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden />
               <span>
                 Talking about: {m.kind === "wedding" ? "Their wedding" : m.label}
-                {m.year && !m.label.includes(String(m.year)) ? ` (${m.year})` : ""} <span className="text-xs text-muted-foreground">· from the family</span>
+                {m.year && (m.kind === "wedding" || !m.label.includes(String(m.year))) ? ` (${m.year})` : ""} <span className="text-xs text-muted-foreground">· from the family</span>
               </span>
             </p>
           ))}
