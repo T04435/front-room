@@ -61,7 +61,7 @@ ${items.map((i) => `${i.ref} [${i.type}] ${i.title}${i.by ? ` · ${i.by.title}` 
 
 Rules:
 - Each prompt is a gentle, open question to say out loud, using their name, tied to an item (cite its ref) or their story. Invite a story or an opinion ("Did you ever dance to this at the Ritz?"). Never test memory: never use the word "remember", no quizzes, no correcting.
-- "reply" is what they might answer, so new staff know what to listen for: one short line, referring to them by name or "they" (never a guessed pronoun).
+- "reply" is what they might answer, so new staff know what to listen for: one short line. Write it about "they", not by name and never with he, she, him or her: "They might name a friend, a cinema, or sing a line."
 - ${goal === "settle" ? "Settle: soft and short, about comfort; no questions that need effort." : goal === "sing" ? "Sing: invite joining in, building to the last song." : "Chat: mix music, the film, the telly and places."}
 - Never raise anything they should steer clear of. No medical or therapeutic claims. British English for a UK place. No emoji.
 - "summary" is one sentence for staff on the session's shape.`;
@@ -76,7 +76,9 @@ Rules:
       })
     ).output;
   const known = new Set(items.map((i) => i.ref));
-  const tidy = (o: z.infer<typeof schema>) => ({ ...o, prompts: o.prompts.slice(0, n).map((p) => ({ ...p, refs: p.refs.filter((r) => known.has(r)) })).filter((p) => p.text.trim() && !/remember/i.test(p.text)) });
+  // Pronouns come only from the teller, and the story keeps none: a reply that guesses one is rewritten to "they".
+  const they = (t: string) => t.replace(/\b(she|he)\b/gi, (m) => (m[0] === m[0].toUpperCase() ? "They" : "they")).replace(/\bher(?=\s+[a-z])/gi, "their").replace(/\b(her|him)\b/gi, "them").replace(/\b(hers|his)\b/gi, "their");
+  const tidy = (o: z.infer<typeof schema>) => ({ ...o, prompts: o.prompts.slice(0, n).map((p) => ({ ...p, reply: they(p.reply), refs: p.refs.filter((r) => known.has(r)) })).filter((p) => p.text.trim() && !/remember/i.test(p.text)) });
   try {
     return tidy(await once());
   } catch (error) {

@@ -124,7 +124,9 @@ export function SessionMode({ person, goal: asked }: { person: Person; goal: Goa
   const item = order[at];
   const ro = Boolean(kit.preview);
   const mine = logs.filter((l) => l.itemRef === item?.ref && l.response !== "none");
-  const prompt = kit.prompts.find((p) => p.refs.includes(item?.ref ?? "")) ?? kit.prompts[at % Math.max(1, kit.prompts.length)];
+  // This item's own prompt, else one about the story in general (never one about a different item).
+  const general = kit.prompts.filter((p) => !p.refs.length);
+  const prompt = kit.prompts.find((p) => p.refs.includes(item?.ref ?? "")) ?? (general.length ? general[at % general.length] : undefined);
 
   async function log(response: Response, ref = item?.ref ?? null) {
     if (ro) return;

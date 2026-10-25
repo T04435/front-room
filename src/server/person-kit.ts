@@ -45,9 +45,12 @@ export async function buildPersonKit(person: Person, kits: Kit[], logs: Logged[]
       if (s?.state === "proven" && (i.type === "song" || i.why)) add({ ...i, reason: "proven", why: s.label, like: undefined });
     }
   }
+  // A Ring a bell? yes keeps its card's source line ("70s · Blackpool · Qloo").
+  const cardParts = new Map(Object.values(person.suggestions).flat().map((c) => [nameKey(c.title), c.parts]));
   for (const l of person.loves) {
-    if (l.type === "song" && l.by) add(songItem(l.title, l.by, l.year ?? null, "family_yes", l.source === "ring_a_bell" ? "They rang a bell" : "The family said they loved it"));
-    if (l.type === "film" || l.type === "tv" || l.type === "place") add(pick(l.type, l.title, l.year ?? null, "family_yes", l.source === "ring_a_bell" ? "They rang a bell" : "From the family"));
+    const parts = cardParts.get(nameKey(l.title));
+    if (l.type === "song" && l.by) add(songItem(l.title, l.by, l.year ?? null, "family_yes", l.source === "ring_a_bell" ? "They rang a bell" : "The family said they loved it", parts));
+    if (l.type === "film" || l.type === "tv" || l.type === "place") add(pick(l.type, l.title, l.year ?? null, "family_yes", l.source === "ring_a_bell" ? "They rang a bell" : "From the family", parts));
   }
   // Tried before (not proven): back in if there's room, as era matches.
   for (const kit of [...kits].reverse()) for (const i of kit.items) if (i.type === "song" || i.why) add({ ...i, reason: "era_match", why: stats.get(i.key ?? itemKey(i))?.label ?? "Tried before", like: undefined });

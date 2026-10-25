@@ -19,6 +19,9 @@ export async function generateMetadata({ params }: PageProps<"/p/[id]/works">): 
   return { title: `What works · ${person?.preferredName ?? ""} · ${APP_NAME}`, robots: { index: false } };
 }
 
+/** The demo's homes are in the UK; real homes get their own zone with accounts (after the hackathon). */
+const HOME_TZ = process.env.FRONT_ROOM_TIME_ZONE || "Europe/London";
+
 const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null);
 
 /**
@@ -38,7 +41,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
   const resting = [...stats.values()].filter((s) => s.state === "resting");
   const last = kits.at(-1);
   const lastLogs = last ? logs.filter((l) => l.kitId === last.id) : [];
-  const note = last ? careNote(last, lastLogs, last.createdAt, lastLogs.at(-1)?.at ?? last.createdAt) : null;
+  const note = last ? careNote(last, lastLogs, last.createdAt, lastLogs.at(-1)?.at ?? last.createdAt, HOME_TZ) : null;
   const p = person.practical;
   const talks = person.moments.slice(0, 2);
 
@@ -77,7 +80,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
               <Check className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden />
               <span>
                 Talking about: {m.label}
-                {m.year ? ` (${m.year})` : ""} <span className="text-xs text-muted-foreground">· from the family</span>
+                {m.year && !m.label.includes(String(m.year)) ? ` (${m.year})` : ""} <span className="text-xs text-muted-foreground">· from the family</span>
               </span>
             </p>
           ))}
@@ -117,7 +120,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
           {settles.map((s) => (
             <p key={s.key}>
               {s.title}
-              {s.by ? ` (${s.by})` : ""} settles them <span className="text-xs text-muted-foreground">· calm in {s.calmSessions} sessions, last {day(s.lastAt)}</span>
+              {s.by ? ` (${s.by})` : ""} settles them <span className="text-xs text-muted-foreground">· calm in {s.calmSessions} {s.calmSessions === 1 ? "session" : "sessions"}, last {day(s.lastAt)}</span>
             </p>
           ))}
           {p.calms && (

@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: PageProps<"/p/[id]">): Promis
   return { title: `${person?.preferredName ?? "Not found"} · ${APP_NAME}`, robots: { index: false } };
 }
 
-const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+const when = (iso: string) => new Date(iso).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: process.env.FRONT_ROOM_TIME_ZONE || "Europe/London" });
 
 /** A person's page: their story at a glance, and every step from here (continue the story, suggestions, a session, What works). */
 export default async function PersonPage({ params }: PageProps<"/p/[id]">) {
