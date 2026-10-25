@@ -132,13 +132,13 @@ const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "n
  * years; big moments; what calms them when Settle has fewer than 3 proven items; work, faith, hearing; staff-heard
  * items to confirm.
  */
-export function wouldHelpNext(p: Person, paused: { key: string; title: string; lastUpsetAt: string | null }[], provenCalm: number): Help[] {
+export function wouldHelpNext(p: Person, paused: { key: string; title: string; lastUpsetAt: string | null; tearful?: boolean }[], provenCalm: number): Help[] {
   const name = p.preferredName || "they";
   const out: Help[] = [];
   const steered = new Set(p.steers.map((s) => nameKey(s.label)));
   for (const u of paused) {
     if (p.resolvedUpsets.includes(u.key) || steered.has(nameKey(u.title))) continue;
-    out.push({ id: `up-${u.key}`, kind: "upset", label: u.lastUpsetAt ? `Upset during ${u.title} on ${day(u.lastUpsetAt)}: steer clear?` : `Tearful twice with ${u.title}: steer clear?`, itemKey: u.key, itemTitle: u.title });
+    out.push({ id: `up-${u.key}`, kind: "upset", label: u.tearful ? `${p.preferredName || "They"} was tearful during ${u.title}: keep it (sad but OK) or steer clear?` : u.lastUpsetAt ? `Upset during ${u.title} on ${day(u.lastUpsetAt)}: steer clear?` : `Tearful with ${u.title}: steer clear?`, itemKey: u.key, itemTitle: u.title });
   }
   if (!p.steerAsked && !p.steers.length) out.push({ id: "steer", kind: "steer", label: "Anything to steer clear of?" });
   const last = p.places.at(-1);

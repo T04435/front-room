@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { StoryChat } from "@/components/story-chat";
 import { APP_NAME } from "@/lib/app";
-import { playStats, provenCalm } from "@/lib/learning";
+import { familyQuestions, playStats, provenCalm } from "@/lib/learning";
 import { getPerson, personPlays } from "@/server/people";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +20,6 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/p/
   const person = await getPerson(id);
   if (!person) notFound();
   const stats = playStats(await personPlays(id), person.resolvedUpsets);
-  const paused = [...stats.values()].filter((s) => s.state === "paused").map((s) => ({ key: s.key, title: s.title, lastUpsetAt: s.lastUpsetAt }));
+  const paused = familyQuestions(stats, person.resolvedUpsets);
   return <StoryChat initial={person} paused={paused} provenCalm={provenCalm(stats).length} autoFind={(await searchParams).find === "1"} />;
 }

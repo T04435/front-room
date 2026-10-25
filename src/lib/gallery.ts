@@ -23,6 +23,8 @@ export type GalleryItem = {
   stat?: ItemStat;
   placeId?: string;
   genres?: string[];
+  /** Tearful with it, and the family hasn't said keep it or steer clear yet. */
+  askFamily?: boolean;
   /** The story mentions it ("Danced at the Ritz"). */
   story?: string;
   /** What the card says to the carer: tied to the person, and one open prompt. */
@@ -80,7 +82,9 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
     if (!family && (g.type === "film" || g.type === "tv") && noHarsh && isHarsh(g.genres)) return;
     if (!family && g.type === "place" && isInstitution(g.title)) return;
     const story = inStory(p, g.title) ?? undefined;
-    items.set(key, { ...g, key, story, links: linksFor(g.type, g.title, g.by, g.year), stat: stats.get(key), hook: story ? `From ${p.preferredName || "their"}’s story: ${story}.` : hookFor(p, g), prompt: promptFor(g.type, g.title) });
+    const st = stats.get(key);
+    const askFamily = Boolean(st && st.tearfulSessions > 0 && st.state !== "paused" && !p.resolvedUpsets.includes(key));
+    items.set(key, { ...g, key, story, askFamily, links: linksFor(g.type, g.title, g.by, g.year), stat: stats.get(key), hook: story ? `From ${p.preferredName || "their"}’s story: ${story}.` : hookFor(p, g), prompt: promptFor(g.type, g.title) });
   };
   // The family's own loves first.
   for (const l of p.loves) {

@@ -12,14 +12,15 @@ import { Message, MessageContent } from "@/components/ui/message";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { birthYearOf, missingMinimum, researchInputs, researchKey, type Fact, type Person } from "@/lib/person";
+import type { FamilyQuestion } from "@/lib/learning";
 import type { RunEvent } from "@/lib/run-events";
 import { addPlace, addSteer, applyFact, describeFact, storyPatch, uid, wouldHelpNext, type Help } from "@/lib/story";
 
 type Candidate = Fact & { id: string };
-type Paused = { key: string; title: string; lastUpsetAt: string | null };
+type Paused = FamilyQuestion;
 
 /** One thing the Go-Between can ask for, as a typed input in its message. */
-type Ask = { kind: "name" } | { kind: "born" } | { kind: "place" } | { kind: "from"; placeId: string } | { kind: "to"; placeId: string } | { kind: "steer" };
+type Ask = { kind: "name" } | { kind: "born" } | { kind: "place" } | { kind: "from"; placeId: string } | { kind: "to"; placeId: string } | { kind: "steer" } | { kind: "language" };
 
 type Msg =
   | { id: string; from: "you"; text: string }
@@ -60,6 +61,8 @@ function nextAsk(p: Person): Ask | null {
   const noTo = p.places.find((x, i) => x.toYear === null && i < p.places.length - 1 && !x.yearsUnknown);
   if (noTo) return { kind: "to", placeId: noTo.id };
   if (!p.steerAsked && !p.steers.length) return { kind: "steer" };
+  // The language they grew up speaking: some return to it, and a few words in it can reach them (PR-10).
+  if (!p.languages.length) return { kind: "language" };
   return null;
 }
 
@@ -69,6 +72,7 @@ function stillNeeded(ask: Ask, p: Person): boolean {
   if (ask.kind === "born") return birthYearOf(p) === null;
   if (ask.kind === "place") return !p.places.length;
   if (ask.kind === "steer") return !p.steerAsked && !p.steers.length;
+  if (ask.kind === "language") return !p.languages.length;
   const pl = p.places.find((x) => x.id === ask.placeId);
   return Boolean(pl && !pl.yearsUnknown && (ask.kind === "from" ? pl.fromYear === null : pl.toYear === null));
 }
@@ -660,7 +664,39 @@ function AskInput({ ask, person, name, onAnswer }: { ask: Ask; person: Person; n
     }
     case "steer":
       return <SteerTopic person={person} name={name} onSave={(p, shown) => onAnswer(shown, p)} />;
+    case "language":
+      return <LanguageAsk name={name} onSave={(lang) => onAnswer(lang, { ...person, languages: [lang] })} />;
   }
+}
+
+const LANGUAGES = ["English", "Welsh", "Gaelic", "Punjabi", "Urdu", "Polish", "Jamaican Patois"];
+
+function LanguageAsk({ name, onSave }: { name: string; onSave: (lang: string) => void }) {
+  const [other, setOther] = useState("");
+  return (
+    <span className="grid gap-2">
+      <span>What language did {name} grow up speaking? Some people return to it, and a few words in it can help.</span>
+      <span className="flex flex-wrap gap-1.5">
+        {LANGUAGES.map((l) => (
+          <Button key={l} size="sm" variant="outline" onClick={() => onSave(l)}>
+            {l}
+          </Button>
+        ))}
+      </span>
+      <form
+        className="flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (other.trim().length >= 2) onSave(other.trim().slice(0, 30));
+        }}
+      >
+        <Input aria-label="Another language" value={other} onChange={(e) => setOther(e.target.value)} placeholder="Another language" className="h-8 sm:w-56" maxLength={30} />
+        <Button size="sm" type="submit" disabled={other.trim().length < 2}>
+          Save
+        </Button>
+      </form>
+    </span>
+  );
 }
 
 function SteerTopic({ person, name, onSave }: { person: Person; name: string; onSave: (p: Person, shown: string) => void }) {

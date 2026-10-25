@@ -6,7 +6,7 @@ import { StoryChat } from "@/components/story-chat";
 import { APP_NAME } from "@/lib/app";
 import { DEVICE_COOKIE } from "@/lib/device";
 import { galleryOf } from "@/lib/gallery";
-import { playStats, provenCalm } from "@/lib/learning";
+import { familyQuestions, playStats, provenCalm } from "@/lib/learning";
 import { birthYearOf, researchInputs, researchKey } from "@/lib/person";
 import { NEW_TRIES_KEY, newTriesStale } from "@/server/new-tries";
 import { getPerson, linkDevice, personPlays } from "@/server/people";
@@ -34,7 +34,7 @@ export default async function PersonPage({ params }: PageProps<"/p/[id]">) {
   // Family loves alone don't make a gallery: until a look-up has found things, the page is the chat.
   const found = Object.entries(person.suggestions).some(([k, cs]) => k !== NEW_TRIES_KEY && cs.length);
   if (!found || gallery.total === 0) {
-    const paused = [...stats.values()].filter((s) => s.state === "paused").map((s) => ({ key: s.key, title: s.title, lastUpsetAt: s.lastUpsetAt }));
+    const paused = familyQuestions(stats, person.resolvedUpsets);
     return <StoryChat initial={person} paused={paused} provenCalm={provenCalm(stats).length} />;
   }
   const by = birthYearOf(person);

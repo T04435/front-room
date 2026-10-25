@@ -70,3 +70,27 @@ describe("tearful", () => {
     expect(answered.get("song:moon river")?.state).not.toBe("paused");
   });
 });
+
+describe("PR-11: tearful asks the family", () => {
+  const play = (id: number, at: string, response: "tearful" | "sang"): import("@/lib/learning").Play => ({ id, itemKey: "song:moon river", type: "song", title: "Moon River", response, at });
+
+  it("one tearful isn't paused, but the family is asked; answered, it's not asked again", async () => {
+    const { familyQuestions } = await import("@/lib/learning");
+    const stats = playStats([play(1, "2026-10-20T10:00:00Z", "tearful")], [], NOW, "Europe/London");
+    expect(stats.get("song:moon river")?.state).toBe("tried");
+    expect(familyQuestions(stats, [])).toEqual([{ key: "song:moon river", title: "Moon River", lastUpsetAt: null, tearful: true }]);
+    expect(familyQuestions(stats, ["song:moon river"])).toEqual([]);
+  });
+
+  it("tearful never counts towards proven", () => {
+    const stats = playStats([play(1, "2026-10-20T10:00:00Z", "tearful"), play(2, "2026-10-21T10:00:00Z", "sang")], ["song:moon river"], NOW, "Europe/London");
+    expect(stats.get("song:moon river")?.state).toBe("tried");
+  });
+
+  it("the care note says tearful, not upset or 'no distress'", async () => {
+    const { careNoteForPlays } = await import("@/lib/care-note");
+    const note = careNoteForPlays([play(1, "2026-10-20T10:00:00Z", "tearful")], "Europe/London")!;
+    expect(note).toContain("Tearful with Moon River.");
+    expect(note).not.toMatch(/upset|no distress/i);
+  });
+});

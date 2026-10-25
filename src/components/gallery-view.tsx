@@ -32,11 +32,14 @@ const HEARD_LABELS: Record<StaffHeard["kind"], string> = { name: "A name", place
 const noop = () => () => {};
 /** After 17:00 on this device: calm first, as the brief's evening default. Off during server render. */
 const useEvening = () => useSyncExternalStore(noop, () => new Date().getHours() >= 17, () => false);
+/** Outside 09:00–17:00 it's more likely a family visit than a shift: the card speaks to them (PR-12). */
+const useVisiting = () => useSyncExternalStore(noop, () => new Date().getHours() < 9 || new Date().getHours() >= 17, () => false);
 // Times in the home's zone everywhere (QA-16); the demo homes are in the UK.
 const hm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 
 /** A small tag on a tile: why it's here, or how it's gone. */
 function tagOf(g: GalleryItem): string | null {
+  if (g.askFamily) return "Ask family";
   if (g.stat?.state === "proven") return g.stat.sangSessions >= 2 ? "Sings along" : "Works";
   if (g.origin === "new_try") return g.like ? `New try · like ${g.like}` : "New try";
   if (g.answer === "yes") return "Loved it";
@@ -430,6 +433,7 @@ function LearnedSomething({ person, name, onSaved }: { person: Person; name: str
  */
 function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
   const name = person.preferredName;
+  const visiting = useVisiting();
   const p = person.practical;
   const works = gallery.works.slice(0, 3).map((g) => (g.by ? `${g.title} (${g.by})` : g.title));
   const avoid = [...person.steers.filter((s) => s.level === "never").map((s) => s.label), ...gallery.paused.map((g) => `${g.title} (upset)`)];
@@ -441,6 +445,9 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
   const settle = [p.calms, calmSong ? `${calmSong.title} (logged calm)` : null].filter(Boolean).join(" · ") || "Not known yet: tap Calm when something helps";
   const rows: [string, string][] = [
     ["Call them", p.greeting ?? name],
+    ...(person.languages.length && !person.languages.every((l) => /^english$/i.test(l))
+      ? [["Grew up speaking", `${person.languages.join(", ")}. A few words in it help: hello, thank you.`] as [string, string]]
+      : []),
     ["Works", works.length ? works.join(" · ") : "Nothing proven yet: start with the family's picks"],
     ["Avoid", avoid.length ? avoid.join(" · ") : person.steerAsked ? "Nothing flagged" : "Not asked yet"],
     ...(talk ? [["Talk about", talk] as [string, string]] : []),
@@ -448,13 +455,16 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
     ["First", `Comfortable, no pain, been to the toilet, not too hot or cold · a quiet room · ${p.headphonesOk === true ? "headphones are fine" : p.headphonesOk === false ? "no headphones" : "headphones only if you know they're OK"}`],
     ...(heard.length ? [["Staff heard", heard.join(" · ")] as [string, string]] : []),
     ...(p.hearing ? [["Hearing", `${p.hearing}${p.headphonesOk === false ? "; no headphones" : ""}`] as [string, string]] : []),
-    ...(p.bestTime ? [["Best time", p.bestTime] as [string, string]] : []),
+    ...(p.bestTime && !visiting ? [["Best time", p.bestTime] as [string, string]] : []),
+    ...(visiting ? [["If words are hard", "Sit close, hum along, hold a hand if they like that."] as [string, string]] : []),
   ];
+  // A family visit: the best time comes first.
+  if (visiting && p.bestTime) rows.unshift(["Best time", p.bestTime]);
   return (
-    <Card size="sm" aria-label="Before you start">
+    <Card size="sm" aria-label={visiting ? "Before you visit" : "Before you start"}>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-baseline justify-between gap-2">
-          Before you start <span className="text-xs font-normal text-muted-foreground">30 seconds · for whoever&apos;s on shift</span>
+          {visiting ? "Before you visit" : "Before you start"} <span className="text-xs font-normal text-muted-foreground">{visiting ? "30 seconds · for family and friends" : "30 seconds · for whoever's on shift"}</span>
         </CardTitle>
       </CardHeader>
       <CardContent>

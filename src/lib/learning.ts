@@ -158,3 +158,16 @@ export function playStats(plays: Play[], resolvedUpsets: string[] = [], now = ne
   }
   return stats;
 }
+
+/** Something the family should answer: an item paused after an upset, or one they were tearful with (keep it, or steer clear?). */
+export type FamilyQuestion = { key: string; title: string; lastUpsetAt: string | null; tearful?: boolean };
+
+/**
+ * What to ask the family about: paused items, and items they were tearful with that nobody has answered yet. One
+ * Tearful doesn't pause (it can be a good cry); the family decides (PR-11).
+ */
+export function familyQuestions(stats: Map<string, ItemStat>, resolvedUpsets: string[]): FamilyQuestion[] {
+  return [...stats.values()]
+    .filter((s) => s.state === "paused" || (s.tearfulSessions > 0 && !resolvedUpsets.includes(s.key)))
+    .map((s) => ({ key: s.key, title: s.title, lastUpsetAt: s.lastUpsetAt, ...(s.upsetSessions === 0 && s.tearfulSessions > 0 ? { tearful: true } : {}) }));
+}
