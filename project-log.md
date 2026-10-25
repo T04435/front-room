@@ -4,6 +4,33 @@ Qloo Agentic Hackathon 2026, 4th entry: **Front Room** (renamed from the working
 brand comes from the Front Room design system).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-26 (night) · Overnight loop: research and QA, product-v2.1 → v2.2 (the user: no pushes, mock data only)
+
+The user asked for a loop until the demo on 27 Oct at 18:00: check the build against the product, align with Product
+and QA, research the industry, rebuild, repeat. A local git tag for each version (`product-v2.N`), no pushes until
+the user confirms, offline data only. The notes are in the shared side-session folder: `front-room-loop.md`, `-dev`,
+`-qa`, `-research`.
+- **v2.1:**
+  - "Find things" from the start of the chat;
+  - Talk (speech to text);
+  - "Learned something?" after a play;
+  - calm items first after 17:00, and Wake Lock while playing;
+  - offline fixtures that read true (real songs, films by year, places by town).
+- **Research (Cochrane 2018/2025, the Music & Memory trials, CQC findings) changed the pitch.** Personal music doesn't
+  reduce agitation over time, so we never claim it. The real problem is a stranger at 18:00 who doesn't know the
+  person, and nobody else learns shift by shift what works.
+- **v2.2:**
+  - the handover card first;
+  - the family's named artists as songs, first on the shelf;
+  - a Tearful response;
+  - a basics check when settling.
+  - It also fixes all 8 majors from QA pass 1: calm never guessed, chat answers in order, artist loves, confirmed
+    staff-heard notes, phone chat, duplicate asks, the dev badge and version pill, offline follow-ups. Most minors
+    are fixed too.
+  - The v1 `/quick` and `/kits` pages redirect to People.
+  - `DEMO.md` is the 3-minute offline script.
+- Product's session didn't pick up the brief overnight, so DEV ran QA and research as its own subagents.
+
 ## 2026-10-26 · Rebuilt around the person: a chat, then a gallery (the user)
 
 The session model (Settle, Chat, Sing; a kit per session) was wrong. What's found is per person, and a session is
