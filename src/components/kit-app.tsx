@@ -12,8 +12,11 @@ import { Button } from "@/components/ui/button";
 import type { Brief, Kit } from "@/lib/kit";
 import type { RunEvent } from "@/lib/run-events";
 
-/** The page's run: the brief, the live research steps, the inline question, then the kit. */
-export function KitApp() {
+/**
+ * The page's run: the brief, the live research steps, the inline question, then the kit. `start`: a brief to run
+ * straight away (a rebuild from a saved kit, with the family's "not for them" marks).
+ */
+export function KitApp({ start }: { start?: Brief } = {}) {
   const [busy, setBusy] = useState(false);
   const [items, setItems] = useState<StepItem[]>([]);
   const [kit, setKit] = useState<Kit | null>(null);
@@ -24,6 +27,21 @@ export function KitApp() {
   const abort = useRef<AbortController | null>(null);
 
   useEffect(() => () => abort.current?.abort(), []);
+
+  const started = useRef(false);
+  useEffect(() => {
+    if (!start) return;
+    // Once only, each run being paid. The timer is cleared by React's development double-mount, so only the second
+    // pass starts it. The address loses its query, so a reload doesn't run (and pay for) the rebuild again.
+    const timer = setTimeout(() => {
+      if (started.current) return;
+      started.current = true;
+      window.history.replaceState(null, "", window.location.pathname);
+      void run(start);
+    }, 0);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per page: the brief doesn't change after load.
+  }, []);
 
   function apply(event: RunEvent, n: number) {
     setItems((xs) => applyStepEvent(xs, event, n));
@@ -82,7 +100,7 @@ export function KitApp() {
           For carers and families. It works out the music, films, TV and places of the years someone was 15 to 25, where they grew up, then builds a session kit: a 20-minute playlist, things to talk about, conversation prompts and a one-tap response log.
         </p>
       </section>
-      <BriefForm busy={busy} onSubmit={(b) => void run(b)} />
+      <BriefForm key={start ? "start" : "new"} initial={start} busy={busy} onSubmit={(b) => void run(b)} />
       {items.length > 0 && <RunSteps items={items} />}
       {ask && !busy && <AskCard fields={ask.event.fields} message={ask.event.message} busy={busy} onAnswer={answer} />}
       {error && (
@@ -101,7 +119,12 @@ export function KitApp() {
       {done && <p className="text-xs text-muted-foreground">Researched in {done.seconds} s with {done.qlooCalls} Qloo calls ({done.qlooCached} cached).</p>}
       {kit && (
         <>
-          <KitView kit={kit} log={kit.id ? [] : undefined} />
+          <KitView
+            kit={kit}
+            log={kit.id ? [] : undefined}
+            busy={busy}
+            onRebuild={(avoid) => current.current && void run({ ...current.current, answers: undefined, avoid: [...new Set([...(current.current.avoid ?? []), ...avoid])].slice(-30) })}
+          />
           <div className="flex flex-wrap gap-2">
             {kit.id && (
               <Button asChild>

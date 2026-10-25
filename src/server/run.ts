@@ -167,7 +167,7 @@ async function run(state: RunState, emit: Emit, abortSignal: AbortSignal | undef
   }
   const kit: Kit = {
     id: newKitId(),
-    brief: { name: brief.name, birthYear: brief.birthYear, place: brief.place, likes: brief.likes },
+    brief: { name: brief.name, birthYear: brief.birthYear, place: brief.place, likes: brief.likes, avoid: brief.avoid },
     place: placeLabel,
     era,
     items,

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { KitView } from "@/components/kit-view";
+import { SavedKit } from "@/components/saved-kit";
 import { APP_NAME } from "@/lib/app";
 import { kitTitle } from "@/lib/kit";
 import { getKit, getResponses } from "@/server/kits";
@@ -17,5 +17,5 @@ export default async function KitPage({ params }: PageProps<"/kits/[id]">) {
   const { id } = await params;
   const kit = await getKit(id);
   if (!kit) notFound();
-  return <KitView kit={kit} log={await getResponses(id)} />;
+  return <SavedKit kit={kit} log={await getResponses(id)} />;
 }

@@ -103,7 +103,8 @@ export type Prompt = Curated["prompts"][number];
 
 export type Kit = {
   id: string;
-  brief: Pick<Brief, "name" | "birthYear" | "place" | "likes">;
+  /** The brief it was built from; `avoid` carries the family's "not for them" marks into the next rebuild. */
+  brief: Pick<Brief, "name" | "birthYear" | "place" | "likes" | "avoid">;
   place: string;
   era: Era;
   /** Everything in the kit: the research, the songs (in playing order) and the curator's picks. */

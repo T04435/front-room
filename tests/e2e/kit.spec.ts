@@ -26,6 +26,24 @@ test("the demo builds a cited session kit, logs a response and lists the kit as 
   await expect(page.getByRole("link", { name: /Margaret · Manchester, United Kingdom, 1965–1975/ })).toContainText("1 response logged");
 });
 
+test("the family marks a song and a place not for them, and the kit is built again from the saved kit", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Margaret, born 1950, Manchester" }).click();
+  await page.getByRole("button", { name: "Build the session kit" }).click();
+  await page.getByRole("link", { name: "Open the saved kit" }).click();
+  await expect(page).toHaveURL(/\/kits\/[A-Za-z0-9_-]{10}$/);
+
+  await page.getByRole("button", { name: "Not for them: Test song 1" }).click();
+  await page.getByRole("button", { name: "Not for them: Palace Theatre Manchester" }).click();
+  await expect(page.getByText("2 marked not for them")).toBeVisible();
+  await page.getByRole("button", { name: "Build again without these" }).click();
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole("heading", { name: /Margaret's session kit · Manchester/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Places from their hometown" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Session kit" }).getByText("Palace Theatre Manchester")).toHaveCount(0);
+});
+
 test("an unknown hometown asks for a nearby town inline, and answering carries on", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Birth year").fill("1948");

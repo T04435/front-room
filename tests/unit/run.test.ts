@@ -43,6 +43,14 @@ describe("a run (offline fixtures)", () => {
     expect(events.find((e) => e.type === "ask")).toMatchObject({ fields: ["musicWords"] });
   });
 
+  it("leaves out what the family marked not for them, and keeps the marks on the saved kit", async () => {
+    const avoid = ["David Bowie", "The Sound of Music", "Test song 2 (T. Rex)"];
+    const { events } = await collect({ birthYear: 1950, place: "Manchester", avoid });
+    const kit = (events.find((e) => e.type === "kit") as Extract<RunEvent, { type: "kit" }>).kit;
+    expect(kit.items.some((i) => i.title === "David Bowie" || i.title === "The Sound of Music")).toBe(false);
+    expect(kit.brief.avoid).toEqual(avoid);
+  });
+
   it("never sends a raw Qloo response in an event", async () => {
     const { events } = await collect({ birthYear: 1950, place: "Manchester" });
     expect(JSON.stringify(events)).not.toContain("entity_id");
