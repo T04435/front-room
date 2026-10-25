@@ -10,12 +10,12 @@ CREATE TABLE IF NOT EXISTS kits (
 );
 CREATE INDEX IF NOT EXISTS kits_owner_created ON kits (owner, created_at DESC);
 
--- One-tap responses logged during a session; "track_ref" is the playlist track playing, if any.
+-- One-tap responses logged during a session; "item_ref" is what was on (a song playing, a film talked about), if any.
 CREATE TABLE IF NOT EXISTS responses (
   id serial PRIMARY KEY,
   kit_id text NOT NULL REFERENCES kits (id) ON DELETE CASCADE,
   response text NOT NULL, -- calm | engaged | sang | upset
-  track_ref text,
+  item_ref text,
   at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS responses_kit ON responses (kit_id, at);

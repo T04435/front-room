@@ -3,6 +3,23 @@
 Qloo Agentic Hackathon 2026, 4th entry. Working name "music care" (the name and brand come from the BRAND session).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-25 · Scope: reminiscence, not only music (the user, via HQ)
+
+- **"music care" is only a working slug.** The kit is reminiscence across what Qloo knows about someone's youth.
+- **Generic items.** Kit items are now one shape, `KitItem {type: song | artist | film | tv | place | book | family,
+  title, year, source, why, via}`, with refs S/A/F/T/P/B/K. The playlist is just the kit's songs, never a separate
+  table. Responses log an `item_ref`: a song, a film or a place.
+- **Places.** A new run step asks Qloo for places tagged `urn:tag:ambience:qloo:historic` with `filter.location.query`.
+  Live for Manchester: Palace Theatre, the Ritz, Old Trafford, Central Library, the Midland. Qloo's places are
+  today's, so the kit says "likely there in their youth too". The curator picks 1–3 places and 2–3 films or TV shows
+  to talk about, each with a `why`.
+- **Books are out for now.** `filter.publication_year` returns editions and reprints (Marvel omnibuses for
+  1965–75), so books are in the model but not researched.
+- **Naming.** UI copy says "session kit". The on-screen name is a placeholder (`APP_NAME = "Session Kit"` in
+  `src/lib/app.ts`) until the brand lands. No files or routes are named "music…". The repo and package stay
+  `music-care` until the rename.
+- **V2 MCP App is on ROADMAP.md, out of MVP scope.** `KitView` takes props only, so the widget can reuse it.
+
 ## 2026-10-25 · MVP first pass (branch feat/mvp)
 
 **State:** the whole MVP flow runs locally on :3500. Offline mode (fixtures) is tested end to end in unit tests and

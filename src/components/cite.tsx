@@ -3,31 +3,32 @@
 import { InlineCitationCard, InlineCitationCardBody, InlineCitationSource } from "@/components/ai-elements/inline-citation";
 import { Badge } from "@/components/ui/badge";
 import { HoverCardTrigger } from "@/components/ui/hover-card";
-import type { Item } from "@/lib/kit";
+import { TYPE_LABELS, type KitItem } from "@/lib/kit";
 
-const KIND: Record<Item["kind"], string> = { artist: "Artist", film: "Film", tv: "TV", family: "From the family" };
-export const VIA: Record<Item["via"], string> = { notonq: "via NotOnQ", qloo: "Qloo direct" };
+export const VIA: Record<NonNullable<KitItem["via"]>, string> = { notonq: "via NotOnQ", qloo: "Qloo direct" };
+
+/** Where an item came from, in words: its source, and which way the Qloo call went. */
+export const whereFrom = (item: KitItem) => (item.via ? `${item.source} (${VIA[item.via]})` : item.source);
 
 /** One source, as AI Elements' Inline Citation: a ref badge; hover or focus it for what it is and where it came from. */
-export function Cite({ item }: { item: Item }) {
-  const where = item.kind === "family" ? item.source : `${item.source} (${VIA[item.via]})`;
+export function Cite({ item }: { item: KitItem }) {
   return (
     <InlineCitationCard>
       <HoverCardTrigger asChild>
-        <button type="button" className="rounded-4xl focus-visible:outline-2 focus-visible:outline-ring" aria-label={`Source ${item.ref}: ${KIND[item.kind]} ${item.name}. ${where}`}>
+        <button type="button" className="rounded-4xl focus-visible:outline-2 focus-visible:outline-ring" aria-label={`Source ${item.ref}: ${TYPE_LABELS[item.type]} ${item.title}. ${whereFrom(item)}`}>
           <Badge variant="outline" className="font-mono">
             {item.ref}
           </Badge>
         </button>
       </HoverCardTrigger>
       <InlineCitationCardBody className="w-72 p-3">
-        <InlineCitationSource title={`${KIND[item.kind]}: ${item.name}${item.year ? ` (${item.year})` : ""}`} description={where} />
+        <InlineCitationSource title={`${TYPE_LABELS[item.type]}: ${item.title}${item.year ? ` (${item.year})` : ""}`} description={whereFrom(item)} />
       </InlineCitationCardBody>
     </InlineCitationCard>
   );
 }
 
-export function Cites({ refs, items }: { refs: string[]; items: Item[] }) {
+export function Cites({ refs, items }: { refs: string[]; items: KitItem[] }) {
   const byRef = new Map(items.map((i) => [i.ref, i]));
   return (
     <span className="inline-flex flex-wrap gap-1 align-middle">

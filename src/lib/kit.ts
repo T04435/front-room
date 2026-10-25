@@ -27,43 +27,65 @@ export const briefSchema = z.object({
 export type Brief = z.infer<typeof briefSchema>;
 export type AskField = "nearbyPlace" | "musicWords";
 
-// ---- The research: what Qloo found, with where it came from -------------------------------------------------------
+// ---- Kit items: everything the kit holds, one shape -----------------------------------------------------------------
 
-/** `family`: something the family told us (a like Qloo doesn't know as an artist), cited as itself. */
-export type ItemKind = "artist" | "film" | "tv" | "family";
-
-/** One thing the research found. `ref` (A1, F2, T3, K1) is how the playlist and prompts cite it. */
-export type Item = {
-  ref: string;
-  kind: ItemKind;
-  name: string;
-  year: number | null;
-  /** Qloo's entity id, kept to link back; never shown. */
-  entityId: string;
-  /** Where it came from, in words: "Qloo: 60s music, popular around Manchester". */
-  source: string;
-  /** Which way the call went: NotOnQ's drop-in API, or Qloo directly (always so when NotOnQ failed). */
-  via: Via;
-};
-
-// ---- The kit: what the curator writes, checked against the research -----------------------------------------------
+/**
+ * The kinds of thing a kit can hold. A kit is reminiscence across what Qloo knows about someone's youth: songs are one
+ * kind among films, TV, places and the rest, never a separate table. `family`: something the family told us that Qloo
+ * doesn't know, cited as itself. (Books are in the model; Qloo's publication years are editions, so the run skips them
+ * for now.)
+ */
+export const ITEM_TYPES = ["song", "artist", "film", "tv", "place", "book", "family"] as const;
+export type ItemType = (typeof ITEM_TYPES)[number];
+export const REF_PREFIX: Record<ItemType, string> = { song: "S", artist: "A", film: "F", tv: "T", place: "P", book: "B", family: "K" };
+export const TYPE_LABELS: Record<ItemType, string> = { song: "Song", artist: "Artist", film: "Film", tv: "TV", place: "Place", book: "Book", family: "From the family" };
 
 export const PHASES = ["calm", "familiar", "singalong"] as const;
 export type Phase = (typeof PHASES)[number];
 export const PHASE_LABELS: Record<Phase, string> = { calm: "Settle in", familiar: "Familiar", singalong: "Sing along" };
 
+/**
+ * One item. `ref` (S1, A2, F3, P1, K1) is how prompts and songs cite it. `source` says where it came from in words
+ * ("Qloo: 60s music, popular around Manchester", "AI pick: a recording by A3"); `via` which way a Qloo call went
+ * (NotOnQ's drop-in API, or Qloo directly), null for AI picks and the family. `why`: the curator's line for staff on
+ * an item the kit features (every song; the films, TV and places it picks); null for research only.
+ */
+export type KitItem = {
+  ref: string;
+  type: ItemType;
+  title: string;
+  year: number | null;
+  source: string;
+  why: string | null;
+  via: Via | null;
+  /** Qloo's entity id, kept to link back; never shown. */
+  entityId: string | null;
+  /** Qloo's one-line description (places). */
+  description?: string | null;
+  /** Songs: the artist item it's by, its place in the session, links out (no media hosted), its length. */
+  by?: { ref: string; title: string };
+  phase?: Phase;
+  links?: { spotify: string; youtube: string };
+  minutes?: number;
+};
+
+// ---- What the curator writes, checked against the research --------------------------------------------------------
+
 export const curatedSchema = z.object({
-  playlist: z
+  songs: z
     .array(
       z.object({
-        ref: z.string().describe("The artist's ref from the research list, e.g. A3"),
-        song: z.string().describe("A well-known recording by that artist from the era years, its exact title"),
+        artistRef: z.string().describe("The artist's ref from the research list, e.g. A3"),
+        title: z.string().describe("A well-known recording by that artist from the era years, its exact title"),
         year: z.number().int().nullable().describe("The recording's release year if known"),
         phase: z.enum(PHASES),
         why: z.string().describe("One short line for staff: why this one, at this point"),
       }),
     )
-    .describe("7 or 8 tracks, about 20 minutes, in playing order: calm first, then familiar, then singalong"),
+    .describe("7 or 8 songs, about 20 minutes, in playing order: calm first, then familiar, then singalong"),
+  picks: z
+    .array(z.object({ ref: z.string().describe("A film, TV or place ref from the research list"), why: z.string().describe("One short line for staff: how to bring it up") }))
+    .describe("2–3 films or TV shows and 1–3 places worth talking about"),
   prompts: z
     .array(
       z.object({
@@ -75,8 +97,6 @@ export const curatedSchema = z.object({
   summary: z.string().describe("One sentence for staff on the kit's shape"),
 });
 export type Curated = z.infer<typeof curatedSchema>;
-
-export type Track = Curated["playlist"][number] & { artist: string; minutes: number; links: { spotify: string; youtube: string } };
 export type Prompt = Curated["prompts"][number];
 
 export type Kit = {
@@ -84,8 +104,8 @@ export type Kit = {
   brief: Pick<Brief, "name" | "birthYear" | "place" | "likes">;
   place: string;
   era: Era;
-  items: Item[];
-  playlist: Track[];
+  /** Everything in the kit: the research, the songs (in playing order) and the curator's picks. */
+  items: KitItem[];
   prompts: Prompt[];
   summary: string;
   /** How many of the research calls went through NotOnQ, and how many fell back to Qloo directly. */
@@ -97,51 +117,82 @@ export type Kit = {
 export const RESPONSES = ["calm", "engaged", "sang", "upset"] as const;
 export type Response = (typeof RESPONSES)[number];
 export const RESPONSE_LABELS: Record<Response, string> = { calm: "Calm", engaged: "Engaged", sang: "Sang along", upset: "Upset" };
-export type LogEntry = { id: number; response: Response; trackRef: string | null; at: string };
+/** One tap; `itemRef` is what was on (a song playing, a film being talked about), if anything. */
+export type LogEntry = { id: number; response: Response; itemRef: string | null; at: string };
 
-/** About 3 minutes a track (singles of the era ran short): 7 tracks make about 20 minutes. */
-export const TRACK_MINUTES = 3;
+/** About 3 minutes a song (singles of the era ran short): 7 songs make about 20 minutes. */
+export const SONG_MINUTES = 3;
 
-export function searchLinks(artist: string, song: string) {
-  const q = encodeURIComponent(`${artist} ${song}`);
+export function searchLinks(artist: string, title: string) {
+  const q = encodeURIComponent(`${artist} ${title}`);
   return { spotify: `https://open.spotify.com/search/${q}`, youtube: `https://www.youtube.com/results?search_query=${q}` };
 }
 
 export type Problem = { where: string; message: string };
 
 /**
- * The curator's kit, checked against the research: tracks must cite a known artist, prompts known items. A bad
- * citation drops that track or prompt (and is reported), so nothing on the page points at a source that doesn't exist.
- * Tracks are put in phase order, keeping the curator's order within a phase; one track per artist.
+ * The curator's reply, checked against the research. A song must cite a known artist (one song per artist), a pick a
+ * known film, TV show or place, a prompt known items; anything else is dropped and reported, so nothing on the page
+ * points at a source that doesn't exist. Songs become items (S1…) in phase order, keeping the curator's order within a
+ * phase; picks set `why` on their item.
  */
-export function checkCurated(curated: Curated, items: Item[]): { playlist: Track[]; prompts: Prompt[]; problems: Problem[] } {
-  const byRef = new Map(items.map((i) => [i.ref, i]));
+export function checkCurated(curated: Curated, research: KitItem[]): { items: KitItem[]; prompts: Prompt[]; problems: Problem[] } {
+  const byRef = new Map(research.map((i) => [i.ref, i]));
   const problems: Problem[] = [];
   const used = new Set<string>();
-  const tracks: Track[] = [];
-  curated.playlist.forEach((t, n) => {
-    const item = byRef.get(t.ref);
-    if (!item || item.kind !== "artist") return problems.push({ where: `track ${n + 1}`, message: `cites ${t.ref}, which isn't an artist in the research` });
-    if (used.has(t.ref)) return problems.push({ where: `track ${n + 1}`, message: `${item.name} is already on the playlist` });
-    if (!t.song.trim()) return problems.push({ where: `track ${n + 1}`, message: "has no song" });
-    used.add(t.ref);
-    tracks.push({ ...t, song: t.song.trim(), artist: item.name, minutes: TRACK_MINUTES, links: searchLinks(item.name, t.song.trim()) });
+  const songs: KitItem[] = [];
+  curated.songs.forEach((s, n) => {
+    const artist = byRef.get(s.artistRef);
+    const title = s.title.trim();
+    if (!artist || artist.type !== "artist") return problems.push({ where: `song ${n + 1}`, message: `cites ${s.artistRef}, which isn't an artist in the research` });
+    if (used.has(s.artistRef)) return problems.push({ where: `song ${n + 1}`, message: `${artist.title} already has a song` });
+    if (!title) return problems.push({ where: `song ${n + 1}`, message: "has no title" });
+    used.add(s.artistRef);
+    songs.push({
+      ref: "",
+      type: "song",
+      title,
+      year: s.year,
+      source: `AI pick: a recording by ${artist.title} (${artist.ref})`,
+      why: s.why.trim() || null,
+      via: null,
+      entityId: null,
+      by: { ref: artist.ref, title: artist.title },
+      phase: s.phase,
+      links: searchLinks(artist.title, title),
+      minutes: SONG_MINUTES,
+    });
   });
-  const playlist = PHASES.flatMap((p) => tracks.filter((t) => t.phase === p));
+  const ordered = PHASES.flatMap((p) => songs.filter((s) => s.phase === p)).map((s, n) => ({ ...s, ref: `${REF_PREFIX.song}${n + 1}` }));
+
+  const why = new Map<string, string>();
+  curated.picks.forEach((p, n) => {
+    const item = byRef.get(p.ref);
+    if (!item || !["film", "tv", "place", "book"].includes(item.type)) return problems.push({ where: `pick ${n + 1}`, message: `cites ${p.ref}, not a film, TV show or place in the research` });
+    if (p.why.trim()) why.set(p.ref, p.why.trim());
+  });
+  const items = [...ordered, ...research.map((i) => (why.has(i.ref) ? { ...i, why: why.get(i.ref)! } : i))];
+
+  const known = new Set(items.map((i) => i.ref));
   const prompts = curated.prompts.flatMap((p, n) => {
     const refs = [...new Set(p.refs)];
-    const unknown = refs.filter((r) => !byRef.has(r));
+    const unknown = refs.filter((r) => !known.has(r));
     if (unknown.length || !p.text.trim()) {
-      problems.push({ where: `prompt ${n + 1}`, message: unknown.length ? `cites ${unknown.join(", ")}, not in the research` : "is empty" });
+      problems.push({ where: `prompt ${n + 1}`, message: unknown.length ? `cites ${unknown.join(", ")}, not in the kit` : "is empty" });
       return [];
     }
     return [{ text: p.text.trim(), refs }];
   });
-  return { playlist, prompts, problems };
+  return { items, prompts, problems };
 }
 
-export function playlistMinutes(playlist: Track[]): number {
-  return playlist.reduce((sum, t) => sum + t.minutes, 0);
+/** The playlist section: the kit's songs, in playing order. */
+export const songsOf = (items: KitItem[]) => items.filter((i) => i.type === "song");
+/** Items the curator featured (they have a `why`), of these types. */
+export const featured = (items: KitItem[], types: ItemType[]) => items.filter((i) => i.why && types.includes(i.type));
+
+export function sessionMinutes(items: KitItem[]): number {
+  return songsOf(items).reduce((sum, s) => sum + (s.minutes ?? 0), 0);
 }
 
 export function kitTitle(kit: Pick<Kit, "brief" | "place" | "era">): string {

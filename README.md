@@ -1,10 +1,15 @@
-# music-care
+# music-care (working name)
 
-Era-matched music sessions for people living with dementia, built for carers and families (working name). Enter a
-birth year and where someone grew up. A live research run works out the music, films and TV of the years they were 15
-to 25 in that place, using Qloo taste data. It then builds a session kit: a 20-minute playlist ordered calm → familiar →
-singalong (opening in Spotify or YouTube), conversation prompts for staff, and a one-tap response log. Every item
-cites its source. Kits are AI-generated suggestions for engagement, not treatment.
+Reminiscence session kits for people living with dementia, built for carers and families. Enter a birth year and
+where someone grew up. A live research run works out the music, films, TV and places of the years they were 15 to 25
+in that place, using Qloo taste data. It then builds a session kit:
+- a 20-minute playlist ordered calm → familiar → singalong, opening in Spotify or YouTube;
+- films, TV and hometown places to talk about;
+- conversation prompts for staff;
+- a one-tap response log.
+
+Every item cites its source. Kits are AI-generated suggestions for engagement, not treatment. See ROADMAP.md for
+what's next.
 
 ## Run it
 

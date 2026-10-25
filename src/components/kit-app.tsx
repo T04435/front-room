@@ -77,9 +77,9 @@ export function KitApp() {
   return (
     <div className="grid gap-8">
       <section className="grid gap-2">
-        <h1 className="text-3xl font-semibold">A music session kit, from a birth year and a hometown</h1>
+        <h1 className="text-3xl font-semibold">A reminiscence session kit, from a birth year and a hometown</h1>
         <p className="text-muted-foreground">
-          For carers and families. It works out the music, films and TV of the years someone was 15 to 25, where they grew up, then builds a 20-minute playlist with conversation prompts and a one-tap response log.
+          For carers and families. It works out the music, films, TV and places of the years someone was 15 to 25, where they grew up, then builds a session kit: a 20-minute playlist, things to talk about, conversation prompts and a one-tap response log.
         </p>
       </section>
       <BriefForm busy={busy} onSubmit={(b) => void run(b)} />

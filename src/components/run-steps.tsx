@@ -1,15 +1,15 @@
 "use client";
 
-import { CircleAlert, CircleCheck, ListMusic, MessageSquareText } from "lucide-react";
+import { CircleAlert, CircleCheck, ListChecks, MessageSquareText } from "lucide-react";
 import { Cite, VIA } from "@/components/cite";
 import { Spinner } from "@/components/ui/spinner";
 import { Trace, TraceCollapsible, TraceCollapsibleContent, TraceCollapsibleTrigger, TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace";
-import type { Item } from "@/lib/kit";
+import type { KitItem } from "@/lib/kit";
 import type { RunEvent } from "@/lib/run-events";
 
 export type StepItem =
   | { kind: "note"; key: string; text: string }
-  | { kind: "step"; key: string; label: string; status: "running" | "ok" | "failed"; summary?: string; items: Item[]; via?: "notonq" | "qloo" | "mixed"; fellBack?: boolean }
+  | { kind: "step"; key: string; label: string; status: "running" | "ok" | "failed"; summary?: string; items: KitItem[]; via?: "notonq" | "qloo" | "mixed"; fellBack?: boolean }
   | { kind: "curating"; key: string; itemCount: number; done: boolean };
 
 /** Folds one run event into the step list. */
@@ -53,7 +53,7 @@ export function RunSteps({ items }: { items: StepItem[] }) {
         if (item.kind === "curating") {
           return (
             <TraceLine key={item.key} status={item.done ? undefined : "running"}>
-              <TraceIcon>{item.done ? <CircleCheck className="text-emerald-600" /> : <ListMusic />}</TraceIcon>
+              <TraceIcon>{item.done ? <CircleCheck className="text-emerald-600" /> : <ListChecks />}</TraceIcon>
               <TraceTitle>{item.done ? `Kit built from ${item.itemCount} researched items.` : `Building the kit from ${item.itemCount} researched items…`}</TraceTitle>
               <TraceDescription>AI</TraceDescription>
             </TraceLine>
@@ -75,7 +75,7 @@ export function RunSteps({ items }: { items: StepItem[] }) {
                   <ul className="flex flex-wrap gap-x-3 gap-y-1 text-sm" aria-label="Found in this step">
                     {item.items.map((i) => (
                       <li key={i.ref} className="flex items-center gap-1">
-                        <Cite item={i} /> {i.name}
+                        <Cite item={i} /> {i.title}
                         {i.year ? <span className="text-muted-foreground">({i.year})</span> : null}
                       </li>
                     ))}

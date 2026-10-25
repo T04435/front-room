@@ -6,22 +6,22 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RESPONSE_LABELS, RESPONSES, type LogEntry, type Response, type Track } from "@/lib/kit";
+import { RESPONSE_LABELS, RESPONSES, TYPE_LABELS, type KitItem, type LogEntry, type Response } from "@/lib/kit";
 
 const NONE = "none";
 
-/** One tap per response (calm, engaged, sang along, upset), tied to the track playing if one is picked. Undo a mis-tap. */
-export function ResponseLog({ kitId, playlist, initial, playing, onPlaying }: { kitId: string; playlist: Track[]; initial: LogEntry[]; playing: string | null; onPlaying: (ref: string | null) => void }) {
+/** One tap per response (calm, engaged, sang along, upset), tied to what's on (a song, a film, a place) if picked. Undo a mis-tap. */
+export function ResponseLog({ kitId, items, initial, onNow, onOnNow }: { kitId: string; items: KitItem[]; initial: LogEntry[]; onNow: string | null; onOnNow: (ref: string | null) => void }) {
   const [entries, setEntries] = useState<LogEntry[]>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const byRef = new Map(playlist.map((t) => [t.ref, t]));
+  const byRef = new Map(items.map((i) => [i.ref, i]));
 
   async function tap(response: Response) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/kits/${kitId}/log`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ response, trackRef: playing }) });
+      const res = await fetch(`/api/kits/${kitId}/log`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ response, itemRef: onNow }) });
       const body = (await res.json()) as LogEntry | { error: string };
       if (!res.ok || "error" in body) throw new Error("error" in body ? body.error : `Logging returned ${res.status}`);
       setEntries((xs) => [...xs, body]);
@@ -45,21 +45,21 @@ export function ResponseLog({ kitId, playlist, initial, playing, onPlaying }: { 
         <h3 id="log" className="text-lg font-semibold">
           Response log
         </h3>
-        <p className="text-sm text-muted-foreground">One tap when you notice a response. Over time it shows which songs work.</p>
+        <p className="text-sm text-muted-foreground">One tap when you notice a response. Over time it shows what works for them.</p>
       </div>
       <div className="grid gap-2 sm:w-80">
-        <span className="text-sm font-medium" id="playing-label">
-          Playing now
+        <span className="text-sm font-medium" id="on-now-label">
+          On now
         </span>
-        <Select value={playing ?? NONE} onValueChange={(v) => onPlaying(v === NONE ? null : v)}>
-          <SelectTrigger aria-labelledby="playing-label" className="w-full">
+        <Select value={onNow ?? NONE} onValueChange={(v) => onOnNow(v === NONE ? null : v)}>
+          <SelectTrigger aria-labelledby="on-now-label" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={NONE}>No track (between songs)</SelectItem>
-            {playlist.map((t) => (
-              <SelectItem key={t.ref} value={t.ref}>
-                {t.song} · {t.artist}
+            <SelectItem value={NONE}>Nothing in particular</SelectItem>
+            {items.map((i) => (
+              <SelectItem key={i.ref} value={i.ref}>
+                {i.title} · {i.by?.title ?? TYPE_LABELS[i.type]}
               </SelectItem>
             ))}
           </SelectContent>
@@ -92,7 +92,7 @@ export function ResponseLog({ kitId, playlist, initial, playing, onPlaying }: { 
               <li key={e.id} className="flex items-center gap-2">
                 <span className="font-mono text-xs text-muted-foreground">{new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                 <span className="font-medium">{RESPONSE_LABELS[e.response]}</span>
-                {e.trackRef && byRef.get(e.trackRef) && <span className="text-muted-foreground">during {byRef.get(e.trackRef)!.song}</span>}
+                {e.itemRef && byRef.get(e.itemRef) && <span className="text-muted-foreground">during {byRef.get(e.itemRef)!.title}</span>}
                 <Button variant="ghost" size="icon-sm" aria-label={`Undo ${RESPONSE_LABELS[e.response]}`} onClick={() => void undo(e.id)}>
                   <Undo2 aria-hidden />
                 </Button>

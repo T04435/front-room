@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { KitView } from "@/components/kit-view";
+import { APP_NAME } from "@/lib/app";
 import { kitTitle } from "@/lib/kit";
 import { getKit, getResponses } from "@/server/kits";
 
@@ -8,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps<"/kits/[id]">): Promise<Metadata> {
   const kit = await getKit((await params).id).catch(() => null);
-  return { title: kit ? `${kitTitle(kit)} · Music Care` : "Kit not found · Music Care", robots: { index: false } };
+  return { title: `${kit ? kitTitle(kit) : "Kit not found"} · ${APP_NAME}`, robots: { index: false } };
 }
 
 /** A saved kit, open to anyone with its link (no login), with its response log. */

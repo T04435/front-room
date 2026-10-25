@@ -4,10 +4,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { APP_NAME } from "@/lib/app";
 import { DEVICE_COOKIE } from "@/lib/device";
 import { listKits } from "@/server/kits";
 
-export const metadata: Metadata = { title: "Saved kits · Music Care" };
+export const metadata: Metadata = { title: `Saved kits · ${APP_NAME}` };
 export const dynamic = "force-dynamic";
 
 /** This browser's saved kits. A kit's link can be shared; nobody else sees this list. */
@@ -43,7 +44,7 @@ export default async function KitsPage() {
                     {k.title.place}, {k.title.from}–{k.title.to}
                   </ItemTitle>
                   <ItemDescription>
-                    {k.tracks} tracks · {k.responses} {k.responses === 1 ? "response" : "responses"} logged · {new Date(k.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                    {k.songs} songs · {k.picks} films, TV and places · {k.responses} {k.responses === 1 ? "response" : "responses"} logged · {new Date(k.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                   </ItemDescription>
                 </ItemContent>
                 <ItemActions>

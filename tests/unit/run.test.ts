@@ -14,14 +14,17 @@ describe("a run (offline fixtures)", () => {
   it("researches Margaret's era in Manchester and saves a cited kit", async () => {
     const { events, calls } = await collect({ name: "Margaret", birthYear: 1950, place: "Manchester", likes: ["Dusty Springfield"] });
     const tools = events.filter((e) => e.type === "step-start").map((e) => (e as { tool: string }).tool);
-    expect(tools).toEqual(expect.arrayContaining(["find_place", "era_tags", "era_artists", "likes", "era_films", "era_tv"]));
+    expect(tools).toEqual(expect.arrayContaining(["find_place", "era_tags", "era_artists", "likes", "era_films", "era_tv", "era_places"]));
     const kitEvent = events.find((e) => e.type === "kit");
     expect(kitEvent).toBeTruthy();
     const kit = (kitEvent as Extract<RunEvent, { type: "kit" }>).kit;
     expect(kit.era).toMatchObject({ from: 1965, to: 1975 });
-    expect(kit.playlist.length).toBeGreaterThanOrEqual(4);
+    const songs = kit.items.filter((i) => i.type === "song");
+    expect(songs.length).toBeGreaterThanOrEqual(4);
     const refs = new Set(kit.items.map((i) => i.ref));
-    for (const t of kit.playlist) expect(refs.has(t.ref)).toBe(true);
+    for (const s of songs) expect(refs.has(s.by!.ref)).toBe(true);
+    expect(kit.items.some((i) => i.type === "place" && i.why)).toBe(true);
+    expect(kit.items.some((i) => (i.type === "film" || i.type === "tv") && i.why)).toBe(true);
     for (const p of kit.prompts) for (const r of p.refs) expect(refs.has(r)).toBe(true);
     expect(kit.items.every((i) => i.source.length > 0)).toBe(true);
     expect(calls).toBeGreaterThan(5);

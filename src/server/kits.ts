@@ -23,7 +23,7 @@ export async function getKit(id: string): Promise<Kit | null> {
   return kit ? (typeof kit === "string" ? (JSON.parse(kit) as Kit) : kit) : null;
 }
 
-export type KitSummary = { id: string; title: { name?: string; place: string; from: number; to: number }; tracks: number; responses: number; createdAt: string };
+export type KitSummary = { id: string; title: { name?: string; place: string; from: number; to: number }; songs: number; picks: number; responses: number; createdAt: string };
 
 /** This browser's kits, newest first, with how many responses each has logged. */
 export async function listKits(owner: string | null, limit = 50): Promise<KitSummary[]> {
@@ -39,26 +39,27 @@ export async function listKits(owner: string | null, limit = 50): Promise<KitSum
     return {
       id: r.id,
       title: { name: kit.brief.name, place: kit.place, from: kit.era.from, to: kit.era.to },
-      tracks: kit.playlist.length,
+      songs: kit.items.filter((i) => i.type === "song").length,
+      picks: kit.items.filter((i) => i.why && i.type !== "song").length,
       responses: Number(r.responses),
       createdAt: kit.createdAt,
     };
   });
 }
 
-export async function logResponse(kitId: string, response: Response, trackRef: string | null): Promise<LogEntry> {
+export async function logResponse(kitId: string, response: Response, itemRef: string | null): Promise<LogEntry> {
   const sql = await db();
-  const rows = await sql.query<{ id: number; at: string | Date }>("INSERT INTO responses (kit_id, response, track_ref) VALUES ($1, $2, $3) RETURNING id, at", [kitId, response, trackRef]);
-  return { id: rows[0].id, response, trackRef, at: new Date(rows[0].at).toISOString() };
+  const rows = await sql.query<{ id: number; at: string | Date }>("INSERT INTO responses (kit_id, response, item_ref) VALUES ($1, $2, $3) RETURNING id, at", [kitId, response, itemRef]);
+  return { id: rows[0].id, response, itemRef, at: new Date(rows[0].at).toISOString() };
 }
 
 export async function getResponses(kitId: string): Promise<LogEntry[]> {
   const sql = await db();
-  const rows = await sql.query<{ id: number; response: Response; track_ref: string | null; at: string | Date }>(
-    "SELECT id, response, track_ref, at FROM responses WHERE kit_id = $1 ORDER BY at, id",
+  const rows = await sql.query<{ id: number; response: Response; item_ref: string | null; at: string | Date }>(
+    "SELECT id, response, item_ref, at FROM responses WHERE kit_id = $1 ORDER BY at, id",
     [kitId],
   );
-  return rows.map((r) => ({ id: r.id, response: r.response, trackRef: r.track_ref, at: new Date(r.at).toISOString() }));
+  return rows.map((r) => ({ id: r.id, response: r.response, itemRef: r.item_ref, at: new Date(r.at).toISOString() }));
 }
 
 export async function undoResponse(kitId: string, id: number): Promise<void> {

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { VersionBadge } from "@/components/version-badge";
+import { APP_NAME } from "@/lib/app";
 import { versionText } from "@/lib/version";
 import "./globals.css";
 
@@ -10,8 +11,8 @@ const geistSans = Geist({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Music Care",
-  description: "Session kits for carers: the music, films and TV of someone's youth, worked out from their birth year and hometown.",
+  title: APP_NAME,
+  description: "Reminiscence session kits for carers: the music, films, TV and places of someone's youth, worked out from their birth year and hometown.",
   other: { "app-version": versionText() },
 };
 
@@ -23,7 +24,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <header className="border-b">
             <nav className="mx-auto flex max-w-4xl items-center gap-6 px-4 py-3 text-sm">
               <Link href="/" className="font-semibold">
-                Music Care
+                {APP_NAME}
               </Link>
               <Link href="/" className="text-muted-foreground hover:text-foreground">
                 New kit
@@ -37,7 +38,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <footer className="border-t">
             <div className="mx-auto grid max-w-4xl gap-3 px-4 py-4">
               <p className="text-xs text-muted-foreground">
-                Taste data from Qloo. Kits are AI-generated suggestions for engagement, not medical advice or treatment. Music opens on Spotify or YouTube; nothing is hosted here.
+                Taste data from Qloo. Kits are AI-generated suggestions for engagement, not medical advice or treatment. Songs open on Spotify or YouTube; nothing is hosted here.
               </p>
               <div className="flex justify-center">
                 <VersionBadge />

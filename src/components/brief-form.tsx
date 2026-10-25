@@ -70,7 +70,7 @@ export function BriefForm({ initial, busy, onSubmit }: Props) {
           <Label htmlFor="likes">
             Anything you know they loved <span className="font-normal text-muted-foreground">(optional)</span>
           </Label>
-          <Input id="likes" placeholder="Singers, bands, films; commas between" value={f.likes} onChange={set("likes")} maxLength={300} />
+          <Input id="likes" placeholder="Singers, films, a dance hall; commas between" value={f.likes} onChange={set("likes")} maxLength={300} />
         </div>
       </div>
       {error && (

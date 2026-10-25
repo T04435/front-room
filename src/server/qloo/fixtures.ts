@@ -23,6 +23,12 @@ const TV = [
   ["The Old Grey Whistle Test", 1971],
 ] as const;
 
+const PLACES = [
+  ["Palace Theatre Manchester", "Grand Victorian auditorium in central Manchester"],
+  ["Manchester Central Library", "Monumental 1930s neoclassical city library"],
+  ["Old Trafford Cricket Ground", "Historic Test-match cricket venue"],
+] as const;
+
 function answer(path: string, p: QlooParams): unknown {
   const place = String(p["signal.location.query"] ?? "");
   if (/nowhere/i.test(place)) return { results: { entities: [] } };
@@ -42,6 +48,7 @@ function answer(path: string, p: QlooParams): unknown {
     return { results: { entities: names.map((n) => e(`a-${n}`, n)) } };
   }
   if (type === "urn:entity:movie") return { results: { entities: FILMS.map(([n, y]) => e(`f-${n}`, n, { properties: { release_year: y } })) } };
+  if (type === "urn:entity:place") return { results: { entities: PLACES.map(([n, d]) => e(`p-${n}`, n, { properties: { description: d } })) } };
   if (type === "urn:entity:tv_show") return { results: { entities: TV.map(([n, y]) => e(`t-${n}`, n, { properties: { release_year: y } })) } };
   return { results: { entities: [] } };
 }

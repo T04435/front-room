@@ -10,6 +10,9 @@ test("the demo builds a cited session kit, logs a response and lists the kit as 
   await expect(kit.getByRole("heading", { name: /Margaret's session kit · Manchester, United Kingdom, 1965–1975/ })).toBeVisible();
   await expect(kit.getByText("AI-generated", { exact: true })).toBeVisible();
   await expect(kit.getByRole("link", { name: /on Spotify/ })).toHaveCount(7);
+  await expect(kit.getByRole("heading", { name: "Films and TV to talk about" })).toBeVisible();
+  await expect(kit.getByRole("heading", { name: "Places from their hometown" })).toBeVisible();
+  await expect(kit.getByText("Palace Theatre Manchester").first()).toBeVisible();
   await expect(kit.getByRole("button", { name: /^Source A1:/ }).first()).toBeVisible();
 
   await page.getByRole("link", { name: "Open the saved kit" }).click();

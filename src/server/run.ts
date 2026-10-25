@@ -1,6 +1,6 @@
 import "server-only";
 import { eraFor, pickDecadeTag, type Decade, type Era } from "@/lib/era";
-import { checkCurated, type AskField, type Brief, type Item, type ItemKind, type Kit } from "@/lib/kit";
+import { checkCurated, REF_PREFIX, type AskField, type Brief, type ItemType, type Kit, type KitItem } from "@/lib/kit";
 import { localityLabel, nameKey, parseInsights, parseSearch, parseTags, pickByName, type QlooEntity } from "@/lib/qloo-parse";
 import type { CallLog, QlooParams } from "@/lib/qloo-transport";
 import { TOOL_LABELS, type RunEvent } from "@/lib/run-events";
@@ -12,12 +12,11 @@ type Emit = (event: RunEvent) => void;
 
 /** Fewer artists than this from the era and place, and the run asks the family what music they loved. */
 const MIN_ARTISTS = 5;
-const PREFIX: Record<ItemKind, string> = { artist: "A", film: "F", tv: "T", family: "K" };
 
 /** One run's state: the research so far, its refs, and the Qloo calls it made (for the daily budget). */
 class RunState {
-  items: Item[] = [];
-  private counts: Record<ItemKind, number> = { artist: 0, film: 0, tv: 0, family: 0 };
+  items: KitItem[] = [];
+  private counts: Partial<Record<ItemType, number>> = {};
   qlooCalls = 0;
   qlooCached = 0;
   sources = { notonq: 0, qloo: 0, fellBack: 0 };
@@ -27,11 +26,12 @@ class RunState {
     this.avoid = new Set((brief.avoid ?? []).map(nameKey));
   }
 
-  /** Adds an item unless it's already there (same kind and name) or the family said it isn't for them. */
-  add(kind: ItemKind, e: { id: string; name: string; year?: number | null }, source: string, via: Item["via"]): Item | null {
+  /** Adds a research item unless it's already there (same type and title) or the family said it isn't for them. */
+  add(type: ItemType, e: { id: string | null; name: string; year?: number | null; description?: string | null }, source: string, via: KitItem["via"]): KitItem | null {
     if (this.avoid.has(nameKey(e.name))) return null;
-    if (this.items.some((i) => i.kind === kind && nameKey(i.name) === nameKey(e.name))) return null;
-    const item: Item = { ref: `${PREFIX[kind]}${++this.counts[kind]}`, kind, name: e.name, year: e.year ?? null, entityId: e.id, source, via };
+    if (this.items.some((i) => i.type === type && nameKey(i.title) === nameKey(e.name))) return null;
+    const n = (this.counts[type] = (this.counts[type] ?? 0) + 1);
+    const item: KitItem = { ref: `${REF_PREFIX[type]}${n}`, type, title: e.name, year: e.year ?? null, source, why: null, via, entityId: e.id, ...(type === "place" ? { description: e.description ?? null } : {}) };
     this.items.push(item);
     return item;
   }
@@ -60,7 +60,7 @@ async function get(path: string, params: QlooParams, onCall: (log: CallLog) => v
   return qlooGet<unknown>(path, params, onCall);
 }
 
-type StepResult = { ok: boolean; summary: string; items: Item[] };
+type StepResult = { ok: boolean; summary: string; items: KitItem[] };
 
 /** Runs one research step: its start and end events, its calls' sources. A Qloo error ends the step, not the run. */
 async function step(state: RunState, emit: Emit, id: string, tool: string, work: (onCall: (log: CallLog) => void) => Promise<StepResult>): Promise<StepResult> {
@@ -78,7 +78,7 @@ async function step(state: RunState, emit: Emit, id: string, tool: string, work:
   return result;
 }
 
-const list = (items: Item[], n = 6) => items.slice(0, n).map((i) => i.name).join(", ") + (items.length > n ? ` and ${items.length - n} more` : "");
+const list = (items: KitItem[], n = 6) => items.slice(0, n).map((i) => i.title).join(", ") + (items.length > n ? ` and ${items.length - n} more` : "");
 
 export type RunDeps = { onQlooCalls?: (calls: number) => Promise<void>; owner?: string | null };
 
@@ -124,26 +124,29 @@ async function run(state: RunState, emit: Emit, abortSignal: AbortSignal | undef
     return decades.length ? { ok: true, summary: `Qloo's decade tags for ${era.from}–${era.to}: ${named}.`, items: [] } : { ok: false, summary: "Qloo has no decade tag for these years.", items: [] };
   });
 
-  // 3. In parallel: the era's artists around the hometown, the family's likes, the films and the TV of those years.
+  // 3. In parallel: the era's artists around the hometown, the family's likes, the films and TV of those years, and
+  // the hometown's long-standing places.
   const [artists] = await Promise.all([
     step(state, emit, "era-artists", "era_artists", (onCall) => eraArtists(state, decades, where, placeLabel, onCall)),
     brief.likes?.length ? step(state, emit, "likes", "likes", (onCall) => likes(state, brief.likes!, decades, onCall)) : null,
     step(state, emit, "era-films", "era_films", (onCall) => screen(state, "film", era, where, placeLabel, onCall)),
     step(state, emit, "era-tv", "era_tv", (onCall) => screen(state, "tv", era, where, placeLabel, onCall)),
+    step(state, emit, "era-places", "era_places", (onCall) => places(state, where, placeLabel, onCall)),
   ]);
 
   // 4. Thin music: words from the family, else the question.
-  let artistCount = state.items.filter((i) => i.kind === "artist").length;
+  let artistCount = state.items.filter((i) => i.type === "artist").length;
   if (artistCount < MIN_ARTISTS && brief.answers?.musicWords) {
     await step(state, emit, "music-words", "music_words", (onCall) => musicWords(state, brief.answers!.musicWords!, decades, where, onCall));
-    artistCount = state.items.filter((i) => i.kind === "artist").length;
+    artistCount = state.items.filter((i) => i.type === "artist").length;
   }
   if (artistCount < MIN_ARTISTS) {
     return ask(emit, ["musicWords"], `Qloo found ${artists.items.length ? `only ${artistCount} artists` : "no artists"} for ${placeLabel} in ${era.from}–${era.to}. What kind of music did they love? A singer, a band or a style helps.`);
   }
   if (abortSignal?.aborted) return;
 
-  // 5. The kit: the curator picks the songs, orders them and writes the prompts, citing the research.
+  // 5. The kit: the curator picks the songs and orders them, picks films, TV and places to talk about, and writes the
+  // prompts, all citing the research.
   emit({ type: "note", text: `Building the session kit from ${state.items.length} researched items.` });
   emit({ type: "curating", itemCount: state.items.length });
   const { curated, model } = await curate(
@@ -151,10 +154,10 @@ async function run(state: RunState, emit: Emit, abortSignal: AbortSignal | undef
     abortSignal,
     () => emit({ type: "note", text: "The kit came back unreadable, so it's built once more." }),
   );
-  const { playlist, prompts, problems } = checkCurated(curated, state.items);
+  const { items, prompts, problems } = checkCurated(curated, state.items);
   if (problems.length) console.warn("curator problems", problems);
-  if (playlist.length < 4) {
-    emit({ type: "error", message: "The kit came back with too few tracks. Try again in a minute." });
+  if (items.filter((i) => i.type === "song").length < 4) {
+    emit({ type: "error", message: "The kit came back with too few songs. Try again in a minute." });
     return;
   }
   const kit: Kit = {
@@ -162,8 +165,7 @@ async function run(state: RunState, emit: Emit, abortSignal: AbortSignal | undef
     brief: { name: brief.name, birthYear: brief.birthYear, place: brief.place, likes: brief.likes },
     place: placeLabel,
     era,
-    items: state.items,
-    playlist,
+    items,
     prompts,
     summary: curated.summary,
     sources: state.sources,
@@ -183,11 +185,11 @@ function ask(emit: Emit, fields: AskField[], message: string) {
   emit({ type: "ask", fields, message });
 }
 
-const viaOf = (r: { via: Item["via"] }) => r.via;
+const viaOf = (r: { via: NonNullable<KitItem["via"]> }) => r.via;
 
 /** The era's artists, decade by decade, popular around the place (decade tag + location signal). The bigger decade gets more. */
 async function eraArtists(state: RunState, decades: (Decade & { tag: { id: string } })[], where: string, label: string, onCall: (log: CallLog) => void): Promise<StepResult> {
-  const added: Item[] = [];
+  const added: KitItem[] = [];
   for (const d of decades) {
     const r = await get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": d.tag.id, "signal.location.query": where, take: 12 }, onCall);
     const share = d.years >= 6 ? 8 : 6;
@@ -203,12 +205,12 @@ async function eraArtists(state: RunState, decades: (Decade & { tag: { id: strin
 
 /** What the family knows: an artist Qloo knows brings era artists like them; anything else is kept as the family said it. */
 async function likes(state: RunState, names: string[], decades: { tag: { id: string }; short: string }[], onCall: (log: CallLog) => void): Promise<StepResult> {
-  const added: Item[] = [];
+  const added: KitItem[] = [];
   for (const name of names.slice(0, 3)) {
     const r = await get("/search", { query: name, types: "urn:entity:artist", take: 5 }, onCall);
     const match: QlooEntity | undefined = pickByName(parseSearch(r.data), name);
     if (!match) {
-      const item = state.add("family", { id: `family:${nameKey(name)}`, name }, "The family", viaOf(r));
+      const item = state.add("family", { id: null, name }, "The family", null);
       if (item) added.push(item);
       continue;
     }
@@ -232,7 +234,7 @@ async function likes(state: RunState, names: string[], decades: { tag: { id: str
 async function screen(state: RunState, kind: "film" | "tv", era: Era, where: string, label: string, onCall: (log: CallLog) => void): Promise<StepResult> {
   const type = kind === "film" ? "urn:entity:movie" : "urn:entity:tv_show";
   const base = { "filter.type": type, "filter.release_year.min": era.from, "filter.release_year.max": era.to, take: kind === "film" ? 10 : 8 };
-  const added: Item[] = [];
+  const added: KitItem[] = [];
   const r = await get("/v2/insights", { ...base, "signal.location.query": where }, onCall);
   for (const e of parseInsights(r.data).slice(0, 6)) {
     const item = state.add(kind, e, `Qloo: ${kind === "film" ? "films" : "TV"} from ${era.from}–${era.to}, popular around ${label}`, viaOf(r));
@@ -254,7 +256,7 @@ async function musicWords(state: RunState, words: string, decades: { tag: { id: 
   const t = await get("/v2/tags", { "filter.query": words, "filter.tag.types": "urn:tag:genre:music", "feature.semantic_search": true, take: 3 }, onCall);
   const genres = parseTags(t.data);
   if (!genres.length) return { ok: false, summary: `Qloo found no music matching "${words}".`, items: [] };
-  const added: Item[] = [];
+  const added: KitItem[] = [];
   const r = await get(
     "/v2/insights",
     { "filter.type": "urn:entity:artist", "signal.interests.tags": genres.map((g) => g.id).join(","), "filter.tags": decades[0]?.tag.id, "signal.location.query": where, take: 10 },
@@ -265,4 +267,19 @@ async function musicWords(state: RunState, words: string, decades: { tag: { id: 
     if (item) added.push(item);
   }
   return { ok: added.length > 0, summary: added.length ? `"${words}" → ${genres.map((g) => g.name).join(", ")}: ${list(added)}.` : `No artists for "${words}".`, items: added };
+}
+
+/**
+ * Long-standing places in the hometown: Qloo's places are today's, so the run asks for the ones tagged historic (a
+ * Victorian theatre, a 1930s library, a cricket ground), which were likely there in their youth too. The curator picks
+ * the ones worth a conversation, and the kit says they're still there today, not that they went.
+ */
+async function places(state: RunState, where: string, label: string, onCall: (log: CallLog) => void): Promise<StepResult> {
+  const r = await get("/v2/insights", { "filter.type": "urn:entity:place", "filter.location.query": where, "filter.tags": "urn:tag:ambience:qloo:historic", take: 10 }, onCall);
+  const added: KitItem[] = [];
+  for (const e of parseInsights(r.data).slice(0, 8)) {
+    const item = state.add("place", e, `Qloo: historic places in ${label}, still there today`, viaOf(r));
+    if (item) added.push(item);
+  }
+  return added.length ? { ok: true, summary: `${list(added)}.`, items: added } : { ok: false, summary: `Qloo has no historic places listed for ${label}.`, items: [] };
 }

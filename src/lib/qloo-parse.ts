@@ -11,6 +11,7 @@ const entity = z.object({
     .object({
       release_year: z.union([z.number(), z.string()]).nullable().optional(),
       short_description: z.string().nullable().optional(),
+      description: z.string().nullable().optional(),
     })
     .partial()
     .nullable()
@@ -35,7 +36,7 @@ function toEntity(e: z.infer<typeof entity>): QlooEntity {
     id: e.entity_id,
     name: e.name,
     year: Number.isFinite(year) && year > 0 ? year : null,
-    description: e.properties?.short_description ?? null,
+    description: e.properties?.short_description ?? e.properties?.description ?? null,
     disambiguation: e.disambiguation ?? null,
     popularity: e.popularity ?? null,
     affinity: e.query?.affinity ?? null,
