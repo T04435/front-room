@@ -39,6 +39,17 @@ describe("migrate", () => {
     expect(n).toBeGreaterThanOrEqual(6);
   });
 
+  it("brings an older database up to date (responses with track_ref, kits without person_id)", async () => {
+    const db = new PGlite();
+    const sql: Sql = { query: async <T,>(text: string, params?: unknown[]) => (await db.query<T>(text, params ?? [])).rows };
+    await sql.query("CREATE TABLE kits (id text PRIMARY KEY, owner text, kit jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now())");
+    await sql.query("CREATE TABLE responses (id serial PRIMARY KEY, kit_id text NOT NULL REFERENCES kits (id) ON DELETE CASCADE, response text NOT NULL, track_ref text, at timestamptz NOT NULL DEFAULT now())");
+    await migrate(sql);
+    await sql.query("INSERT INTO kits (id, kit, person_id) VALUES ('k', '{}', 'p')");
+    await sql.query("INSERT INTO responses (kit_id, response, item_ref) VALUES ('k', 'calm', 'S1')");
+    expect(await sql.query("SELECT item_ref FROM responses")).toEqual([{ item_ref: "S1" }]);
+  });
+
   it("creates working tables in Postgres (PGlite), and runs twice without harm", async () => {
     const db = new PGlite();
     const sql: Sql = { query: async <T,>(text: string, params?: unknown[]) => (await db.query<T>(text, params ?? [])).rows };

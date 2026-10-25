@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS responses (
   at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS responses_kit ON responses (kit_id, at);
+-- Databases made before the log covered films and places had "track_ref": add the new column (old rows keep theirs).
+ALTER TABLE responses ADD COLUMN IF NOT EXISTS item_ref text;
 
 -- People: one document per person (their confirmed story). The id is the private link.
 CREATE TABLE IF NOT EXISTS people (
