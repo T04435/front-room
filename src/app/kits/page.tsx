@@ -6,6 +6,7 @@ import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { APP_NAME } from "@/lib/app";
 import { DEVICE_COOKIE } from "@/lib/device";
+import { EXAMPLE_KIT, EXAMPLE_KIT_ID } from "@/lib/example-kit";
 import { listKits } from "@/server/kits";
 
 export const metadata: Metadata = { title: `Saved kits · ${APP_NAME}` };
@@ -21,6 +22,19 @@ export default async function KitsPage() {
         <h1 className="text-2xl font-semibold">Saved kits</h1>
         <p className="text-sm text-muted-foreground">Kits built in this browser. Share a kit&apos;s link with family or other staff.</p>
       </div>
+      <Item variant="muted" asChild>
+        <Link href={`/kits/${EXAMPLE_KIT_ID}`}>
+          <ItemContent>
+            <ItemTitle>
+              Example: {EXAMPLE_KIT.brief.name} · {EXAMPLE_KIT.place}, {EXAMPLE_KIT.era.from}–{EXAMPLE_KIT.era.to}
+            </ItemTitle>
+            <ItemDescription>A real run for a fictional person, born {EXAMPLE_KIT.brief.birthYear}. Read-only.</ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <span className="text-sm text-muted-foreground">Open</span>
+          </ItemActions>
+        </Link>
+      </Item>
       {kits.length === 0 ? (
         <Empty className="border">
           <EmptyHeader>

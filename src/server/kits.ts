@@ -1,5 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
+import { EXAMPLE_KIT, EXAMPLE_KIT_ID } from "@/lib/example-kit";
 import type { Kit, LogEntry, Response } from "@/lib/kit";
 import { db } from "@/server/db";
 
@@ -15,7 +16,9 @@ export async function saveKit(kit: Kit, owner: string | null): Promise<void> {
   await sql.query("INSERT INTO kits (id, owner, kit, created_at) VALUES ($1, $2, $3, $4)", [kit.id, owner, JSON.stringify(kit), kit.createdAt]);
 }
 
+/** A saved kit, or the built-in example (no database needed, so it opens even with the database down). */
 export async function getKit(id: string): Promise<Kit | null> {
+  if (id === EXAMPLE_KIT_ID) return EXAMPLE_KIT;
   if (!isKitId(id)) return null;
   const sql = await db();
   const rows = await sql.query<{ kit: Kit | string }>("SELECT kit FROM kits WHERE id = $1", [id]);

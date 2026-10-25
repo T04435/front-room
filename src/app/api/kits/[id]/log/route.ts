@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EXAMPLE_KIT_ID } from "@/lib/example-kit";
 import { RESPONSES } from "@/lib/kit";
 import { getKit, getResponses, logResponse, undoResponse } from "@/server/kits";
 import { perVisitor, refusalResponse } from "@/server/limits";
@@ -7,6 +8,7 @@ const body = z.object({ response: z.enum(RESPONSES), itemRef: z.string().max(8).
 
 export async function GET(_request: Request, ctx: RouteContext<"/api/kits/[id]/log">) {
   const { id } = await ctx.params;
+  if (id === EXAMPLE_KIT_ID) return Response.json([]);
   if (!(await getKit(id))) return Response.json({ error: "No such kit" }, { status: 404 });
   return Response.json(await getResponses(id), { headers: { "Cache-Control": "no-store" } });
 }
@@ -14,6 +16,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/kits/[id]/l
 /** One tap: calm, engaged, sang along or upset, with what was on (a song, a film, a place) if anything. */
 export async function POST(request: Request, ctx: RouteContext<"/api/kits/[id]/log">) {
   const { id } = await ctx.params;
+  if (id === EXAMPLE_KIT_ID) return Response.json({ error: "The example kit is read-only. Build your own to log responses." }, { status: 403 });
   const parsed = body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Pick a response" }, { status: 400 });
   const kit = await getKit(id);

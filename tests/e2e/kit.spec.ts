@@ -23,7 +23,7 @@ test("the demo builds a cited session kit, logs a response and lists the kit as 
   await expect(page.getByRole("list", { name: "Logged responses" })).toContainText("Sang along");
 
   await page.getByRole("link", { name: "Saved kits" }).click();
-  await expect(page.getByRole("link", { name: /Margaret · Manchester, United Kingdom, 1965–1975/ })).toContainText("1 response logged");
+  await expect(page.getByRole("link", { name: /^Margaret · Manchester, United Kingdom, 1965–1975/ })).toContainText("1 response logged");
 });
 
 test("the family marks a song and a place not for them, and the kit is built again from the saved kit", async ({ page }) => {
@@ -60,4 +60,15 @@ test("the footer's version badge and /api/version agree", async ({ page, request
   const version = (await (await request.get("/api/version")).json()) as { version: string; shortSha: string };
   await page.goto("/");
   await expect(page.locator("footer")).toContainText(`v${version.version} @ ${version.shortSha}`);
+});
+
+test("the example kit opens from /kits, read-only, with no database run", async ({ page, request }) => {
+  await page.goto("/kits");
+  await page.getByRole("link", { name: /Example: Margaret · Manchester, United Kingdom, 1965–1975/ }).click();
+  await expect(page).toHaveURL(/\/kits\/example$/);
+  const kit = page.getByRole("article", { name: "Session kit" });
+  await expect(kit.getByRole("heading", { name: "Playlist" })).toBeVisible();
+  await expect(kit.getByText("Title confirmed on MusicBrainz").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Response log" })).toHaveCount(0);
+  expect((await request.post("/api/kits/example/log", { data: { response: "sang" } })).status()).toBe(403);
 });

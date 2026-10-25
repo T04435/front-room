@@ -4,6 +4,21 @@ Qloo Agentic Hackathon 2026, 4th entry: **Front Room** (renamed from the working
 brand comes from the Front Room design system).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-25 · Next list done: MusicBrainz check, family corrections, example kit
+
+- **MusicBrainz check.** Each song title the curator picks is looked up as a recording by its artist, one call a
+  second, with retries on 503. Titles it can't find are dropped while five or more songs remain. Confirmed songs
+  keep the curator's year (MusicBrainz's search ranks reissues), and unchecked ones are marked on the kit. Live: 8 of
+  8, then 7 of 8, confirmed. The run is now about 25–31 s.
+- **Family corrections.** Every song, film, TV show and place gets a "Not for them" toggle. "Build again without
+  these" leaves them out of the research and the curator's picks, as a new kit; the original stays. It works from
+  the run page and from a saved kit (`/?from=<id>&avoid=…`). The marks carry over on `kit.brief.avoid`.
+- **Example kit.** `/kits/example` and the top card on `/kits` show a real run (25 Oct) for the fictional Margaret.
+  It's committed as `src/lib/example-kit.ts` without Qloo entity ids, read-only (the log API returns 403), and opens
+  without the database.
+- **Curator rules.** Prompts never use the word "remember". Staff lines use the person's name or "they", never a
+  pronoun guessed from the name (the live run had guessed "she" from "Margaret").
+
 ## 2026-10-25 · Live demo verified (Margaret, born 1950, Manchester, likes Dusty Springfield)
 
 - **Run:** about 26 s, 11 live Qloo calls, all through local NotOnQ (no fallbacks needed), the curator on Sonnet 5.5
