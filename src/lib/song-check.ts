@@ -15,7 +15,8 @@ export function baseTitle(title: string): string {
 
 /**
  * Whether MusicBrainz has this song by this artist: a recording with the same base title, credited to the artist (or
- * an artist credit containing it, for "Dusty Springfield & …"). The year is the earliest first release among matches.
+ * an artist credit containing it, for "Dusty Springfield & …"). The year is the earliest first release among matches,
+ * which can be a reissue's when the original isn't in the search page.
  */
 export function matchRecording(results: MbRecording[], artist: string, title: string): { found: boolean; year: number | null } {
   const want = baseTitle(title);

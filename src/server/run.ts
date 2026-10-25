@@ -293,8 +293,9 @@ async function places(state: RunState, where: string, label: string, onCall: (lo
 const MIN_SONGS = 5;
 
 /**
- * Checks each song title the curator picked against MusicBrainz (one call a second). A confirmed song takes
- * MusicBrainz's first release year; a title it can't find is dropped (a made-up title must not reach staff) unless
+ * Checks each song title the curator picked against MusicBrainz (one call a second). A confirmed song keeps the
+ * curator's year (MusicBrainz's search ranks reissues and compilations, so its earliest match can be decades late) and
+ * takes MusicBrainz's only when the curator gave none. A title it can't find is dropped (a made-up title must not reach staff) unless
  * that would leave fewer than MIN_SONGS. If MusicBrainz can't be reached, songs stay, marked unchecked. Offline: no calls.
  */
 async function checkSongs(items: KitItem[], emit: Emit): Promise<KitItem[]> {
@@ -322,7 +323,7 @@ async function checkSongs(items: KitItem[], emit: Emit): Promise<KitItem[]> {
       const found = results.get(i.ref) === "found";
       return {
         ...i,
-        year: years.get(i.ref) ?? i.year,
+        year: i.year ?? years.get(i.ref) ?? null,
         check: found ? "musicbrainz" : "unchecked",
         source: found ? `AI pick, confirmed on MusicBrainz: a recording by ${i.by!.title} (${i.by!.ref})` : i.source,
       };

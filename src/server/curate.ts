@@ -22,12 +22,13 @@ Picks (films, TV, places):
 
 Conversation prompts:
 - 5 or 6 prompts staff can say out loud. Each cites the refs of the items it mentions (an artist, a film, a TV show, a place, something from the family). Mix them: not only music.
-- Gentle and open: invite a story or an opinion ("This was on at every picture house in 1965. Who would you go to the pictures with?"). Never test memory: no "Do you remember…?", no quiz questions, no correcting.
+- Gentle and open: invite a story or an opinion ("This was on at every picture house in 1965. Who would you go to the pictures with?"). Never test memory: never use the word "remember", no quiz questions, no correcting.
 - Mention the hometown where it helps.
 
 Rules:
 - Use only refs from the research list. Items marked "from the family" are things the family told us: weave them in.
 - This is about engagement and enjoyment, never treatment: no medical or therapeutic claims.
+- Lines for staff ("why") refer to the person by their name, or as "they". Never guess pronouns from a name.
 - Plain British English for a UK place, plain American English for a US place, otherwise plain international English.`;
 
 function researchList(items: KitItem[]): string {

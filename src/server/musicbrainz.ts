@@ -27,13 +27,19 @@ export function checkSong(artist: string, title: string): Promise<{ found: boole
   const hit = cache.get(key);
   if (hit) return hit;
   const value = (async () => {
-    await paced();
     const query = `recording:${quote(title)} AND artist:${quote(artist)}`;
-    const res = await fetch(`${API}/recording?query=${encodeURIComponent(query)}&limit=15&fmt=json`, {
-      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-    if (!res.ok) throw new Error(`MusicBrainz returned ${res.status}`);
+    let res: Response | null = null;
+    // MusicBrainz answers 503 when it's over its rate (seen live, 25 Oct): back off and try twice more.
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt) await new Promise((r) => setTimeout(r, 1500 * attempt));
+      await paced();
+      res = await fetch(`${API}/recording?query=${encodeURIComponent(query)}&limit=25&fmt=json`, {
+        headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (res.status !== 503) break;
+    }
+    if (!res?.ok) throw new Error(`MusicBrainz returned ${res?.status}`);
     const json = (await res.json()) as { recordings?: MbRecording[] };
     return matchRecording(json.recordings ?? [], artist, title);
   })();
