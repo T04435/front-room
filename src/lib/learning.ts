@@ -12,6 +12,7 @@ export type Goal = "settle" | "chat" | "sing";
 export const PROVEN_SESSIONS = 2;
 export const RESTING_SESSIONS = 3;
 export const RESTING_DAYS = 30;
+export const TEARFUL_SESSIONS = 2;
 
 /** The same thing across kits: its type and title (and a song's artist), however the curator spelled them. */
 export function itemKey(i: Pick<KitItem, "type" | "title"> & { by?: { title: string } | string }): string {
@@ -31,6 +32,7 @@ export type ItemStat = {
   engagedSessions: number;
   calmSessions: number;
   upsetSessions: number;
+  tearfulSessions: number;
   quietSessions: number;
   lastAt: string | null;
   lastUpsetAt: string | null;
@@ -60,7 +62,7 @@ export function itemStats(kits: Kit[], logs: Logged[], resolvedUpsets: string[] 
       const key = item.key ?? itemKey(item);
       const s =
         stats.get(key) ??
-        ({ key, type: item.type, title: item.title, by: item.by?.title, plays: 0, sangSessions: 0, engagedSessions: 0, calmSessions: 0, upsetSessions: 0, quietSessions: 0, lastAt: null, lastUpsetAt: null, state: "new", label: "" } satisfies ItemStat);
+        ({ key, type: item.type, title: item.title, by: item.by?.title, plays: 0, sangSessions: 0, engagedSessions: 0, calmSessions: 0, upsetSessions: 0, tearfulSessions: 0, quietSessions: 0, lastAt: null, lastUpsetAt: null, state: "new", label: "" } satisfies ItemStat);
       const tags = new Set(entries.map((e) => e.response));
       const last = entries.map((e) => e.at).sort().at(-1)!;
       s.plays++;
@@ -71,6 +73,7 @@ export function itemStats(kits: Kit[], logs: Logged[], resolvedUpsets: string[] 
         s.upsetSessions++;
         if (!s.lastUpsetAt || last > s.lastUpsetAt) s.lastUpsetAt = last;
       }
+      if (tags.has("tearful")) s.tearfulSessions++;
       if ([...tags].every((t) => t === "none")) s.quietSessions++;
       if (!s.lastAt || last > s.lastAt) s.lastAt = last;
       stats.set(key, s);
@@ -83,6 +86,8 @@ export function itemStats(kits: Kit[], logs: Logged[], resolvedUpsets: string[] 
 function stateOf(s: ItemStat, upsetResolved: boolean, now: Date): Pick<ItemStat, "state" | "label"> {
   const good = countGood(s);
   if (s.upsetSessions > 0 && !upsetResolved) return { state: "paused", label: `Paused after an upset on ${day(s.lastUpsetAt!)}` };
+  // Tears once can be a good cry; on two days, pause it and ask the family.
+  if (s.tearfulSessions >= TEARFUL_SESSIONS && !upsetResolved) return { state: "paused", label: "Paused · tearful twice" };
   if (good >= PROVEN_SESSIONS) {
     const how = s.sangSessions >= PROVEN_SESSIONS ? `sang along ${times(s.sangSessions)}` : `engaged ${times(good)}`;
     return { state: "proven", label: `Proven · ${how}` };
@@ -132,7 +137,7 @@ export function playStats(plays: Play[], resolvedUpsets: string[] = [], now = ne
   const stats = new Map<string, ItemStat>();
   for (const [key, days] of byItemDay) {
     const first = [...days.values()][0][0];
-    const s: ItemStat = { key, type: first.type, title: first.title, by: first.by, plays: 0, sangSessions: 0, engagedSessions: 0, calmSessions: 0, upsetSessions: 0, quietSessions: 0, lastAt: null, lastUpsetAt: null, state: "new", label: "" };
+    const s: ItemStat = { key, type: first.type, title: first.title, by: first.by, plays: 0, sangSessions: 0, engagedSessions: 0, calmSessions: 0, upsetSessions: 0, tearfulSessions: 0, quietSessions: 0, lastAt: null, lastUpsetAt: null, state: "new", label: "" };
     for (const entries of days.values()) {
       const tags = new Set(entries.map((e) => e.response));
       const last = entries.map((e) => e.at).sort().at(-1)!;
@@ -144,6 +149,7 @@ export function playStats(plays: Play[], resolvedUpsets: string[] = [], now = ne
         s.upsetSessions++;
         if (!s.lastUpsetAt || last > s.lastUpsetAt) s.lastUpsetAt = last;
       }
+      if (tags.has("tearful")) s.tearfulSessions++;
       if ([...tags].every((t) => t === "none")) s.quietSessions++;
       if (!s.lastAt || last > s.lastAt) s.lastAt = last;
     }

@@ -139,10 +139,11 @@ export type Kit = {
   createdAt: string;
 };
 
-export const RESPONSES = ["calm", "engaged", "sang", "upset"] as const;
+// Tearful is its own response: personal music can bring sadness without distress (research, 26 Oct).
+export const RESPONSES = ["calm", "engaged", "sang", "tearful", "upset"] as const;
 /** "none": shown in a session with no reaction (session mode logs it on moving on); never a button. */
 export type Response = (typeof RESPONSES)[number] | "none";
-export const RESPONSE_LABELS: Record<Response, string> = { calm: "Calm", engaged: "Engaged", sang: "Sang along", upset: "Upset", none: "No reaction" };
+export const RESPONSE_LABELS: Record<Response, string> = { calm: "Calm", engaged: "Engaged", sang: "Sang along", tearful: "Tearful", upset: "Upset", none: "No reaction" };
 /** One tap; `itemRef` is what was on (a song playing, a film being talked about), if anything. */
 export type LogEntry = { id: number; response: Response; itemRef: string | null; at: string };
 

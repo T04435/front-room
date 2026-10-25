@@ -41,6 +41,9 @@ const HINTS: { label: string; starter: (n: string) => string }[] = [
   { label: "Family and big moments", starter: () => "A big moment was " },
   { label: "Faith", starter: () => "Faith: " },
   { label: "Music, films and shows", starter: (n) => `${n} loved ` },
+  // Their own songs beat era picks (Playlist for Life asks these first).
+  { label: "A song they always sang", starter: (n) => `${n} always sang ` },
+  { label: "Their wedding music", starter: () => "At their wedding they danced to " },
   { label: "What calms them", starter: () => "What calms them is " },
   { label: "What upsets them", starter: () => "Please steer clear of " },
 ];
@@ -113,7 +116,12 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
 
   const push = (...m: Msg[]) => setMsgs((xs) => [...xs, ...m]);
   const say = (t: string) => push({ id: id(), from: "agent", text: t });
-  const done = (msgId: string) => setResolved((s) => new Set(s).add(msgId));
+  // A settled question keeps its answer in its own bubble, so the chat reads in order.
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const done = (msgId: string, answer?: string) => {
+    setResolved((s) => new Set(s).add(msgId));
+    if (answer) setAnswers((a) => ({ ...a, [msgId]: answer }));
+  };
 
   /** Saves the story; returns the saved person (or the old one if it failed). */
   async function save(next: Person): Promise<Person> {
@@ -136,7 +144,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
     // Questions answered since they were asked close themselves.
     const open = msgs.filter((m): m is Extract<Msg, { kind: "ask" }> => "kind" in m && m.kind === "ask" && !resolved.has(m.id));
     const answered = open.filter((m) => !stillNeeded(m.ask, p));
-    if (answered.length) setResolved((r) => new Set([...r, ...answered.map((m) => m.id)]));
+    // Questions a later message answered just go: a bubble saying so is noise.
+    if (answered.length) setMsgs((ms) => ms.filter((m) => !answered.some((x) => x.id === m.id)));
     if (pendingWidgets > 0) return;
     const ask = nextAsk(p);
     const asked = ask && open.some((m) => stillNeeded(m.ask, p) && JSON.stringify(m.ask) === JSON.stringify(ask));
@@ -179,9 +188,15 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
 
   async function find() {
     if (missingMinimum(person).length) {
+      // What they told me may already cover it, waiting on a Yes.
+      if (msgs.some((m) => "kind" in m && m.kind === "heard" && !resolved.has(m.id))) {
+        say("Tap Yes or All right on what I heard first, and then I'll look things up.");
+        return;
+      }
       const ask = nextAsk(person);
+      const asked = ask && msgs.some((m) => "kind" in m && m.kind === "ask" && !resolved.has(m.id) && JSON.stringify(m.ask) === JSON.stringify(ask));
       say(`Before I look things up I need ${missingMinimum(person).map((m) => ({ preferredName: "the name they like", birthYear: "roughly when they were born", place: "where they grew up" })[m]).join(" and ")}.`);
-      if (ask) push({ id: id(), from: "agent", kind: "ask", ask });
+      if (ask && !asked) push({ id: id(), from: "agent", kind: "ask", ask });
       return;
     }
     push({ id: id(), from: "agent", kind: "finding" });
@@ -234,8 +249,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
   }
 
   async function answerAsk(msgId: string, shown: string, next: Person) {
-    done(msgId);
-    push({ id: id(), from: "you", text: shown });
+    done(msgId, shown);
     carryOn(await save(next));
   }
 
@@ -279,14 +293,14 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
                       ro={ro}
                       busy={busy}
                       resolved={resolved.has(m.id)}
+                      answer={answers[m.id]}
                       steps={steps}
                       onHint={(starter) => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${starter}`)}
                       onConfirm={(facts) => void confirmFacts(m.id, facts)}
                       onDrop={() => done(m.id)}
                       onSteer={async (level) => {
                         if (!("fact" in m)) return;
-                        done(m.id);
-                        push({ id: id(), from: "you", text: level === "never" ? "Never" : level === "sad_ok" ? "Sad but OK" : "No need" });
+                        done(m.id, level === "never" ? "Never" : level === "sad_ok" ? "Sad but OK" : "No need");
                         const saved = await save(addSteer(person, m.fact.value, level, /^[A-Z]/.test(m.fact.value) && !/^The /.test(m.fact.value) ? "person" : "topic"));
                         carryOn(saved);
                       }}
@@ -294,7 +308,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
                       paused={paused}
                       provenCalm={provenCalm}
                       onHelp={(h) => {
-                        push({ id: id(), from: "you", text: h.label }, { id: id(), from: "agent", kind: "help", help: h });
+                        push({ id: id(), from: "agent", kind: "help", help: h });
                       }}
                       onFind={() => {
                         done(m.id);
@@ -318,9 +332,10 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
 
       {!ro && (
         <div className="sticky bottom-0 grid gap-2 border-t bg-background pt-3 pb-4">
-          <div className="flex flex-wrap gap-1.5" aria-label="What helps">
+          {/* One scrolling row on a phone, so the chat keeps the screen. */}
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible" aria-label="What helps">
             {HINTS.map((h) => (
-              <Button key={h.label} size="xs" variant="secondary" onClick={() => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`)}>
+              <Button key={h.label} size="sm" variant="secondary" className="shrink-0" onClick={() => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`)}>
                 {h.label}
               </Button>
             ))}
@@ -345,8 +360,17 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
               <ArrowUp aria-hidden />
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">Only what you confirm is kept; the words themselves aren&apos;t.</p>
+          <p className="hidden text-xs text-muted-foreground sm:block">Only what you confirm is kept; the words themselves aren&apos;t.</p>
         </div>
+      )}
+      {ro && (
+        <p className="rounded-lg border bg-muted/40 p-3 text-sm">
+          This is the example, so answering is off.{" "}
+          <Link href="/people/new" className="underline underline-offset-4">
+            Add your own person
+          </Link>{" "}
+          to tell their story.
+        </p>
       )}
     </div>
   );
@@ -398,7 +422,7 @@ function opening(p: Person, paused: Paused[]): Msg[] {
   if (!known) {
     return [
       { id: "hello", from: "agent", text: `Hello. I'm the Go-Between. Tell me about ${name}, in any order: talk, type, or paste a “This is me” if you have one.` },
-      { id: "helps-hint", from: "agent", text: `What helps me most: where ${name} grew up and lived, roughly when they were born, their work, family and big moments, the music, films and shows they loved, and what calms or upsets them. Tap a suggestion below to start, or just tell me.` },
+      { id: "helps-hint", from: "agent", text: `What helps me most: where ${name} grew up and lived, roughly when they were born, their work, family and big moments, the music, films and shows they loved, and what calms or upsets them. Tap a suggestion below to start, or just tell me. Only what you confirm is kept.` },
     ];
   }
   const by = p.birthYear ? `born ${p.birthYear}` : p.decade ? `born in the ${p.decade}s` : null;
@@ -409,6 +433,31 @@ function opening(p: Person, paused: Paused[]): Msg[] {
   ];
 }
 
+/** "brother Tom" mid-sentence; names and "The war" keep their capital. */
+const midSentence = (label: string) => label.replace(/^(Brother|Sister|Mother|Father|Mum|Dad|Son|Daughter|Husband|Wife|Uncle|Aunt|Auntie|Cousin|Grandson|Granddaughter) /, (w) => w.toLowerCase());
+
+function steerNote(label: string, answer?: string): string {
+  if (answer === "Never") return `I'll steer clear of ${midSentence(label)}.`;
+  if (answer === "Sad but OK") return `Noted: ${midSentence(label)} is sad but OK to mention.`;
+  return `Noted: no need to steer clear of ${midSentence(label)}.`;
+}
+
+/** A question once answered: the answer in place (or that a later message answered it). */
+function Settled({ question, answer }: { question?: string; answer?: string }) {
+  return (
+    <span className="grid gap-0.5">
+      {question && <span className="text-sm text-foreground/70">{question}</span>}
+      {answer ? (
+        <span className="flex items-center gap-1.5">
+          <Check aria-hidden className="size-4 text-emerald-600" /> {answer}
+        </span>
+      ) : (
+        <span className="text-foreground/70">Thanks.</span>
+      )}
+    </span>
+  );
+}
+
 type BodyProps = {
   m: Extract<Msg, { from: "agent" }>;
   person: Person;
@@ -416,6 +465,8 @@ type BodyProps = {
   ro: boolean;
   busy: boolean;
   resolved: boolean;
+  /** What was answered, shown in the settled question. */
+  answer?: string;
   steps: StepItem[];
   onHint: (starter: string) => void;
   onConfirm: (facts: Candidate[]) => void;
@@ -436,13 +487,13 @@ function AgentBody(props: BodyProps) {
     case "heard":
       return <Heard facts={m.facts} resolved={resolved} ro={ro} onConfirm={props.onConfirm} onDrop={props.onDrop} />;
     case "painful":
-      return resolved ? <span>You mentioned {m.fact.value}. Noted.</span> : <SteerQuestion question={`You mentioned ${m.fact.value}. Shall I steer clear of that in what I suggest?`} onAnswer={props.onSteer} />;
+      return resolved ? <span>{steerNote(m.fact.value, props.answer)}</span> : <SteerQuestion question={`You mentioned ${m.fact.value}. Shall I steer clear of that in what I suggest?`} onAnswer={props.onSteer} />;
     case "ask":
-      return resolved ? <span className="text-muted-foreground">Thanks.</span> : <AskInput ask={m.ask} person={person} name={name} onAnswer={props.onAnswer} />;
+      return resolved ? <Settled answer={props.answer} /> : <AskInput ask={m.ask} person={person} name={name} onAnswer={props.onAnswer} />;
     case "helps":
       return <HelpChips person={person} name={name} onHelp={props.onHelp} ro={ro} paused={props.paused} provenCalm={props.provenCalm} />;
     case "help":
-      return resolved ? <span className="text-muted-foreground">Thanks.</span> : <HelpInput help={m.help} person={person} onSave={(p, shown) => props.onAnswer(shown, p)} />;
+      return resolved ? <Settled question={m.help.label} answer={props.answer} /> : <HelpInput help={m.help} person={person} onSave={(p, shown) => props.onAnswer(shown, p)} />;
     case "find":
       return resolved ? (
         <span>Looking things up for {name}.</span>
@@ -632,7 +683,7 @@ function HelpChips({ person, name, onHelp, ro, paused, provenCalm }: { person: P
           </Button>
         ))}
       </span>
-      <span className="text-muted-foreground">Or just tell me more below.</span>
+      {!ro && <span className="text-foreground/70">Or just tell me more below.</span>}
     </span>
   );
 }

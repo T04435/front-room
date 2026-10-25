@@ -17,6 +17,8 @@
 /.next/
 /.next-e2e/
 /.next-qa/
+/.next-demo/
+/.next-build/
 /out/
 
 # production

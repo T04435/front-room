@@ -1,7 +1,7 @@
 import "server-only";
 import { generateText, NoObjectGeneratedError, Output, type LanguageModel } from "ai";
 import { MockLanguageModelV4 } from "ai/test";
-import { extractionSchema, type Fact, type Person } from "@/lib/person";
+import { birthYearOf, extractionSchema, type Fact, type Person } from "@/lib/person";
 import { offline } from "@/server/env";
 import { LIMITS, MODELS } from "./models";
 
@@ -26,7 +26,7 @@ followUps: one or two short, warm questions for the teller (the family or carer,
 
 /** The facts in what someone told us. Nothing is saved here: the page shows them as "here's what I heard" to confirm. */
 export async function extractFacts(text: string, person: Person, abortSignal?: AbortSignal): Promise<{ facts: Fact[]; followUps: string[] }> {
-  const model = offline() ? offlineExtractor(text) : MODELS.curator;
+  const model = offline() ? offlineExtractor(text, person) : MODELS.curator;
   const known = [
     person.preferredName ? `Name they like: ${person.preferredName}` : null,
     person.birthYear ? `Born ${person.birthYear}` : null,
@@ -45,7 +45,9 @@ export async function extractFacts(text: string, person: Person, abortSignal?: A
         abortSignal: AbortSignal.any([AbortSignal.timeout(LIMITS.curatorTimeoutMs), ...(abortSignal ? [abortSignal] : [])]),
       })
     ).output;
-  const tidy = (o: { facts: Fact[]; followUps: string[] }) => ({ facts: clean(o.facts, text), followUps: o.followUps.filter((q) => q.trim() && !/remember/i.test(q)).slice(0, 2) });
+  // Never ask what's already in their story (seen offline, QA-8; a guard for the model too).
+  const asksKnown = (q: string) => (person.places.length > 0 && /where did .* grow up/i.test(q)) || (birthYearOf(person) !== null && /when (was|were) .* born/i.test(q));
+  const tidy = (o: { facts: Fact[]; followUps: string[] }) => ({ facts: clean(o.facts, text), followUps: o.followUps.filter((q) => q.trim() && !/remember/i.test(q) && !asksKnown(q)).slice(0, 2) });
   try {
     return tidy(await once());
   } catch (error) {
@@ -66,7 +68,7 @@ function clean(facts: Fact[], text: string): Fact[] {
  * Offline (tests and e2e): a few patterns stand in for the model, enough for the demo story ("born 1950", "grew up in
  * Manchester", "married in '72 and moved to Blackpool", "brother Tom … never talks about him", "loved Dusty").
  */
-function offlineExtractor(text: string): LanguageModel {
+function offlineExtractor(text: string, person: Person): LanguageModel {
   const facts: Fact[] = [];
   const f = (kind: Fact["kind"], value: string, quote: string, more: Partial<Fact> = {}) =>
     facts.push({ kind, value, quote, fromYear: null, toYear: null, detail: null, extra: null, ...more });
@@ -88,10 +90,18 @@ function offlineExtractor(text: string): LanguageModel {
   return new MockLanguageModelV4({
     modelId: "offline-extractor",
     doGenerate: async () => ({
-      content: [{ type: "text", text: JSON.stringify({ facts, followUps: moved ? [`You said they moved to ${moved[1]}. What did they do there?`] : ["Where did they grow up?"] }) }],
+      content: [{ type: "text", text: JSON.stringify({ facts, followUps: offlineFollowUps(moved?.[1], loved?.[1]?.trim(), grew !== null || person.places.length > 0) }) }],
       finishReason: { unified: "stop", raw: undefined },
       usage: { inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 0, text: 0, reasoning: 0 } },
       warnings: [],
     }),
   });
+}
+
+/** The offline stand-in for the model's follow-up: dig into what was said, else ask what's missing, else what calms them. */
+function offlineFollowUps(movedTo: string | undefined, loved: string | undefined, placeKnown: boolean): string[] {
+  if (movedTo) return [`You said they moved to ${movedTo}. What did they do there?`];
+  if (loved) return [`You said they loved ${loved}. Was there a song of theirs they always sang?`];
+  if (!placeKnown) return ["Where did they grow up?"];
+  return ["What calms them when they're unsettled?"];
 }

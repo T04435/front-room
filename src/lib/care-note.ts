@@ -42,6 +42,7 @@ export function careNoteForPlays(plays: import("./learning").Play[], timeZone?: 
   const engaged = titles("engaged").filter((t) => !sang.includes(t));
   const calm = titles("calm");
   const upset = titles("upset");
+  const tearful = titles("tearful");
   const bits = [engaged.length ? `engaged with ${engaged.join(" and ")}` : null, sang.length ? `sang along to ${sang.join(" and ")}` : null, !engaged.length && !sang.length && calm.length ? `calm with ${calm.join(" and ")}` : null].filter(Boolean).join(", ");
-  return `${hm(start, timeZone)}, about ${mins} min.${bits ? ` ${bits.charAt(0).toUpperCase()}${bits.slice(1)}.` : ""} ${upset.length ? `Upset during ${upset.join(" and ")}; stopped.` : "No distress."}`;
+  return `${hm(start, timeZone)}, about ${mins} min.${bits ? ` ${bits.charAt(0).toUpperCase()}${bits.slice(1)}.` : ""} ${tearful.length ? `Tearful with ${tearful.join(" and ")}. ` : ""}${upset.length ? `Upset during ${upset.join(" and ")}; stopped.` : "No distress."}`;
 }

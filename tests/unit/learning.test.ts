@@ -56,3 +56,17 @@ describe("item keys", () => {
     expect(itemKey({ type: "song", title: "Waterloo!", by: { title: "ABBA" } })).toBe(itemKey({ type: "song", title: "waterloo", by: "Abba" }));
   });
 });
+
+describe("tearful", () => {
+  const play = (id: number, at: string, response: "tearful" | "sang"): import("@/lib/learning").Play => ({ id, itemKey: "song:moon river", type: "song", title: "Moon River", response, at });
+
+  it("tearful once is noted, not paused; on two days it pauses for the family to answer", () => {
+    const once = playStats([play(1, "2026-10-20T10:00:00Z", "tearful")], [], NOW, "Europe/London");
+    expect(once.get("song:moon river")?.state).toBe("tried");
+    const twice = playStats([play(1, "2026-10-20T10:00:00Z", "tearful"), play(2, "2026-10-21T10:00:00Z", "tearful")], [], NOW, "Europe/London");
+    expect(twice.get("song:moon river")?.state).toBe("paused");
+    expect(twice.get("song:moon river")?.label).toBe("Paused · tearful twice");
+    const answered = playStats([play(1, "2026-10-20T10:00:00Z", "tearful"), play(2, "2026-10-21T10:00:00Z", "tearful")], ["song:moon river"], NOW, "Europe/London");
+    expect(answered.get("song:moon river")?.state).not.toBe("paused");
+  });
+});

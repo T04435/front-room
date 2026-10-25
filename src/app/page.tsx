@@ -10,9 +10,12 @@ import { listPeople } from "@/server/people";
 
 export const dynamic = "force-dynamic";
 
+// Days in the home's zone, as on What works (QA-16).
+const TZ = process.env.FRONT_ROOM_TIME_ZONE || "Europe/London";
+const ymd = (d: Date) => d.toLocaleDateString("en-CA", { timeZone: TZ });
 const ago = (iso: string) => {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  return days <= 0 ? "today" : days === 1 ? "yesterday" : new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const d = ymd(new Date(iso));
+  return d === ymd(new Date()) ? "today" : d === ymd(new Date(Date.now() - 86_400_000)) ? "yesterday" : new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: TZ });
 };
 
 /** People: the people this device looks after (created here, or opened from their link), and the example Margaret. */
@@ -45,7 +48,7 @@ export default async function PeoplePage() {
                   {p.example && <Badge variant="secondary">Read-only</Badge>}
                 </ItemTitle>
                 <ItemDescription>
-                  Story {p.completeness}% · {p.sessions ? `played for on ${p.sessions} ${p.sessions === 1 ? "day" : "days"}, last ${ago(p.lastSession!)}` : p.ready ? "gallery ready, nothing played yet" : "story in progress"}
+                  Story {p.completeness}% · {p.sessions ? `played on ${p.sessions} ${p.sessions === 1 ? "day" : "days"}, last ${ago(p.lastSession!)}` : p.ready ? "gallery ready, nothing played yet" : "story in progress"}
                 </ItemDescription>
               </ItemContent>
               <ItemActions>

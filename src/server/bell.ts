@@ -14,6 +14,8 @@ type OnCall = (log: CallLog) => void;
 
 /** About 10 cards per place: songs, a couple of films, the telly, places, and things like what they love. */
 const PER_PLACE = { artists: 6, films: 2, tv: 2, places: 2, likes: 3 };
+/** Suggestions for the artists the family named (not tied to a place). */
+export const FAMILY_KEY = "family";
 /** Places researched per Go for it (a long story is researched over several). */
 const MAX_PLACES = 4;
 
@@ -57,9 +59,10 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
         type: "step-end",
         id,
         ok: found.length > 0,
-        summary: found.length ? `Found ${found.length} things ${p.preferredName || "they"} may know from ${place.name} in ${years}.` : `Qloo had nothing for ${place.name} in ${years}.`,
+        summary: found.length ? `${p.preferredName || "They"} may know these from ${place.name} in ${years}: ${tally(found)}.` : `Qloo had nothing for ${place.name} in ${years}.`,
         items: [],
-        chips: found.slice(0, 8).map((d) => d.artist ?? d.title),
+        // A few of each kind, so the films, telly and places show as well as the music.
+        chips: (["artist", "film", "tv", "place", "book"] as const).flatMap((t) => found.filter((d) => d.type === t).slice(0, t === "artist" ? 3 : 2)).map((d) => d.artist ?? d.title),
         sources: sources.size ? [...sources] : ["Qloo"],
         sourceLine: `${era.decades.map((d) => d.short).join(" and ")} · ${place.name} · Qloo`,
       });
@@ -69,6 +72,15 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
       emit({ type: "step-end", id, ok: false, summary: `Qloo didn't answer in time for ${place.name}. Try again in a minute.`, items: [], chips: [], sources: ["Qloo"] });
     }
     drafts.set(researchKey(place, by), found);
+  }
+
+  // The artists the family named become songs too, first on the shelf: their own music beats era picks.
+  const named = p.loves.filter((l) => l.type === "artist" && l.source !== "ring_a_bell" && !steersClear(p, l.title));
+  if (named.length) {
+    const family: Draft[] = named.map((l) => ({ placeId: "family", type: "artist", title: l.title, year: l.year ?? null, eraFrom: by + 10, eraTo: by + 40, parts: ["the family", l.title], source: `The family said ${p.preferredName || "they"} loved ${l.title}.` }));
+    drafts.set(FAMILY_KEY, family);
+    emit({ type: "step-start", id: "family", tool: "family_music", title: "From what the family told me", running: `Finding a song each for ${named.map((l) => l.title).join(", ")}` });
+    emit({ type: "step-end", id: "family", ok: true, summary: `The family named ${named.map((l) => l.title).join(", ")}: their songs go first.`, items: [], chips: named.map((l) => l.title), sources: [], sourceLine: "the family" });
   }
 
   // Artists into songs: one call for every place, then MusicBrainz confirms each title.
@@ -104,8 +116,8 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
 
   const suggestions = { ...p.suggestions };
   const researched = { ...p.researched };
-  for (const place of places) {
-    const key = researchKey(place, by);
+  const keys = [...places.map((place) => ({ key: researchKey(place, by), place })), ...(drafts.has(FAMILY_KEY) ? [{ key: FAMILY_KEY, place: null }] : [])];
+  for (const { key, place } of keys) {
     const old = new Map((suggestions[key] ?? []).map((s) => [nameKey(s.title), s]));
     const fresh = (drafts.get(key) ?? []).filter((d) => d.type !== "artist" && !steersClear(p, d.title, d.by));
     // Answers already given stay with their card.
@@ -113,9 +125,9 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
       const before = old.get(nameKey(d.title));
       const { artist, ...card } = d;
       void artist;
-      return { ...card, id: before?.id ?? `${place.id}-${i}-${nameKey(d.title).replace(/\s+/g, "-").slice(0, 24)}`, ...(before?.answer ? { answer: before.answer } : {}) };
+      return { ...card, id: before?.id ?? `${place?.id ?? "family"}-${i}-${nameKey(d.title).replace(/\s+/g, "-").slice(0, 24)}`, ...(before?.answer ? { answer: before.answer } : {}) };
     });
-    researched[key] = researchInputs(p, place);
+    if (place) researched[key] = researchInputs(p, place);
   }
   return { ...p, suggestions, researched };
 }
@@ -189,6 +201,13 @@ async function researchPlace(p: Person, place: Place, era: ReturnType<typeof era
   for (const e of parseInsights(r.data).slice(0, PER_PLACE.places)) add({ placeId: place.id, type: "place", title: e.name, year: null, parts: ["place", where, "Qloo"], source: `Qloo: a long-standing place in ${where}, still there today.`, qlooId: e.id });
 
   return out;
+}
+
+/** "6 artists, 2 films, 2 TV shows and 2 places". */
+function tally(found: Draft[]): string {
+  const words: [Draft["type"], string, string][] = [["artist", "artist", "artists"], ["film", "film", "films"], ["tv", "TV show", "TV shows"], ["place", "place", "places"], ["book", "book", "books"]];
+  const bits = words.map(([t, one, many]) => [found.filter((d) => d.type === t).length, one, many] as const).filter(([n]) => n > 0).map(([n, one, many]) => `${n} ${n === 1 ? one : many}`);
+  return bits.length > 1 ? `${bits.slice(0, -1).join(", ")} and ${bits.at(-1)}` : (bits[0] ?? "");
 }
 
 /** "60s" → 1960, "2000s" → 2000. */

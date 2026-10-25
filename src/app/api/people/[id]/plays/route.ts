@@ -1,3 +1,4 @@
+import { RESPONSES } from "@/lib/kit";
 import { z } from "zod";
 import { perVisitor, refusalResponse } from "@/server/limits";
 import { addPlay, getPerson, undoPlay } from "@/server/people";
@@ -7,7 +8,7 @@ const body = z.object({
   type: z.enum(["song", "film", "tv", "book", "place"]),
   title: z.string().trim().min(1).max(200),
   by: z.string().trim().max(120).optional(),
-  response: z.enum(["calm", "engaged", "sang", "upset", "none"]),
+  response: z.enum([...RESPONSES, "none"]),
 });
 
 /** One tap while playing something from the person's gallery: what, and how they responded. The gallery learns from these. */

@@ -72,7 +72,7 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   for (const [k, cards] of Object.entries(p.suggestions)) {
     for (const c of cards) {
       if (c.answer === "upset" || c.type === "artist") continue;
-      put({ type: c.type, title: c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : "qloo", like: c.like, cardId: c.id, answer: c.answer });
+      put({ type: c.type, title: c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : k === "family" ? "family" : "qloo", like: c.like, cardId: c.id, answer: c.answer });
     }
   }
   const all = [...items.values()];
@@ -88,4 +88,14 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
     resting: all.filter((g) => state(g) === "resting"),
     total: all.length,
   };
+}
+
+/**
+ * Something to settle them now (Stop, or "Something calm now"): only a song staff have logged Calm with, most calm
+ * days first. No evidence, no pick: the card says it's not known yet rather than guess. Never the item just stopped.
+ */
+export function calmPick(g: Gallery, except?: string): GalleryItem | null {
+  const all = [...g.works, ...Object.values(g.shelves).flat(), ...g.newTries];
+  const calm = all.filter((x) => x.type === "song" && x.key !== except && (x.stat?.calmSessions ?? 0) > 0);
+  return calm.sort((a, b) => (b.stat?.calmSessions ?? 0) - (a.stat?.calmSessions ?? 0))[0] ?? null;
 }

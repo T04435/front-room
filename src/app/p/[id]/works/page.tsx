@@ -2,6 +2,7 @@ import { Check, ClipboardList, X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CopyText } from "@/components/person-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { APP_NAME } from "@/lib/app";
@@ -13,13 +14,13 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps<"/p/[id]/works">): Promise<Metadata> {
   const person = await getPerson((await params).id).catch(() => null);
-  return { title: `What works · ${person?.preferredName ?? ""} · ${APP_NAME}`, robots: { index: false } };
+  return { title: `What works · ${person?.preferredName || "Not found"} · ${APP_NAME}`, robots: { index: false } };
 }
 
 /** The demo's homes are in the UK; real homes get their own zone with accounts (after the hackathon). */
 const HOME_TZ = process.env.FRONT_ROOM_TIME_ZONE || "Europe/London";
 
-const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : null);
+const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: HOME_TZ }) : null);
 
 /**
  * What works (v2 brief, P0 7): the handover card, readable in 30 seconds by an agency worker at 18:00. The preferred
@@ -39,11 +40,13 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
   // The last day with plays is the last session.
   const dayOf = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: HOME_TZ });
   const lastDay = plays.filter((p) => p.response !== "none").at(-1);
-  const lastPlays = lastDay ? plays.filter((p) => dayOf(p.at) === dayOf(lastDay.at)) : [];
-  const note = careNoteForPlays(lastPlays, HOME_TZ);
   const days = new Set(plays.map((p) => dayOf(p.at))).size;
   const p = person.practical;
   const talks = person.moments.slice(0, 2);
+  const heard = person.staffHeard.filter((h) => h.confirmed);
+  // One copyable line per day of play, newest first (the last three).
+  const playDays = [...new Set(plays.filter((x) => x.response !== "none").map((x) => dayOf(x.at)))].slice(-3).reverse();
+  const notes = playDays.map((d) => ({ d, note: careNoteForPlays(plays.filter((x) => dayOf(x.at) === d), HOME_TZ) })).filter((n): n is { d: string; note: string } => Boolean(n.note));
 
   return (
     <div className="grid max-w-2xl gap-5">
@@ -141,20 +144,33 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
           {p.hearing && <p>{p.hearing}</p>}
           {p.headphonesOk !== undefined && p.headphonesOk !== null && <p>{p.headphonesOk ? "Headphones are fine." : "No headphones."}</p>}
           {p.work && <p>Work: {p.work}</p>}
-          {p.faith && <p>{p.faith.stance === "keep_out" ? "Keep faith out of sessions." : p.faith.stance === "yes" ? `Faith: ${p.faith.label ?? "yes"}` : "No faith in sessions."}</p>}
+          {p.faith && <p>{p.faith.stance === "keep_out" ? "Keep faith out of it." : p.faith.stance === "yes" ? `Faith: ${p.faith.label ?? "yes"}` : "No faith."}</p>}
+          {heard.map((h) => (
+            <p key={h.id}>
+              Staff heard: {h.text} <span className="text-xs text-muted-foreground">· the family confirmed, {day(h.at)}</span>
+            </p>
+          ))}
           {resting.length > 0 && <p className="text-sm text-muted-foreground">Resting for a month (no reaction three times): {resting.map((s) => s.title).join(", ")}.</p>}
-          {!p.hearing && p.headphonesOk == null && !p.work && !p.faith && !resting.length && <p className="text-sm text-muted-foreground">Nothing yet.</p>}
+          {!p.hearing && p.headphonesOk == null && !p.work && !p.faith && !resting.length && !heard.length && <p className="text-sm text-muted-foreground">Nothing yet.</p>}
         </CardContent>
       </Card>
 
-      {note && lastDay && (
+      {notes.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Last session · {day(lastDay.at)}</CardTitle>
+            <CardTitle>Care notes</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-2">
-            <p>{note}</p>
-            <p className="text-xs text-muted-foreground">A care note: observations, not a clinical score. Copy it into the home&apos;s records.</p>
+          <CardContent className="grid gap-3">
+            {notes.map((n) => (
+              <div key={n.d} className="grid gap-1.5">
+                <span className="text-sm font-medium">{day(`${n.d}T12:00:00Z`)}</span>
+                <p>{n.note}</p>
+                <div>
+                  <CopyText text={`${person.preferredName}, ${day(`${n.d}T12:00:00Z`)}: ${n.note}`} label="Copy the note" />
+                </div>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground">Observations, not a clinical score. Copy them into the home&apos;s records.</p>
           </CardContent>
         </Card>
       )}

@@ -137,7 +137,7 @@ export function wouldHelpNext(p: Person, paused: { key: string; title: string; l
   const steered = new Set(p.steers.map((s) => nameKey(s.label)));
   for (const u of paused) {
     if (p.resolvedUpsets.includes(u.key) || steered.has(nameKey(u.title))) continue;
-    out.push({ id: `up-${u.key}`, kind: "upset", label: `Upset during ${u.title}${u.lastUpsetAt ? ` on ${day(u.lastUpsetAt)}` : ""}: steer clear?`, itemKey: u.key, itemTitle: u.title });
+    out.push({ id: `up-${u.key}`, kind: "upset", label: u.lastUpsetAt ? `Upset during ${u.title} on ${day(u.lastUpsetAt)}: steer clear?` : `Tearful twice with ${u.title}: steer clear?`, itemKey: u.key, itemTitle: u.title });
   }
   if (!p.steerAsked && !p.steers.length) out.push({ id: "steer", kind: "steer", label: "Anything to steer clear of?" });
   const last = p.places.at(-1);

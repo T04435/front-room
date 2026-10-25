@@ -65,7 +65,7 @@ export function ConsentForm() {
             <Label id="by-label">Who is telling it</Label>
             <ToggleGroup type="single" variant="outline" value={by} onValueChange={(v) => v && setBy(v as Consent["by"])} aria-labelledby="by-label" className="flex-wrap">
               {BY.map((b) => (
-                <ToggleGroupItem key={b.value} value={b.value}>
+                <ToggleGroupItem key={b.value} value={b.value} className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary/90">
                   {b.label}
                 </ToggleGroupItem>
               ))}
@@ -74,8 +74,8 @@ export function ConsentForm() {
           <div className="grid gap-2">
             <Label id="basis-label">The basis</Label>
             <ToggleGroup type="single" variant="outline" value={basis} onValueChange={(v) => v && setBasis(v as Consent["basis"])} aria-labelledby="basis-label" className="flex-wrap">
-              <ToggleGroupItem value="agreed">They agreed</ToggleGroupItem>
-              <ToggleGroupItem value="best_interests">In their best interests</ToggleGroupItem>
+              <ToggleGroupItem value="agreed" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary/90">They agreed</ToggleGroupItem>
+              <ToggleGroupItem value="best_interests" className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary/90">In their best interests</ToggleGroupItem>
             </ToggleGroup>
           </div>
           {basis === "best_interests" && (

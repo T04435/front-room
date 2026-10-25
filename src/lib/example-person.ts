@@ -33,6 +33,7 @@ export const EXAMPLE_PERSON: Person = {
     { id: "lv-2", type: "film", title: "The Sound of Music", year: 1965, source: "ring_a_bell", placeId: "pl-mcr" },
     { id: "lv-3", type: "place", title: "O2 Ritz Manchester", source: "ring_a_bell", placeId: "pl-mcr" },
     { id: "lv-4", type: "song", title: "Waterloo", by: "ABBA", year: 1974, source: "ring_a_bell", placeId: "pl-mcr" },
+    { id: "lv-5", type: "book", title: "The Mallen Streak", by: "Catherine Cookson", year: 1973, source: "family", quote: "read every Catherine Cookson" },
   ],
   steers: [
     { id: "st-1", kind: "person", label: "Brother Tom", level: "never", source: "family", at: "2026-10-19T10:05:00.000Z" },
@@ -44,7 +45,7 @@ export const EXAMPLE_PERSON: Person = {
     bestTime: "Mornings",
     hearing: "Hears better on the left",
     headphonesOk: false,
-    greeting: "Likes “Maggie” from people she knows",
+    greeting: "Likes “Maggie” from people they know",
     work: "Worked in a shop on Market Street",
   },
   staffHeard: [{ id: "sh-1", kind: "job", text: "Worked at the cotton mill before the shop", at: "2026-10-23T18:30:00.000Z" }],

@@ -16,7 +16,11 @@ const COUNT = 3;
 export function seedsOf(p: Person, stats: Map<string, ItemStat>): { name: string; like: string }[] {
   const proven = [...stats.values()].filter((s) => s.state === "proven" && s.type === "song" && s.by).sort((a, b) => b.sangSessions + b.engagedSessions - (a.sangSessions + a.engagedSessions));
   if (proven.length) return proven.slice(0, 2).map((s) => ({ name: s.by!, like: s.title }));
-  return p.loves.filter((l) => l.type === "artist" || (l.type === "song" && l.by)).slice(0, 2).map((l) => ({ name: l.by ?? l.title, like: l.title }));
+  return p.loves.filter((l) => l.type === "artist" || (l.type === "song" && l.by)).slice(0, 2).map((l) => {
+    // "Cilla Black and danced at the Cavern" → "Cilla Black": the label stays short on a tile.
+    const short = l.title.split(/ and |, /)[0].trim();
+    return { name: l.by ?? short, like: short };
+  });
 }
 
 /** Whether the new tries are out of date: what works changed since they were found. */

@@ -12,13 +12,15 @@ const git = (cmd: string) => {
 };
 // Production is deployed by CI (.github/workflows/release.yml), which passes the version semantic-release worked out
 // and the commit, since a CLI deploy uploads no .git. Elsewhere: the latest tag, else package.json (no longer bumped).
-const version = process.env.APP_VERSION || git("git describe --tags --abbrev=0").replace(/^v/, "") || pkg.version;
+const version = process.env.APP_VERSION || git("git describe --tags --abbrev=0").replace(/^product-/, "").replace(/^v/, "") || pkg.version;
 const sha = process.env.APP_SHA || process.env.VERCEL_GIT_COMMIT_SHA || git("git rev-parse HEAD");
 const dirty = !process.env.VERCEL && git("git status --porcelain") !== "";
 
 const nextConfig: NextConfig = {
   // E2e runs its own dev server next to the one on :3500, so it builds into its own folder.
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  // The dev "N" badge sat over controls on phones (QA-7).
+  devIndicators: false,
   env: {
     NEXT_PUBLIC_APP_VERSION: version,
     NEXT_PUBLIC_APP_SHA: sha,

@@ -1,17 +1,18 @@
 "use client";
 
-import { BookOpen, Check, ExternalLink, Eye, Film, Heart, MapPin, MessageCircleHeart, Music, OctagonX, Play as PlayIcon, Sparkles, ThumbsDown, TriangleAlert, Tv, Undo2, Waves } from "lucide-react";
+import { BookOpen, Check, Droplet, ExternalLink, Eye, Film, Heart, MapPin, MessageCircleHeart, Music, OctagonX, Play as PlayIcon, Sparkles, ThumbsDown, TriangleAlert, Tv, Undo2, Waves } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { CopyLink } from "@/components/person-actions";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { TYPE_WORD, type Gallery, type GalleryItem, type GalleryType } from "@/lib/gallery";
+import { calmPick, TYPE_WORD, type Gallery, type GalleryItem, type GalleryType } from "@/lib/gallery";
 import { RESPONSE_LABELS, RESPONSES } from "@/lib/kit";
 import type { Play } from "@/lib/learning";
 import { HEARD_KINDS, type Person, type StaffHeard } from "@/lib/person";
@@ -26,12 +27,13 @@ const TILE: Record<GalleryType, string> = {
   place: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200",
 };
 const SHELF: Record<GalleryType, string> = { song: "Songs", film: "Films", tv: "On the telly", book: "Books", place: "Places they knew" };
-const LOG_ICON = { calm: Waves, engaged: Eye, sang: Music, upset: TriangleAlert } as const;
+const LOG_ICON = { calm: Waves, engaged: Eye, sang: Music, tearful: Droplet, upset: TriangleAlert } as const;
 const HEARD_LABELS: Record<StaffHeard["kind"], string> = { name: "A name", place: "A place", job: "A job", song: "A song", dance: "A dance", other: "Something else" };
 const noop = () => () => {};
 /** After 17:00 on this device: calm first, as the brief's evening default. Off during server render. */
 const useEvening = () => useSyncExternalStore(noop, () => new Date().getHours() >= 17, () => false);
-const hm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+// Times in the home's zone everywhere (QA-16); the demo homes are in the UK.
+const hm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 
 /** A small tag on a tile: why it's here, or how it's gone. */
 function tagOf(g: GalleryItem): string | null {
@@ -50,7 +52,16 @@ function tagOf(g: GalleryItem): string | null {
  */
 export function GalleryView({ person, gallery, plays, stale, triesDue }: { person: Person; gallery: Gallery; plays: Play[]; stale: boolean; triesDue: boolean }) {
   const router = useRouter();
-  const [open, setOpen] = useState<GalleryItem | null>(null);
+  const [open, setOpenItem] = useState<GalleryItem | null>(null);
+  // Opened to settle them (Stop, or Something calm now): the sheet starts with the basics to check first.
+  const [settling, setSettling] = useState(false);
+  // Focus goes back to the tile that opened the sheet (QA-12).
+  const opener = useRef<HTMLElement | null>(null);
+  const setOpen = (g: GalleryItem | null, settle = false) => {
+    if (g && document.activeElement instanceof HTMLElement) opener.current = document.activeElement;
+    setOpenItem(g);
+    setSettling(settle);
+  };
   const [logged, setLogged] = useState<Play[]>(plays);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -110,12 +121,9 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
   /** Stop: logs the upset, and opens something that settles them (what's proven calm, else what works, else the family's). */
   async function stop(g: GalleryItem) {
     await log(g, "upset");
-    const calm =
-      gallery.works.find((w) => w.key !== g.key && w.type === "song" && (w.stat?.calmSessions ?? 0) > 0) ??
-      gallery.works.find((w) => w.key !== g.key && w.type === "song") ??
-      gallery.shelves.song.find((w) => w.key !== g.key && w.origin === "family");
-    setOpen(calm ?? null);
-    setNotice(calm ? `Stopped and logged as upset. Something calm instead: ${calm.title}.` : "Stopped and logged as upset. Take a break.");
+    const calm = calmPick(gallery, g.key);
+    setOpen(calm ?? null, true);
+    setNotice(calm ? `Stopped and logged as upset. Something that has calmed ${name}: ${calm.title}.` : `Stopped and logged as upset. Take a break, check the basics (pain, thirst, the toilet), or try something quiet you know ${name} likes.`);
   }
 
   async function answer(g: GalleryItem, a: "yes" | "upset") {
@@ -148,6 +156,11 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
             <Button asChild variant="ghost">
               <Link href={`/p/${person.id}/works`}>What works</Link>
             </Button>
+            {calmPick(gallery) && (
+              <Button variant="secondary" onClick={() => setOpen(calmPick(gallery), true)}>
+                <Waves aria-hidden /> Something calm now
+              </Button>
+            )}
           </div>
         </div>
         {ro ? (
@@ -172,6 +185,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
         )}
       </div>
 
+      <Handover person={person} gallery={gallery} />
+
       {gallery.works.length > 0 && (
         <Shelf
           title={`Works for ${name}`}
@@ -181,8 +196,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
           big
         />
       )}
-      {gallery.newTries.length > 0 && <Shelf title="New tries" hint="Like what works for them" items={gallery.newTries} onOpen={setOpen} />}
-      {findingTries && gallery.newTries.length === 0 && <p className="text-sm text-muted-foreground">Finding new tries like what works for {name}…</p>}
+      {gallery.newTries.length > 0 && <Shelf title="New tries" hint={gallery.works.length ? "Like what works for them" : "Like what the family says they love"} items={gallery.newTries} onOpen={setOpen} />}
+      {findingTries && gallery.newTries.length === 0 && <p className="text-sm text-muted-foreground">Finding new tries like what {gallery.works.length ? `works for ${name}` : `${name} loves`}…</p>}
       {(["song", "film", "tv", "book", "place"] as const).map((t) => (gallery.shelves[t].length ? <Shelf key={t} title={SHELF[t]} items={gallery.shelves[t]} onOpen={setOpen} /> : null))}
 
       {(gallery.paused.length > 0 || gallery.resting.length > 0) && (
@@ -193,9 +208,23 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
       )}
 
       <Sheet open={open !== null} onOpenChange={(o) => !o && (setOpen(null), setNotice(null))}>
-        <SheetContent side="bottom" className="max-h-[92vh] overflow-y-auto sm:mx-auto sm:max-w-xl sm:rounded-t-xl">
+        <SheetContent
+          side="bottom"
+          className="max-h-[92vh] overflow-y-auto sm:mx-auto sm:max-w-xl sm:rounded-t-xl"
+          onCloseAutoFocus={(e) => {
+            if (!opener.current?.isConnected) return;
+            e.preventDefault();
+            opener.current.focus();
+          }}
+        >
           {open && (
             <div className="grid gap-4 px-4 pb-6">
+              {settling && (
+                <Alert>
+                  <Waves />
+                  <AlertDescription>First, the basics: are they in pain, hungry or thirsty, needing the toilet, too hot or cold? Then try this, softly, and sit with them.</AlertDescription>
+                </Alert>
+              )}
               <SheetHeader className="px-0">
                 <span className="flex items-center gap-2 text-sm text-muted-foreground">
                   {TYPE_WORD[open.type]}
@@ -220,7 +249,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
               <div className="grid gap-2">
                 <span className="text-sm font-medium">How did {name} respond?</span>
                 <div className="grid grid-cols-2 gap-2" role="group" aria-label="Log a response">
-                  {RESPONSES.map((r) => {
+                  {/* "Sang along" fits songs and the telly (music shows), not a place or a book. */}
+                  {RESPONSES.filter((r) => r !== "sang" || open.type === "song" || open.type === "tv").map((r) => {
                     const Icon = LOG_ICON[r];
                     const on = mine.some((p) => p.response === r);
                     return (
@@ -279,7 +309,7 @@ function Shelf({ title, hint, items, onOpen, big }: { title: string; hint?: stri
         {hint && <span className="text-sm text-muted-foreground">{hint}</span>}
       </div>
       <ScrollArea className="w-full whitespace-nowrap">
-        <ul className="flex gap-3 pb-3">
+        <ul className="flex gap-3 p-1 pb-3">
           {items.map((g) => {
             const Icon = ICON[g.type];
             const tag = tagOf(g);
@@ -294,7 +324,7 @@ function Shelf({ title, hint, items, onOpen, big }: { title: string; hint?: stri
                     {tag && <Badge className="absolute top-2 left-2 block max-w-[85%] justify-start truncate">{tag}</Badge>}
                   </span>
                   <span className="line-clamp-2 font-medium">{g.title}</span>
-                  <span className="line-clamp-1 text-sm text-muted-foreground">{[g.by, g.year].filter(Boolean).join(", ") || TYPE_WORD[g.type]}</span>
+                  <span className="line-clamp-1 text-sm text-muted-foreground">{[g.by, g.year].filter(Boolean).join(", ") || (g.type === "place" ? (g.parts.find((x) => !["place", "Qloo"].includes(x)) ?? "Place") : TYPE_WORD[g.type])}</span>
                 </button>
               </li>
             );
@@ -341,5 +371,54 @@ function LearnedSomething({ person, name, onSaved }: { person: Person; name: str
       )}
       {state === "failed" && <p className="text-sm text-destructive">That didn&apos;t save. Try again.</p>}
     </div>
+  );
+}
+
+/**
+ * Before you start: the 30-second handover for whoever walks in next (an agency carer at 18:00 may not know them).
+ * What works, what to avoid, something to talk about, what settles them. The full card is What works.
+ */
+function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
+  const name = person.preferredName;
+  const p = person.practical;
+  const works = gallery.works.slice(0, 3).map((g) => (g.by ? `${g.title} (${g.by})` : g.title));
+  const avoid = [...person.steers.filter((s) => s.level === "never").map((s) => s.label), ...gallery.paused.map((g) => `${g.title} (upset)`)];
+  const moment = person.moments[0];
+  const home = person.places[0];
+  const talk = moment ? (moment.kind === "wedding" ? `Their wedding${moment.year ? ` (${moment.year})` : ""}` : moment.label) : home ? `Growing up in ${home.name}` : null;
+  const heard = person.staffHeard.filter((h) => h.confirmed).slice(-2).map((h) => h.text);
+  const calmSong = calmPick(gallery);
+  const settle = [p.calms, calmSong ? `${calmSong.title} (logged calm)` : null].filter(Boolean).join(" · ") || "Not known yet: log Calm when something settles them";
+  const rows: [string, string][] = [
+    ["Call them", p.greeting ?? name],
+    ["Works", works.length ? works.join(" · ") : "Nothing proven yet: start with the family's picks"],
+    ["Avoid", avoid.length ? avoid.join(" · ") : person.steerAsked ? "Nothing flagged" : "Not asked yet"],
+    ...(talk ? [["Talk about", talk] as [string, string]] : []),
+    ["Settles with", settle],
+    ...(heard.length ? [["Staff heard", heard.join(" · ")] as [string, string]] : []),
+    ...(p.hearing ? [["Hearing", `${p.hearing}${p.headphonesOk === false ? "; no headphones" : ""}`] as [string, string]] : []),
+    ...(p.bestTime ? [["Best time", p.bestTime] as [string, string]] : []),
+  ];
+  return (
+    <Card size="sm" aria-label="Before you start">
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-baseline justify-between gap-2">
+          Before you start <span className="text-xs font-normal text-muted-foreground">30 seconds · for whoever&apos;s on shift</span>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
+          {rows.map(([k, v]) => (
+            <div key={k} className="contents">
+              <dt className="text-muted-foreground">{k}</dt>
+              <dd className={k === "Avoid" && avoid.length ? "font-medium text-destructive" : undefined}>{v}</dd>
+            </div>
+          ))}
+        </dl>
+        <Link href={`/p/${person.id}/works`} className="mt-2 inline-block text-sm underline underline-offset-4">
+          The full handover card
+        </Link>
+      </CardContent>
+    </Card>
   );
 }
