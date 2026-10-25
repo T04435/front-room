@@ -20,6 +20,8 @@ export type CallLog = {
   via: Via;
   /** NotOnQ failed (the reason says how) and Qloo answered instead. */
   fellBack: boolean;
+  /** Who answered behind NotOnQ (its X-NotOnQ-Served-By header): "notonq" when NotOnQ filled a gap Qloo has. */
+  servedBy?: "qloo" | "notonq";
   reason?: string;
 };
 
@@ -48,7 +50,7 @@ export type TransportOptions = {
   sleep?: (ms: number) => Promise<void>;
 };
 
-export type Result<T> = { data: T; via: Via };
+export type Result<T> = { data: T; via: Via; servedBy: "qloo" | "notonq" };
 
 export type Transport = {
   get<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void): Promise<Result<T>>;
@@ -80,7 +82,7 @@ export function createTransport(options: TransportOptions): Transport {
     if (at > t) await sleep(at - t);
   }
 
-  async function call(endpoint: Endpoint, url: string, timeoutMs: number): Promise<unknown> {
+  async function call(endpoint: Endpoint, url: string, timeoutMs: number): Promise<{ data: unknown; servedBy: "qloo" | "notonq" }> {
     let response: Response;
     try {
       response = await doFetch(url, {
@@ -95,10 +97,11 @@ export function createTransport(options: TransportOptions): Transport {
       const body = await response.text().catch(() => "");
       throw new QlooError(`returned ${response.status}${body ? `: ${body.slice(0, 160)}` : ""}`, response.status);
     }
-    return response.json();
+    const servedBy = response.headers.get("x-notonq-served-by")?.toLowerCase() === "notonq" ? "notonq" : "qloo";
+    return { data: await response.json(), servedBy };
   }
 
-  async function direct(path: string, query: string, attempt = 0): Promise<unknown> {
+  async function direct(path: string, query: string, attempt = 0): Promise<{ data: unknown; servedBy: "qloo" | "notonq" }> {
     if (!options.qloo) throw new QlooError("Qloo isn't configured (QLOO_API_KEY)", 0);
     await paced();
     try {
@@ -113,18 +116,20 @@ export function createTransport(options: TransportOptions): Transport {
   async function fetchOnce(path: string, query: string, log: Partial<CallLog>): Promise<Result<unknown>> {
     if (options.notonq) {
       try {
-        const data = await call(options.notonq, `${options.notonq.baseUrl}${path}?${query}`, notonqTimeout);
+        const { data, servedBy } = await call(options.notonq, `${options.notonq.baseUrl}${path}?${query}`, notonqTimeout);
         log.via = "notonq";
-        return { data, via: "notonq" };
+        log.servedBy = servedBy;
+        return { data, via: "notonq", servedBy };
       } catch (error) {
         if (!options.qloo) throw error instanceof QlooError ? new QlooError(`NotOnQ ${error.message}`, error.status) : error;
         log.fellBack = true;
         log.reason = `NotOnQ ${error instanceof Error ? error.message : "failed"}`;
       }
     }
-    const data = await direct(path, query);
+    const { data } = await direct(path, query);
     log.via = "qloo";
-    return { data, via: "qloo" };
+    log.servedBy = "qloo";
+    return { data, via: "qloo", servedBy: "qloo" };
   }
 
   return {
@@ -134,7 +139,7 @@ export function createTransport(options: TransportOptions): Transport {
       const hit = cache.get(key);
       if (hit && now() - hit.at < ttl) {
         const value = await hit.value;
-        onCall?.({ path, params, ms: 0, cached: true, status: 200, via: value.via, fellBack: false });
+        onCall?.({ path, params, ms: 0, cached: true, status: 200, via: value.via, fellBack: false, servedBy: value.servedBy });
         return value as Result<T>;
       }
       const started = now();
@@ -143,7 +148,7 @@ export function createTransport(options: TransportOptions): Transport {
       cache.set(key, { at: started, value });
       try {
         const result = await value;
-        onCall?.({ path, params, ms: now() - started, cached: false, status: 200, via: result.via, fellBack: log.fellBack ?? false, reason: log.reason });
+        onCall?.({ path, params, ms: now() - started, cached: false, status: 200, via: result.via, fellBack: log.fellBack ?? false, reason: log.reason, servedBy: result.servedBy });
         return result as Result<T>;
       } catch (error) {
         cache.delete(key);

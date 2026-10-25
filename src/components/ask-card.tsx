@@ -1,6 +1,7 @@
 "use client";
 
 import { MessageCircleQuestion } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Questionnaire,
   QuestionnaireActions,
@@ -14,9 +15,9 @@ import type { AskField, Brief } from "@/lib/kit";
 
 type Answers = NonNullable<Brief["answers"]>;
 
-const QUESTIONS: Record<AskField, { title: string; description: string; placeholder: string; label: string }> = {
-  nearbyPlace: { title: "A bigger town or city nearby", description: "Qloo's taste data is by town and city.", placeholder: "e.g. Manchester", label: "Nearby town or city" },
-  musicWords: { title: "The music they loved", description: "A singer, a band or a style, in your own words.", placeholder: "e.g. Irish ballads, Elvis, Motown", label: "Music they loved" },
+const QUESTIONS: Record<AskField, { title: string; description: string; placeholder: string; label: string; skip: "skipPlace" | "skipMusic" }> = {
+  nearbyPlace: { title: "A bigger town or city nearby", description: "Qloo's taste data is by town and city.", placeholder: "e.g. Manchester", label: "Nearby town or city", skip: "skipPlace" },
+  musicWords: { title: "The music they loved", description: "A singer, a band or a style, in your own words.", placeholder: "e.g. Irish ballads, Elvis, Motown", label: "Music they loved", skip: "skipMusic" },
 };
 
 /** The run's question when Qloo comes back empty, as shadcn's Questionnaire; answering carries the run on. */
@@ -47,6 +48,10 @@ export function AskCard({ fields, message, busy, onAnswer }: { fields: AskField[
         ))}
         <QuestionnaireActions>
           <QuestionnaireSubmit disabled={busy}>Carry on</QuestionnaireSubmit>
+          {/* Skip: carry on without the place, or with the music found so far. */}
+          <Button type="button" variant="ghost" disabled={busy} onClick={() => onAnswer(Object.fromEntries(fields.map((f) => [QUESTIONS[f].skip, true])) as Answers)}>
+            Skip this
+          </Button>
         </QuestionnaireActions>
       </Questionnaire>
     </div>

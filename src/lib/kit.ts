@@ -12,6 +12,11 @@ export const briefSchema = z.object({
   place: z.string().trim().min(2).max(80),
   /** Things the family already knows they loved: artists, films, a dance hall. */
   likes: z.array(z.string().trim().min(2).max(80)).max(5).optional(),
+  /** The years to search, when a carer widened or shifted the default ages 15–25 (5 to 20 years). */
+  years: z
+    .tuple([z.number().int(), z.number().int()])
+    .refine(([a, b]) => b - a >= 5 && b - a <= 20, "Search 5 to 20 years")
+    .optional(),
   /** Answers to the run's inline question, sent back with the same brief. */
   answers: z
     .object({
@@ -19,6 +24,9 @@ export const briefSchema = z.object({
       nearbyPlace: z.string().trim().min(2).max(80).optional(),
       /** A kind of music they loved, when the era comes back thin. */
       musicWords: z.string().trim().min(2).max(120).optional(),
+      /** "Skip this" on the inline question: carry on without the place, or with the music found so far. */
+      skipPlace: z.boolean().optional(),
+      skipMusic: z.boolean().optional(),
     })
     .optional(),
   /** Items the family marked "not for them" on an earlier run. */
@@ -55,6 +63,10 @@ export type KitItem = {
   type: ItemType;
   title: string;
   year: number | null;
+  /** The source line's parts, era · place · source: ["60s", "Manchester", "Qloo"], ["film", "1965–75", "Qloo"]. */
+  parts: string[];
+  /** "family": the family named it (a like they gave, or Qloo's match for it). */
+  addedBy?: "family";
   source: string;
   why: string | null;
   via: Via | null;
@@ -84,18 +96,19 @@ export const curatedSchema = z.object({
         why: z.string().describe("One short line for staff: why this one, at this point"),
       }),
     )
-    .describe("7 or 8 songs, about 20 minutes, in playing order: calm first, then familiar, then singalong"),
+    .describe("4 or 5 songs, in playing order: calm first, then familiar, then singalong"),
   picks: z
     .array(z.object({ ref: z.string().describe("A film, TV or place ref from the research list"), why: z.string().describe("One short line for staff: how to bring it up") }))
-    .describe("2–3 films or TV shows and 1–3 places worth talking about"),
+    .describe("One film, one TV show and one or two places worth talking about"),
   prompts: z
     .array(
       z.object({
-        text: z.string().describe("A gentle, open conversation prompt staff can say out loud"),
+        text: z.string().describe("A gentle, open question staff can say out loud"),
+        reply: z.string().describe("What they might answer, so new staff know what to listen for: one short line"),
         refs: z.array(z.string()).describe("Refs of the items it mentions (1–3)"),
       }),
     )
-    .describe("5 or 6 prompts"),
+    .describe("4 or 5 prompts"),
   summary: z.string().describe("One sentence for staff on the kit's shape"),
 });
 export type Curated = z.infer<typeof curatedSchema>;
@@ -104,7 +117,7 @@ export type Prompt = Curated["prompts"][number];
 export type Kit = {
   id: string;
   /** The brief it was built from; `avoid` carries the family's "not for them" marks into the next rebuild. */
-  brief: Pick<Brief, "name" | "birthYear" | "place" | "likes" | "avoid">;
+  brief: Pick<Brief, "name" | "birthYear" | "place" | "likes" | "avoid" | "years">;
   place: string;
   era: Era;
   /** Everything in the kit: the research, the songs (in playing order) and the curator's picks. */
@@ -123,8 +136,15 @@ export const RESPONSE_LABELS: Record<Response, string> = { calm: "Calm", engaged
 /** One tap; `itemRef` is what was on (a song playing, a film being talked about), if anything. */
 export type LogEntry = { id: number; response: Response; itemRef: string | null; at: string };
 
-/** About 3 minutes a song (singles of the era ran short): 7 songs make about 20 minutes. */
+/**
+ * The 20-minute session: about 3 minutes a song (singles of the era ran short), 5 minutes on the screen (a film and a
+ * TV show), 3 on a place from home.
+ */
 export const SONG_MINUTES = 3;
+/** Five songs at most: about 12–15 minutes of the 20. */
+export const MAX_SONGS = 5;
+export const SCREEN_MINUTES = 5;
+export const PLACE_MINUTES = 3;
 
 export function searchLinks(artist: string, title: string) {
   const q = encodeURIComponent(`${artist} ${title}`);
@@ -150,12 +170,15 @@ export function checkCurated(curated: Curated, research: KitItem[]): { items: Ki
     if (!artist || artist.type !== "artist") return problems.push({ where: `song ${n + 1}`, message: `cites ${s.artistRef}, which isn't an artist in the research` });
     if (used.has(s.artistRef)) return problems.push({ where: `song ${n + 1}`, message: `${artist.title} already has a song` });
     if (!title) return problems.push({ where: `song ${n + 1}`, message: "has no title" });
+    if (songs.length >= MAX_SONGS) return problems.push({ where: `song ${n + 1}`, message: `more than ${MAX_SONGS} songs` });
     used.add(s.artistRef);
     songs.push({
       ref: "",
       type: "song",
       title,
       year: s.year,
+      parts: artist.parts,
+      ...(artist.addedBy ? { addedBy: artist.addedBy } : {}),
       source: `AI pick: a recording by ${artist.title} (${artist.ref})`,
       why: s.why.trim() || null,
       via: null,
@@ -184,7 +207,7 @@ export function checkCurated(curated: Curated, research: KitItem[]): { items: Ki
       problems.push({ where: `prompt ${n + 1}`, message: unknown.length ? `cites ${unknown.join(", ")}, not in the kit` : "is empty" });
       return [];
     }
-    return [{ text: p.text.trim(), refs }];
+    return [{ text: p.text.trim(), reply: p.reply.trim(), refs }];
   });
   return { items, prompts, problems };
 }
@@ -194,8 +217,17 @@ export const songsOf = (items: KitItem[]) => items.filter((i) => i.type === "son
 /** Items the curator featured (they have a `why`), of these types. */
 export const featured = (items: KitItem[], types: ItemType[]) => items.filter((i) => i.why && types.includes(i.type));
 
-export function sessionMinutes(items: KitItem[]): number {
+export function songMinutes(items: KitItem[]): number {
   return songsOf(items).reduce((sum, s) => sum + (s.minutes ?? 0), 0);
+}
+
+export function sessionMinutes(items: KitItem[]): number {
+  return songMinutes(items) + (featured(items, ["film", "tv"]).length ? SCREEN_MINUTES : 0) + (featured(items, ["place"]).length ? PLACE_MINUTES : 0);
+}
+
+/** A source line's parts for an item saved before items carried them. */
+export function partsOf(item: KitItem): string[] {
+  return item.parts?.length ? item.parts : [item.type === "family" ? "family" : item.type, item.via ? "Qloo" : "the family"].filter(Boolean);
 }
 
 export function kitTitle(kit: Pick<Kit, "brief" | "place" | "era">): string {

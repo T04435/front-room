@@ -6,7 +6,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MAX_BIRTH_YEAR, MIN_BIRTH_YEAR } from "@/lib/era";
+import { BUMP_FROM_AGE, BUMP_TO_AGE, MAX_BIRTH_YEAR, MIN_BIRTH_YEAR } from "@/lib/era";
+import { Slider } from "@/components/ui/slider";
 import type { Brief } from "@/lib/kit";
 
 type Props = { initial?: Brief; busy: boolean; onSubmit: (brief: Brief) => void };
@@ -21,7 +22,15 @@ const fieldsOf = (b?: Brief): Fields => ({ name: b?.name ?? "", birthYear: b ? S
 export function BriefForm({ initial, busy, onSubmit }: Props) {
   const [f, setF] = useState<Fields>(fieldsOf(initial));
   const [error, setError] = useState<string | null>(null);
-  const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement>) => setF((x) => ({ ...x, [k]: e.target.value }));
+  // The years to search: ages 15–25 unless the carer widens or shifts them (5 to 20 years).
+  const [years, setYears] = useState<[number, number] | undefined>(initial?.years);
+  const born = Number(f.birthYear);
+  const validYear = Number.isInteger(born) && born >= MIN_BIRTH_YEAR && born <= MAX_BIRTH_YEAR;
+  const range: [number, number] | null = validYear ? (years ?? [born + BUMP_FROM_AGE, born + BUMP_TO_AGE]) : null;
+  const set = (k: keyof Fields) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (k === "birthYear") setYears(undefined);
+    setF((x) => ({ ...x, [k]: e.target.value }));
+  };
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -40,14 +49,17 @@ export function BriefForm({ initial, busy, onSubmit }: Props) {
       .map((x) => x.trim())
       .filter((x) => x.length >= 2)
       .slice(0, 5);
-    onSubmit({ name: f.name.trim() || undefined, birthYear, place: f.place.trim(), likes: likes.length ? likes : undefined });
+    onSubmit({ name: f.name.trim() || undefined, birthYear, place: f.place.trim(), likes: likes.length ? likes : undefined, ...(years ? { years } : {}) });
   }
 
   return (
     <form onSubmit={submit} className="grid gap-5">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="text-muted-foreground">Try the demo (a fictional person):</span>
-        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => setF(fieldsOf(DEMO_BRIEF))}>
+        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => {
+            setYears(undefined);
+            setF(fieldsOf(DEMO_BRIEF));
+          }}>
           Margaret, born 1950, Manchester
         </Button>
       </div>
@@ -73,6 +85,35 @@ export function BriefForm({ initial, busy, onSubmit }: Props) {
           <Input id="likes" placeholder="Singers, films, a dance hall; commas between" value={f.likes} onChange={set("likes")} maxLength={300} />
         </div>
       </div>
+      {range && (
+        <div className="grid gap-2 sm:w-1/2">
+          <Label id="years-label">
+            Years to search{" "}
+            <span className="font-normal text-muted-foreground">
+              (ages {range[0] - born}–{range[1] - born}: {range[0]}–{range[1]})
+            </span>
+          </Label>
+          <Slider
+            aria-labelledby="years-label"
+            min={born}
+            max={born + 50}
+            step={1}
+            minStepsBetweenThumbs={5}
+            value={range}
+            onValueChange={(v) => {
+              if (v[1] - v[0] <= 20) setYears([v[0], v[1]]);
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            Drag either end for a late bloomer, or an older sibling&apos;s records.{" "}
+            {years && (
+              <button type="button" className="underline" onClick={() => setYears(undefined)}>
+                Back to ages 15–25
+              </button>
+            )}
+          </p>
+        </div>
+      )}
       {error && (
         <Alert variant="destructive">
           <CircleAlert />

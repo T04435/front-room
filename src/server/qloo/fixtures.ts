@@ -55,7 +55,7 @@ function answer(path: string, p: QlooParams): unknown {
 
 export const fixtureTransport: Transport = {
   async get<T>(path: string, params: QlooParams, onCall?: Parameters<Transport["get"]>[2]): Promise<Result<T>> {
-    onCall?.({ path, params, ms: 1, cached: false, status: 200, via: "notonq", fellBack: false });
-    return { data: answer(path, params) as T, via: "notonq" };
+    onCall?.({ path, params, ms: 1, cached: false, status: 200, via: "notonq", fellBack: false, servedBy: "qloo" });
+    return { data: answer(path, params) as T, via: "notonq", servedBy: "qloo" };
   },
 };

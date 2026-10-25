@@ -1,16 +1,14 @@
 "use client";
 
-import { CircleAlert, CircleCheck, ListChecks, MessageSquareText } from "lucide-react";
-import { Cite, VIA } from "@/components/cite";
+import { CircleAlert, CircleCheck, MessageSquareText } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { Trace, TraceCollapsible, TraceCollapsibleContent, TraceCollapsibleTrigger, TraceDescription, TraceIcon, TraceLine, TraceTitle } from "@/components/ui/trace";
-import type { KitItem } from "@/lib/kit";
 import type { RunEvent } from "@/lib/run-events";
 
 export type StepItem =
   | { kind: "note"; key: string; text: string }
-  | { kind: "step"; key: string; tool: string; label: string; status: "running" | "ok" | "failed"; summary?: string; items: KitItem[]; via?: "notonq" | "qloo" | "mixed"; fellBack?: boolean }
-  | { kind: "curating"; key: string; itemCount: number; done: boolean };
+  | { kind: "step"; key: string; title: string; running: string; status: "running" | "ok" | "failed"; summary?: string; chips: string[]; sources: string[]; sourceLine?: string; fellBack?: boolean };
 
 /** Folds one run event into the step list. */
 export function applyStepEvent(items: StepItem[], event: RunEvent, n: number): StepItem[] {
@@ -18,27 +16,26 @@ export function applyStepEvent(items: StepItem[], event: RunEvent, n: number): S
     case "note":
       return [...items, { kind: "note", key: `n${n}`, text: event.text }];
     case "step-start":
-      return [...items, { kind: "step", key: event.id, tool: event.tool, label: event.label, status: "running", items: [] }];
+      return [...items.filter((x) => x.key !== event.id), { kind: "step", key: event.id, title: event.title, running: event.running, status: "running", chips: [], sources: [] }];
     case "step-end":
-      return items.map((x) => (x.kind === "step" && x.key === event.id ? { ...x, status: event.ok ? "ok" : "failed", summary: event.summary, items: event.items, via: event.via, fellBack: event.fellBack } : x));
-    case "curating":
-      return [...items, { kind: "curating", key: "curating", itemCount: event.itemCount, done: false }];
-    case "kit":
+      return items.map((x) =>
+        x.kind === "step" && x.key === event.id
+          ? { ...x, status: event.ok ? "ok" : "failed", summary: event.summary, chips: event.chips, sources: event.sources, sourceLine: event.sourceLine, fellBack: event.fellBack }
+          : x,
+      );
     case "error":
-      return items.map((x) => (x.kind === "curating" ? { ...x, done: true } : x));
+      return items.map((x) => (x.kind === "step" && x.status === "running" ? { ...x, status: "failed" } : x));
     default:
       return items;
   }
 }
 
-type Step = Extract<StepItem, { kind: "step" }>;
+const MAX_CHIPS = 6;
 
-const viaText = (s: Step) => (s.tool === "check_songs" ? "MusicBrainz" : s.fellBack ? "Qloo direct (NotOnQ didn't answer)" : s.via === "mixed" ? "NotOnQ and Qloo direct" : s.via ? VIA[s.via] : "Qloo");
-
-/** The run as shadcn's Trace: one row per research step (expand it for what came back and its sources). */
+/** The run as shadcn's Trace: one row per research step; expand it for what came back and where from. */
 export function RunSteps({ items }: { items: StepItem[] }) {
   return (
-    <Trace aria-live="polite">
+    <Trace aria-live="polite" aria-label="Research steps">
       {items.map((item) => {
         if (item.kind === "note") {
           return (
@@ -50,37 +47,34 @@ export function RunSteps({ items }: { items: StepItem[] }) {
             </TraceLine>
           );
         }
-        if (item.kind === "curating") {
-          return (
-            <TraceLine key={item.key} status={item.done ? undefined : "running"}>
-              <TraceIcon>{item.done ? <CircleCheck className="text-emerald-600" /> : <ListChecks />}</TraceIcon>
-              <TraceTitle>{item.done ? `Kit built from ${item.itemCount} researched items.` : `Building the kit from ${item.itemCount} researched items…`}</TraceTitle>
-              <TraceDescription>AI</TraceDescription>
-            </TraceLine>
-          );
-        }
+        const source = item.fellBack ? "Qloo direct (NotOnQ didn't answer)" : item.sources.join(" + ");
         return (
           <TraceCollapsible key={item.key} defaultOpen>
             <TraceCollapsibleTrigger>
               <TraceLine status={item.status === "running" ? "running" : item.status === "failed" ? "error" : undefined}>
                 <TraceIcon>{item.status === "running" ? <Spinner /> : item.status === "failed" ? <CircleAlert /> : <CircleCheck className="text-emerald-600" />}</TraceIcon>
-                <TraceTitle>{item.label}</TraceTitle>
-                <TraceDescription>{item.status === "running" ? (item.tool === "check_songs" ? "MusicBrainz" : "Qloo") : viaText(item)}</TraceDescription>
+                <TraceTitle>{item.title}</TraceTitle>
+                {source && item.status !== "running" && <TraceDescription>{source}</TraceDescription>}
               </TraceLine>
             </TraceCollapsibleTrigger>
             <TraceCollapsibleContent>
               <div className="grid gap-2 py-2 pl-6">
-                {item.summary && <p className="text-sm text-muted-foreground">{item.summary}</p>}
-                {item.items.length > 0 && (
-                  <ul className="flex flex-wrap gap-x-3 gap-y-1 text-sm" aria-label="Found in this step">
-                    {item.items.map((i) => (
-                      <li key={i.ref} className="flex items-center gap-1">
-                        <Cite item={i} /> {i.title}
-                        {i.year ? <span className="text-muted-foreground">({i.year})</span> : null}
+                <p className="text-sm text-muted-foreground">{item.status === "running" ? item.running : item.summary}</p>
+                {item.chips.length > 0 && (
+                  <ul className="flex flex-wrap gap-1" aria-label="Found in this step">
+                    {item.chips.slice(0, MAX_CHIPS).map((c) => (
+                      <li key={c}>
+                        <Badge variant="secondary">{c}</Badge>
                       </li>
                     ))}
+                    {item.chips.length > MAX_CHIPS && (
+                      <li>
+                        <Badge variant="secondary">+{item.chips.length - MAX_CHIPS}</Badge>
+                      </li>
+                    )}
                   </ul>
                 )}
+                {item.sourceLine && <p className="font-mono text-xs text-muted-foreground">{item.sourceLine}</p>}
               </div>
             </TraceCollapsibleContent>
           </TraceCollapsible>

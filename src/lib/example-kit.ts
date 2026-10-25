@@ -35,75 +35,12 @@ export const EXAMPLE_KIT: Kit = {
   "items": [
     {
       "by": {
-        "ref": "A12",
-        "title": "The Kinks"
-      },
-      "ref": "S1",
-      "via": null,
-      "why": "A gentle London song that was all over the radio in Margaret's late teens, a soft way to settle in.",
-      "type": "song",
-      "year": 1967,
-      "check": "musicbrainz",
-      "links": {
-        "spotify": "https://open.spotify.com/search/The%20Kinks%20Waterloo%20Sunset",
-        "youtube": "https://www.youtube.com/results?search_query=The%20Kinks%20Waterloo%20Sunset"
-      },
-      "phase": "calm",
-      "title": "Waterloo Sunset",
-      "source": "AI pick, confirmed on MusicBrainz: a recording by The Kinks (A12)",
-      "minutes": 3,
-      "entityId": null
-    },
-    {
-      "by": {
-        "ref": "A6",
-        "title": "Barbra Streisand"
-      },
-      "ref": "S2",
-      "via": null,
-      "why": "A slow, warm ballad from the early 70s, when Margaret was in their twenties; let them listen without any questions.",
-      "type": "song",
-      "year": 1973,
-      "check": "unchecked",
-      "links": {
-        "spotify": "https://open.spotify.com/search/Barbra%20Streisand%20The%20Way%20We%20Were",
-        "youtube": "https://www.youtube.com/results?search_query=Barbra%20Streisand%20The%20Way%20We%20Were"
-      },
-      "phase": "calm",
-      "title": "The Way We Were",
-      "source": "AI pick: a recording by Barbra Streisand (A6)",
-      "minutes": 3,
-      "entityId": null
-    },
-    {
-      "by": {
-        "ref": "A16",
-        "title": "Bee Gees"
-      },
-      "ref": "S3",
-      "via": null,
-      "why": "A smooth, easy Bee Gees ballad that fits Margaret's love of Dusty Springfield and keeps the pace unhurried.",
-      "type": "song",
-      "year": 1971,
-      "check": "musicbrainz",
-      "links": {
-        "spotify": "https://open.spotify.com/search/Bee%20Gees%20How%20Can%20You%20Mend%20a%20Broken%20Heart",
-        "youtube": "https://www.youtube.com/results?search_query=Bee%20Gees%20How%20Can%20You%20Mend%20a%20Broken%20Heart"
-      },
-      "phase": "calm",
-      "title": "How Can You Mend a Broken Heart",
-      "source": "AI pick, confirmed on MusicBrainz: a recording by Bee Gees (A16)",
-      "minutes": 3,
-      "entityId": null
-    },
-    {
-      "by": {
         "ref": "A9",
         "title": "Dusty Springfield"
       },
-      "ref": "S4",
+      "ref": "S1",
       "via": null,
-      "why": "The family named Dusty, and this was a big hit when Margaret was a teenager in Manchester.",
+      "why": "The family named Dusty Springfield, so this gentle, much-loved ballad from Margaret's teens is a warm place to start.",
       "type": "song",
       "year": 1966,
       "check": "musicbrainz",
@@ -111,30 +48,15 @@ export const EXAMPLE_KIT: Kit = {
         "spotify": "https://open.spotify.com/search/Dusty%20Springfield%20You%20Don't%20Have%20to%20Say%20You%20Love%20Me",
         "youtube": "https://www.youtube.com/results?search_query=Dusty%20Springfield%20You%20Don't%20Have%20to%20Say%20You%20Love%20Me"
       },
-      "phase": "familiar",
+      "parts": [
+        "artist",
+        "Qloo",
+        "MusicBrainz"
+      ],
+      "phase": "calm",
       "title": "You Don't Have to Say You Love Me",
       "source": "AI pick, confirmed on MusicBrainz: a recording by Dusty Springfield (A9)",
-      "minutes": 3,
-      "entityId": null
-    },
-    {
-      "by": {
-        "ref": "A5",
-        "title": "Rod Stewart"
-      },
-      "ref": "S5",
-      "via": null,
-      "why": "A radio favourite of the early 70s that many people in Manchester would have known by heart.",
-      "type": "song",
-      "year": 1971,
-      "check": "musicbrainz",
-      "links": {
-        "spotify": "https://open.spotify.com/search/Rod%20Stewart%20Maggie%20May",
-        "youtube": "https://www.youtube.com/results?search_query=Rod%20Stewart%20Maggie%20May"
-      },
-      "phase": "familiar",
-      "title": "Maggie May",
-      "source": "AI pick, confirmed on MusicBrainz: a recording by Rod Stewart (A5)",
+      "addedBy": "family",
       "minutes": 3,
       "entityId": null
     },
@@ -143,40 +65,79 @@ export const EXAMPLE_KIT: Kit = {
         "ref": "A10",
         "title": "The Beatles"
       },
-      "ref": "S6",
+      "ref": "S2",
       "via": null,
-      "why": "The famous 'na na na' ending is easy to join in with, and Margaret may like being invited to sing along.",
+      "why": "A slow, quiet Beatles song that was all over the radio when Margaret was 15.",
       "type": "song",
-      "year": 1968,
+      "year": 1965,
       "check": "musicbrainz",
       "links": {
-        "spotify": "https://open.spotify.com/search/The%20Beatles%20Hey%20Jude",
-        "youtube": "https://www.youtube.com/results?search_query=The%20Beatles%20Hey%20Jude"
+        "spotify": "https://open.spotify.com/search/The%20Beatles%20Yesterday",
+        "youtube": "https://www.youtube.com/results?search_query=The%20Beatles%20Yesterday"
       },
-      "phase": "singalong",
-      "title": "Hey Jude",
+      "parts": [
+        "60s",
+        "Manchester",
+        "Qloo",
+        "MusicBrainz"
+      ],
+      "phase": "calm",
+      "title": "Yesterday",
       "source": "AI pick, confirmed on MusicBrainz: a recording by The Beatles (A10)",
       "minutes": 3,
       "entityId": null
     },
     {
       "by": {
-        "ref": "A17",
-        "title": "Bill Withers"
+        "ref": "A5",
+        "title": "Rod Stewart"
       },
-      "ref": "S7",
+      "ref": "S3",
       "via": null,
-      "why": "A simple, warm chorus that is easy to join, so everyone can hum or sing along.",
+      "why": "A huge radio hit of the early seventies, and it shares a name with them, which may bring a smile.",
       "type": "song",
-      "year": 1972,
+      "year": 1971,
       "check": "musicbrainz",
       "links": {
-        "spotify": "https://open.spotify.com/search/Bill%20Withers%20Lean%20on%20Me",
-        "youtube": "https://www.youtube.com/results?search_query=Bill%20Withers%20Lean%20on%20Me"
+        "spotify": "https://open.spotify.com/search/Rod%20Stewart%20Maggie%20May",
+        "youtube": "https://www.youtube.com/results?search_query=Rod%20Stewart%20Maggie%20May"
       },
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo",
+        "MusicBrainz"
+      ],
+      "phase": "familiar",
+      "title": "Maggie May",
+      "source": "AI pick, confirmed on MusicBrainz: a recording by Rod Stewart (A5)",
+      "minutes": 3,
+      "entityId": null
+    },
+    {
+      "by": {
+        "ref": "A12",
+        "title": "The Kinks"
+      },
+      "ref": "S4",
+      "via": null,
+      "why": "A cheeky, bouncy chorus that was a favourite at parties and on the jukebox.",
+      "type": "song",
+      "year": 1970,
+      "check": "musicbrainz",
+      "links": {
+        "spotify": "https://open.spotify.com/search/The%20Kinks%20Lola",
+        "youtube": "https://www.youtube.com/results?search_query=The%20Kinks%20Lola"
+      },
+      "parts": [
+        "60s",
+        "Manchester",
+        "Qloo",
+        "MusicBrainz"
+      ],
       "phase": "singalong",
-      "title": "Lean on Me",
-      "source": "AI pick, confirmed on MusicBrainz: a recording by Bill Withers (A17)",
+      "title": "Lola",
+      "source": "AI pick, confirmed on MusicBrainz: a recording by The Kinks (A12)",
       "minutes": 3,
       "entityId": null
     },
@@ -185,9 +146,9 @@ export const EXAMPLE_KIT: Kit = {
         "ref": "A2",
         "title": "ABBA"
       },
-      "ref": "S8",
+      "ref": "S5",
       "via": null,
-      "why": "A bright, upbeat finish from the mid-70s that gets feet tapping and voices joining in.",
+      "why": "A big, bright chorus that had the whole country singing along in 1974, a good finish.",
       "type": "song",
       "year": 1974,
       "check": "musicbrainz",
@@ -195,6 +156,12 @@ export const EXAMPLE_KIT: Kit = {
         "spotify": "https://open.spotify.com/search/ABBA%20Waterloo",
         "youtube": "https://www.youtube.com/results?search_query=ABBA%20Waterloo"
       },
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo",
+        "MusicBrainz"
+      ],
       "phase": "singalong",
       "title": "Waterloo",
       "source": "AI pick, confirmed on MusicBrainz: a recording by ABBA (A2)",
@@ -207,8 +174,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Snoopy",
-      "source": "Qloo: 70s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 70s.",
       "entityId": null
     },
     {
@@ -217,8 +189,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "ABBA",
-      "source": "Qloo: 70s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 70s.",
       "entityId": null
     },
     {
@@ -227,8 +204,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Ringo Starr",
-      "source": "Qloo: 70s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 70s.",
       "entityId": null
     },
     {
@@ -237,8 +219,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Steven Tyler",
-      "source": "Qloo: 70s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 70s.",
       "entityId": null
     },
     {
@@ -247,8 +234,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Rod Stewart",
-      "source": "Qloo: 70s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 70s.",
       "entityId": null
     },
     {
@@ -257,8 +249,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Barbra Streisand",
-      "source": "Qloo: 70s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 70s.",
       "entityId": null
     },
     {
@@ -267,8 +264,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Sister Sledge",
-      "source": "Qloo: 70s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 70s.",
       "entityId": null
     },
     {
@@ -277,8 +279,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Electric Light Orchestra",
-      "source": "Qloo: 70s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 70s.",
       "entityId": null
     },
     {
@@ -287,18 +294,28 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "artist",
+        "Qloo"
+      ],
       "title": "Dusty Springfield",
-      "source": "Qloo: the artist the family named",
+      "source": "The family named Dusty Springfield; Qloo knows them.",
+      "addedBy": "family",
       "entityId": null
     },
     {
       "ref": "F1",
       "via": "notonq",
-      "why": "Ask if Margaret ever went to the pictures to see it, and who they went with.",
+      "why": "Ask if Margaret went to see it at the pictures, and who with, then let them tell the story.",
       "type": "film",
       "year": 1965,
+      "parts": [
+        "film",
+        "1965",
+        "Qloo"
+      ],
       "title": "The Sound of Music",
-      "source": "Qloo: films from 1965–1975, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: films from 1965–75, popular with people from Manchester.",
       "entityId": null
     },
     {
@@ -307,8 +324,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "film",
       "year": 1967,
+      "parts": [
+        "film",
+        "1967",
+        "Qloo"
+      ],
       "title": "The Jungle Book",
-      "source": "Qloo: films from 1965–1975, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: films from 1965–75, popular with people from Manchester.",
       "entityId": null
     },
     {
@@ -317,8 +339,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "film",
       "year": 1973,
+      "parts": [
+        "film",
+        "1973",
+        "Qloo"
+      ],
       "title": "Papillon",
-      "source": "Qloo: films from 1965–1975, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: films from 1965–75, popular with people from Manchester.",
       "entityId": null
     },
     {
@@ -327,8 +354,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "film",
       "year": 1972,
+      "parts": [
+        "film",
+        "1972",
+        "Qloo"
+      ],
       "title": "The Godfather",
-      "source": "Qloo: films from 1965–1975, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: films from 1965–75, popular with people from Manchester.",
       "entityId": null
     },
     {
@@ -337,8 +369,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "film",
       "year": 1966,
+      "parts": [
+        "film",
+        "1966",
+        "Qloo"
+      ],
       "title": "Who's Afraid of Virginia Woolf?",
-      "source": "Qloo: films from 1965–1975, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: films from 1965–75, popular with people from Manchester.",
       "entityId": null
     },
     {
@@ -347,8 +384,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "film",
       "year": 1973,
+      "parts": [
+        "film",
+        "1973",
+        "Qloo"
+      ],
       "title": "American Graffiti",
-      "source": "Qloo: films from 1965–1975, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: films from 1965–75, popular with people from Manchester.",
       "entityId": null
     },
     {
@@ -357,8 +399,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "place",
       "year": null,
+      "parts": [
+        "place",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "The University of Manchester",
-      "source": "Qloo: historic places in Manchester, United Kingdom, still there today",
+      "source": "Qloo: a long-standing place in Manchester, still there today.",
       "entityId": null,
       "description": "Large civic research university centered on Oxford Road in Manchester city centre, with multiple campuses and a public museum showcasing art and natural history."
     },
@@ -368,19 +415,29 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "place",
       "year": null,
+      "parts": [
+        "place",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Manchester Art Gallery",
-      "source": "Qloo: historic places in Manchester, United Kingdom, still there today",
+      "source": "Qloo: a long-standing place in Manchester, still there today.",
       "entityId": null,
       "description": "Historic collection of artworks spanning six centuries, with rotating historic and contemporary exhibitions, educational programming and family events in central Manchester."
     },
     {
       "ref": "P3",
       "via": "notonq",
-      "why": null,
+      "why": "Ask whether Margaret ever went to the Ritz in Manchester for a dance, and what they wore.",
       "type": "place",
       "year": null,
+      "parts": [
+        "place",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "O2 Ritz Manchester",
-      "source": "Qloo: historic places in Manchester, United Kingdom, still there today",
+      "source": "Qloo: a long-standing place in Manchester, still there today.",
       "entityId": null,
       "description": "Intimate, longstanding Manchester live-music venue with excellent sound, welcoming staff and robust accessibility support, hosting a wide range of concerts and events."
     },
@@ -390,8 +447,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "place",
       "year": null,
+      "parts": [
+        "place",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Albert Hall, Manchester",
-      "source": "Qloo: historic places in Manchester, United Kingdom, still there today",
+      "source": "Qloo: a long-standing place in Manchester, still there today.",
       "entityId": null,
       "description": "Grade II-listed former Wesleyan chapel converted to a balconied live-music venue with stained-glass windows and a city-centre events space hosting major acts."
     },
@@ -401,19 +463,29 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "place",
       "year": null,
+      "parts": [
+        "place",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Old Trafford Cricket Ground",
-      "source": "Qloo: historic places in Manchester, United Kingdom, still there today",
+      "source": "Qloo: a long-standing place in Manchester, still there today.",
       "entityId": null,
       "description": "Historic international Test-match cricket venue and home of Lancashire County Cricket Club, hosting major events and offering on-site hotel and premium hospitality."
     },
     {
       "ref": "P6",
       "via": "notonq",
-      "why": "Mention the grand hotel in the city centre and ask if they ever went for a special tea or occasion.",
+      "why": null,
       "type": "place",
       "year": null,
+      "parts": [
+        "place",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "The Midland",
-      "source": "Qloo: historic places in Manchester, United Kingdom, still there today",
+      "source": "Qloo: a long-standing place in Manchester, still there today.",
       "entityId": null,
       "description": "Grand Edwardian hotel with plush rooms, upscale dining, luxe spa, and unique lift system, located near Manchester Central and Opera House."
     },
@@ -423,19 +495,29 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "place",
       "year": null,
+      "parts": [
+        "place",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "John Rylands Research Institute and Library",
-      "source": "Qloo: historic places in Manchester, United Kingdom, still there today",
+      "source": "Qloo: a long-standing place in Manchester, still there today.",
       "entityId": null,
       "description": "Neo-Gothic research library, part of the University of Manchester, housing rare books, manuscripts, public reading rooms, a café and a shop."
     },
     {
       "ref": "P8",
       "via": "notonq",
-      "why": "Ask whether Margaret ever went to a show at the Palace Theatre in Manchester, and what they wore.",
+      "why": "Ask if they ever went to a show at the Palace Theatre, and what the evening out was like.",
       "type": "place",
       "year": null,
+      "parts": [
+        "place",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Palace Theatre Manchester",
-      "source": "Qloo: historic places in Manchester, United Kingdom, still there today",
+      "source": "Qloo: a long-standing place in Manchester, still there today.",
       "entityId": null,
       "description": "Grand Victorian auditorium in central Manchester hosting touring theatre, opera, ballet, musicals and concerts."
     },
@@ -445,8 +527,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "60s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "The Beatles",
-      "source": "Qloo: 60s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 60s.",
       "entityId": null
     },
     {
@@ -455,8 +542,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "60s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Twiggy",
-      "source": "Qloo: 60s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 60s.",
       "entityId": null
     },
     {
@@ -465,8 +557,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "60s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "The Kinks",
-      "source": "Qloo: 60s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 60s.",
       "entityId": null
     },
     {
@@ -475,8 +572,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "60s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Dave Davies",
-      "source": "Qloo: 60s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 60s.",
       "entityId": null
     },
     {
@@ -485,8 +587,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "60s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Yolanda",
-      "source": "Qloo: 60s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 60s.",
       "entityId": null
     },
     {
@@ -495,8 +602,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "60s",
+        "Manchester",
+        "Qloo"
+      ],
       "title": "Brian Wilson",
-      "source": "Qloo: 60s music, popular around Manchester, United Kingdom",
+      "source": "Qloo taste data: artists popular with people from Manchester in the 60s.",
       "entityId": null
     },
     {
@@ -505,8 +617,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "like Dusty Springfield",
+        "Qloo"
+      ],
       "title": "Bee Gees",
-      "source": "Qloo: 70s artists liked by Dusty Springfield's fans",
+      "source": "Qloo taste data: 70s artists liked by people who like Dusty Springfield.",
       "entityId": null
     },
     {
@@ -515,8 +632,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "like Dusty Springfield",
+        "Qloo"
+      ],
       "title": "Bill Withers",
-      "source": "Qloo: 70s artists liked by Dusty Springfield's fans",
+      "source": "Qloo taste data: 70s artists liked by people who like Dusty Springfield.",
       "entityId": null
     },
     {
@@ -525,8 +647,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "artist",
       "year": null,
+      "parts": [
+        "70s",
+        "like Dusty Springfield",
+        "Qloo"
+      ],
       "title": "Cass Elliot",
-      "source": "Qloo: 70s artists liked by Dusty Springfield's fans",
+      "source": "Qloo taste data: 70s artists liked by people who like Dusty Springfield.",
       "entityId": null
     },
     {
@@ -535,8 +662,13 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "tv",
       "year": 1971,
+      "parts": [
+        "TV",
+        "1971",
+        "Qloo"
+      ],
       "title": "Columbo",
-      "source": "Qloo: TV from 1965–1975",
+      "source": "Qloo taste data: TV from 1965–75.",
       "entityId": null
     },
     {
@@ -545,77 +677,90 @@ export const EXAMPLE_KIT: Kit = {
       "why": null,
       "type": "tv",
       "year": 1966,
+      "parts": [
+        "TV",
+        "1966",
+        "Qloo"
+      ],
       "title": "Star Trek",
-      "source": "Qloo: TV from 1965–1975",
+      "source": "Qloo taste data: TV from 1965–75.",
       "entityId": null
     },
     {
       "ref": "T3",
       "via": "notonq",
-      "why": "Bring up the famous hotel and ask whether they ever laughed along with the family or friends.",
+      "why": null,
       "type": "tv",
       "year": 1975,
+      "parts": [
+        "TV",
+        "1975",
+        "Qloo"
+      ],
       "title": "Fawlty Towers",
-      "source": "Qloo: TV from 1965–1975",
+      "source": "Qloo taste data: TV from 1965–75.",
       "entityId": null
     },
     {
       "ref": "T4",
       "via": "notonq",
-      "why": "Mention the silly sketches on the telly in the late 60s and ask if they had a favourite.",
+      "why": "Mention the silly sketches on the telly and see whether they have a favourite or a line to share.",
       "type": "tv",
       "year": 1969,
+      "parts": [
+        "TV",
+        "1969",
+        "Qloo"
+      ],
       "title": "Monty Python's Flying Circus",
-      "source": "Qloo: TV from 1965–1975",
+      "source": "Qloo taste data: TV from 1965–75.",
       "entityId": null
     }
   ],
-  "model": "anthropic/claude-sonnet-5.5",
+  "model": "",
   "place": "Manchester, United Kingdom",
   "prompts": [
     {
       "refs": [
         "A9"
       ],
-      "text": "Dusty Springfield was a big name when you were a teenager in Manchester. What did you like about her voice?"
-    },
-    {
-      "refs": [
-        "A10"
-      ],
-      "text": "Hey Jude was on the radio everywhere in 1968. Who would you have listened to it with?"
+      "text": "The family mentioned how much you like Dusty Springfield. What is it about her voice that you love?",
+      "reply": "They might name a favourite song, hum a line, or talk about her style and hair."
     },
     {
       "refs": [
         "F1"
       ],
-      "text": "The Sound of Music was on at picture houses across Manchester. Who would you have gone to see it with?"
+      "text": "Did you see The Sound of Music at the pictures? Who did you go with?",
+      "reply": "They might name a friend or family member, a cinema, or sing a line from a song."
     },
     {
       "refs": [
-        "T4",
-        "T3"
+        "P3"
       ],
-      "text": "Monty Python and Fawlty Towers had many people laughing at home. Did you have a favourite, or someone you liked to watch with?"
+      "text": "Did you ever go dancing at the Ritz in Manchester? What was a night out like?",
+      "reply": "They might talk about friends, favourite dresses, the band, or getting home afterwards."
     },
     {
       "refs": [
-        "P8"
+        "A10"
       ],
-      "text": "The Palace Theatre has been a Manchester night out for a very long time. What would a good evening out have looked like for you?"
+      "text": "When the Beatles were on the radio, where would you be listening? Was it at home or with friends?",
+      "reply": "They might describe a front room, a wireless or record player, or a favourite Beatle."
     },
     {
       "refs": [
-        "P6"
+        "T4"
       ],
-      "text": "The Midland Hotel is such a grand building in the city centre. Did you ever have a special day or treat near there?"
+      "text": "Did you watch Monty Python on the telly? Did anything in it make you laugh?",
+      "reply": "They might laugh, quote a silly sketch, or say what the family thought of it."
     }
   ],
   "sources": {
     "qloo": 0,
-    "notonq": 0,
+    "notonq": 11,
     "fellBack": 0
   },
-  "summary": "A kit for Margaret that starts with gentle ballads, moves to Dusty Springfield and radio favourites, and ends with big singalongs, with films, TV and Manchester places to chat about.",
-  "createdAt": "2026-10-25T08:13:37.704Z"
+  "summary": "A gentle start with Dusty Springfield and the Beatles, then Rod Stewart, then big singalongs, followed by The Sound of Music, Monty Python and Manchester's Ritz and Palace Theatre.",
+  "createdAt": "2026-10-25T08:54:35.205Z"
 };

@@ -40,7 +40,7 @@ describe("the Qloo transport", () => {
     const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep });
     const logs: CallLog[] = [];
     const r = await t.get("/search", { query: "Manchester" }, (l) => logs.push(l));
-    expect(r).toEqual({ data: { ok: true }, via: "qloo" });
+    expect(r).toEqual({ data: { ok: true }, via: "qloo", servedBy: "qloo" });
     expect(seen.map((s) => [new URL(s.url).host, s.key])).toEqual([
       ["notonq.test", "q-key"],
       ["qloo.test", "q-key"],
@@ -67,6 +67,15 @@ describe("the Qloo transport", () => {
     const logs: CallLog[] = [];
     expect((await t.get("/search", { query: "y" }, (l) => logs.push(l))).data).toEqual({ ok: 2 });
     expect(logs[0]).toMatchObject({ fellBack: true });
+  });
+
+  it("knows when NotOnQ filled a gap itself, from its served-by header", async () => {
+    const filled = () => new Response(JSON.stringify({ results: [] }), { headers: { "X-NotOnQ-Served-By": "notonq" } });
+    const { fetch } = fakeFetch({ "notonq.test": filled });
+    const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep });
+    const logs: CallLog[] = [];
+    expect((await t.get("/search", { query: "a local singer" }, (l) => logs.push(l))).servedBy).toBe("notonq");
+    expect(logs[0]).toMatchObject({ via: "notonq", servedBy: "notonq" });
   });
 
   it("goes straight to Qloo when no NotOnQ key is set", async () => {

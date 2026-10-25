@@ -20,7 +20,9 @@ describe("a run (offline fixtures)", () => {
     const kit = (kitEvent as Extract<RunEvent, { type: "kit" }>).kit;
     expect(kit.era).toMatchObject({ from: 1965, to: 1975 });
     const songs = kit.items.filter((i) => i.type === "song");
-    expect(songs.length).toBeGreaterThanOrEqual(4);
+    expect(songs.length).toBeGreaterThanOrEqual(3);
+    expect(songs.length).toBeLessThanOrEqual(5);
+    expect(songs[0].parts).toEqual(["70s", "Manchester", "Qloo"]);
     const refs = new Set(kit.items.map((i) => i.ref));
     for (const s of songs) expect(refs.has(s.by!.ref)).toBe(true);
     expect(kit.items.some((i) => i.type === "place" && i.why)).toBe(true);
@@ -49,6 +51,19 @@ describe("a run (offline fixtures)", () => {
     const kit = (events.find((e) => e.type === "kit") as Extract<RunEvent, { type: "kit" }>).kit;
     expect(kit.items.some((i) => i.title === "David Bowie" || i.title === "The Sound of Music")).toBe(false);
     expect(kit.brief.avoid).toEqual(avoid);
+  });
+
+  it("Skip on the place question carries on without a place", async () => {
+    const { events } = await collect({ birthYear: 1950, place: "Zzzville", answers: { skipPlace: true } });
+    const kit = (events.find((e) => e.type === "kit") as Extract<RunEvent, { type: "kit" }>).kit;
+    expect(kit.items.some((i) => i.type === "place")).toBe(false);
+    expect(kit.items.find((i) => i.type === "artist")?.parts).toEqual(["70s", "Qloo"]);
+  });
+
+  it("searches the years a carer picked instead of ages 15–25", async () => {
+    const { events } = await collect({ birthYear: 1950, place: "Manchester", years: [1960, 1970] });
+    const kit = (events.find((e) => e.type === "kit") as Extract<RunEvent, { type: "kit" }>).kit;
+    expect(kit.era).toMatchObject({ from: 1960, to: 1970 });
   });
 
   it("never sends a raw Qloo response in an event", async () => {

@@ -3,12 +3,12 @@
 import { InlineCitationCard, InlineCitationCardBody, InlineCitationSource } from "@/components/ai-elements/inline-citation";
 import { Badge } from "@/components/ui/badge";
 import { HoverCardTrigger } from "@/components/ui/hover-card";
-import { TYPE_LABELS, type KitItem } from "@/lib/kit";
+import { partsOf, TYPE_LABELS, type KitItem } from "@/lib/kit";
 
 export const VIA: Record<NonNullable<KitItem["via"]>, string> = { notonq: "via NotOnQ", qloo: "Qloo direct" };
 
 /** Where an item came from, in words: its source, and which way the Qloo call went. */
-export const whereFrom = (item: KitItem) => (item.via ? `${item.source} (${VIA[item.via]})` : item.source);
+export const whereFrom = (item: KitItem) => `${partsOf(item).join(" · ")}. ${item.source}${item.via && !item.parts?.includes("via NotOnQ") ? ` (${VIA[item.via]})` : ""}`;
 
 /** One source, as AI Elements' Inline Citation: a ref badge; hover or focus it for what it is and where it came from. */
 export function Cite({ item }: { item: KitItem }) {

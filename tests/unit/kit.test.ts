@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { checkCurated, featured, searchLinks, sessionMinutes, songsOf, type Curated, type KitItem } from "@/lib/kit";
 
-const item = (ref: string, type: KitItem["type"], title: string): KitItem => ({ ref, type, title, year: null, source: "Qloo: test", why: null, via: "qloo", entityId: `e-${ref}` });
+const item = (ref: string, type: KitItem["type"], title: string): KitItem => ({ ref, type, title, year: null, parts: ["60s", "Manchester", "Qloo"], source: "Qloo: test", why: null, via: "qloo", entityId: `e-${ref}` });
 const research = [
   item("A1", "artist", "The Kinks"),
   item("A2", "artist", "Dusty Springfield"),
@@ -25,9 +25,9 @@ describe("checkCurated", () => {
       { ref: "A2", why: "Not a film or place." },
     ],
     prompts: [
-      { text: "Who did you go to the pictures with?", refs: ["F1", "F1"] },
-      { text: "What was on at the Palace?", refs: ["P1", "S1"] },
-      { text: "A prompt citing nothing real", refs: ["T7"] },
+      { text: "Who did you go to the pictures with?", reply: "A friend's name", refs: ["F1", "F1"] },
+      { text: "What was on at the Palace?", reply: "A pantomime", refs: ["P1", "S1"] },
+      { text: "A prompt citing nothing real", reply: "", refs: ["T7"] },
     ],
     summary: "",
   };
@@ -39,7 +39,7 @@ describe("checkCurated", () => {
       ["S2", "familiar", "Dusty Springfield", "Son of a Preacher Man"],
       ["S3", "singalong", "Slade", "Cum On Feel the Noize"],
     ]);
-    expect(songsOf(out.items)[0]).toMatchObject({ type: "song", via: null, source: "AI pick: a recording by The Kinks (A1)" });
+    expect(songsOf(out.items)[0]).toMatchObject({ type: "song", via: null, source: "AI pick: a recording by The Kinks (A1)", parts: ["60s", "Manchester", "Qloo"] });
   });
 
   it("drops a second song by one artist, a non-artist ref, an unknown ref and a bad pick, and says why", () => {
@@ -53,13 +53,13 @@ describe("checkCurated", () => {
 
   it("keeps prompts citing research or songs, deduped", () => {
     expect(out.prompts).toEqual([
-      { text: "Who did you go to the pictures with?", refs: ["F1"] },
-      { text: "What was on at the Palace?", refs: ["P1", "S1"] },
+      { text: "Who did you go to the pictures with?", reply: "A friend's name", refs: ["F1"] },
+      { text: "What was on at the Palace?", reply: "A pantomime", refs: ["P1", "S1"] },
     ]);
   });
 
-  it("links songs out by search and counts the playlist's minutes", () => {
+  it("links songs out by search and counts the session: 3 a song, 5 for the screen, 3 for a place", () => {
     expect(searchLinks("The Kinks", "Lola").youtube).toBe("https://www.youtube.com/results?search_query=The%20Kinks%20Lola");
-    expect(sessionMinutes(out.items)).toBe(9);
+    expect(sessionMinutes(out.items)).toBe(9 + 5);
   });
 });

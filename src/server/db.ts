@@ -21,9 +21,11 @@ async function open(): Promise<Sql> {
     let db: InstanceType<typeof PGlite>;
     if (process.env.VITEST || offline()) db = new PGlite();
     else {
+      // FRONT_ROOM_PGLITE_DIR: a second local server (QA next to dev) needs its own folder: PGlite has one writer.
       const { mkdirSync } = await import("node:fs");
-      mkdirSync(`${process.cwd()}/.data`, { recursive: true });
-      db = new PGlite(`${process.cwd()}/.data/pglite`);
+      const dir = process.env.FRONT_ROOM_PGLITE_DIR || `${process.cwd()}/.data/pglite`;
+      mkdirSync(dir, { recursive: true });
+      db = new PGlite(dir);
     }
     sql = { query: async <T,>(text: string, params?: unknown[]) => (await db.query<T>(text, params ?? [])).rows };
   }

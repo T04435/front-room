@@ -3,26 +3,23 @@ import type { AskField, Kit, KitItem } from "./kit";
 /** One line of the NDJSON stream from POST /api/run. Only what the page shows: Qloo's raw responses never leave the server. */
 export type RunEvent =
   | { type: "note"; text: string }
-  | { type: "step-start"; id: string; tool: string; label: string }
-  /** `via`: how the step's calls went ("notonq", "qloo", or "mixed"); `fellBack`: NotOnQ failed and Qloo answered. */
-  | { type: "step-end"; id: string; ok: boolean; summary: string; items: KitItem[]; via?: "notonq" | "qloo" | "mixed"; fellBack?: boolean }
+  /** `title`: the step in plain words ("Songs Margaret may know"); `running`: the line while it works ("Finding songs from Manchester in the 60s"). */
+  | { type: "step-start"; id: string; tool: string; title: string; running: string }
+  /**
+   * `summary`: the Go-Between's note once it's done. `chips`: the names it found. `sources`: which sources answered
+   * (Qloo, NotOnQ, MusicBrainz), for the step's SourceTag. `sourceLine`: era · place · source, in the `source` style.
+   * `fellBack`: NotOnQ didn't answer and Qloo did, directly.
+   */
+  | { type: "step-end"; id: string; ok: boolean; summary: string; items: KitItem[]; chips: string[]; sources: string[]; sourceLine?: string; fellBack?: boolean }
   /** The run stopped: it needs an answer. The page asks inline, then sends the brief again with the answers. */
   | { type: "ask"; fields: AskField[]; message: string }
-  | { type: "curating"; itemCount: number }
   | { type: "kit"; kit: Kit }
-  /** `budget`: a daily budget or a rate limit was hit; the page points to the saved kits, which always open. */
+  /** `budget`: a daily budget or a rate limit was hit; the page shows the budget-spent state and points to saved kits. */
   | { type: "error"; message: string; budget?: boolean }
   | { type: "done"; qlooCalls: number; qlooCached: number; seconds: number };
 
-export const TOOL_LABELS: Record<string, string> = {
-  find_place: "Find where they grew up",
-  era_tags: "Work out the music of their teens and twenties",
-  era_artists: "Artists of the era, popular around their hometown",
-  likes: "Start from what the family knows",
-  era_films: "Films of those years",
-  era_tv: "TV of those years",
-  era_places: "Places from their hometown that are still there",
-  music_words: "Turn the family's words into music",
-  curate: "Build the session kit",
-  check_songs: "Check the song titles on MusicBrainz",
-};
+/** "Margaret’s" or "Their", for step titles and status lines; `lower` for mid-sentence. */
+export function possessive(name: string | undefined, lower = false): string {
+  if (!name) return lower ? "their" : "Their";
+  return `${name}${name.endsWith("s") ? "’" : "’s"}`;
+}

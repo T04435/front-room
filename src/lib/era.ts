@@ -12,9 +12,10 @@ export type Era = { from: number; to: number; decades: Decade[] };
 /** `years`: how many of the era's years fall in this decade; the bigger share leads. */
 export type Decade = { start: number; short: string; years: number };
 
-export function eraFor(birthYear: number): Era {
-  const from = birthYear + BUMP_FROM_AGE;
-  const to = birthYear + BUMP_TO_AGE;
+/** The era for a birth year: ages 15–25, unless a carer picked the years (`years`, 5 to 20 of them). */
+export function eraFor(birthYear: number, years?: [number, number]): Era {
+  const from = years?.[0] ?? birthYear + BUMP_FROM_AGE;
+  const to = years?.[1] ?? birthYear + BUMP_TO_AGE;
   const decades: Decade[] = [];
   for (let start = Math.floor(from / 10) * 10; start <= to; start += 10) {
     const years = Math.min(to, start + 9) - Math.max(from, start) + 1;
@@ -44,6 +45,7 @@ export function pickDecadeTag(tags: { id: string; name: string }[], start: numbe
   return tags.find((t) => t.id.startsWith("urn:tag:genre:music:") && names.includes(t.id.slice("urn:tag:genre:music:".length))) ?? null;
 }
 
-export function describeEra(era: Era): string {
-  return `${era.from}–${era.to}`;
+/** "1965–75" (the design system's short form; full years across a century). */
+export function describeEra(era: { from: number; to: number }): string {
+  return Math.floor(era.from / 100) === Math.floor(era.to / 100) ? `${era.from}–${String(era.to).slice(2)}` : `${era.from}–${era.to}`;
 }

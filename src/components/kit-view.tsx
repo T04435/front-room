@@ -2,7 +2,7 @@
 
 import { Check, Copy, ExternalLink, RotateCcw, Sparkles, ThumbsDown } from "lucide-react";
 import { useState } from "react";
-import { Cite, Cites, whereFrom } from "@/components/cite";
+import { Cite, Cites } from "@/components/cite";
 import { ResponseLog } from "@/components/response-log";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { Separator } from "@/components/ui/separator";
 import { Toggle } from "@/components/ui/toggle";
-import { featured, kitTitle, PHASE_LABELS, PHASES, sessionMinutes, songsOf, TYPE_LABELS, type Kit, type KitItem, type LogEntry } from "@/lib/kit";
+import { featured, kitTitle, partsOf, PHASE_LABELS, PHASES, sessionMinutes, songsOf, TYPE_LABELS, type Kit, type KitItem, type LogEntry } from "@/lib/kit";
 
 /** What a "not for them" mark sends back as `avoid`: a song with its artist, anything else by its title. */
 export const avoidText = (i: KitItem) => (i.type === "song" && i.by ? `${i.title} (${i.by.title})` : i.title);
@@ -57,7 +57,7 @@ export function KitView({ kit, log, shareUrl, onRebuild, busy }: Props) {
           <Badge variant="secondary">
             <Sparkles aria-hidden /> AI-generated
           </Badge>
-          <Badge variant="outline">{sessionMinutes(kit.items)}-minute playlist</Badge>
+          <Badge variant="outline">{sessionMinutes(kit.items)}-minute session</Badge>
           <Badge variant="outline">Born {kit.brief.birthYear}</Badge>
         </div>
         <h2 className="text-2xl font-semibold">{kitTitle(kit)}</h2>
@@ -128,6 +128,7 @@ export function KitView({ kit, log, shareUrl, onRebuild, busy }: Props) {
           {kit.prompts.map((p, n) => (
             <li key={n}>
               {p.text} <Cites refs={p.refs} items={kit.items} />
+              {p.reply && <p className="text-sm text-muted-foreground">They might answer: {p.reply}</p>}
             </li>
           ))}
         </ol>
@@ -159,7 +160,7 @@ export function KitView({ kit, log, shareUrl, onRebuild, busy }: Props) {
                   {TYPE_LABELS[i.type]}: {i.title}
                   {i.year ? ` (${i.year})` : ""}
                 </span>
-                <span className="text-muted-foreground">{whereFrom(i)}</span>
+                <span className="font-mono text-xs text-muted-foreground">{partsOf(i).join(" · ")}</span>
               </li>
             ))}
           </ul>
