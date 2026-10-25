@@ -4,6 +4,12 @@ Qloo Agentic Hackathon 2026, 4th entry: **Front Room** (renamed from the working
 brand comes from the Front Room design system).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-25 · AI Gateway auth: OIDC, no API key (HQ)
+
+- **Same as Busk Map, GhostQ and NotOnQ.** Local dev uses the `VERCEL_OIDC_TOKEN` from `vercel env pull` on the
+  linked project. It lasts about 12 h, so pull again to refresh. `env.ts` already accepts it, and on Vercel it's
+  automatic. `AI_GATEWAY_API_KEY` stays an optional override. `.vercel/` is gitignored.
+
 ## 2026-10-25 · Renamed to Front Room (HQ)
 
 - **Outside the repo (HQ):** GitHub is T04435/front-room (the old name redirects; origin is updated). The Vercel
@@ -23,7 +29,7 @@ Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
   A QLOO_API_KEY placeholder is set in every environment.
 - **Pending:**
   - Neon via the integration, waiting on the user's OK.
-  - The user's own steps: the VERCEL_TOKEN secret, AI_GATEWAY_API_KEY locally, and Neon preview branching.
+  - The user's own steps: the VERCEL_TOKEN secret and Neon preview branching.
 - **No preview yet for PR #1.** The PR predates the project, so the next real push builds the first preview. No
   push just to trigger it.
 

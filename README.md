@@ -20,7 +20,7 @@ pnpm dev            # http://localhost:3500
 
 `.env.local` (see `.env.example`) needs:
 - `QLOO_API_KEY`;
-- `AI_GATEWAY_API_KEY` (on Vercel, the project's OIDC token is used instead).
+- `VERCEL_OIDC_TOKEN` for the AI Gateway, from `vercel env pull` on the linked project. It lasts about 12 h; pull again to refresh. On Vercel it's automatic.
 
 Without `DATABASE_URL`, kits are saved in a local PGlite database in `.data/`.
 
