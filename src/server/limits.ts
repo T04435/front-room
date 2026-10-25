@@ -26,8 +26,8 @@ export function limits() {
     qlooPerDay: num(e.FRONT_ROOM_QLOO_PER_DAY, 2500),
     qlooPerDayJudging: num(e.FRONT_ROOM_QLOO_PER_DAY_JUDGING, 8000),
     qlooPerRun: num(e.FRONT_ROOM_QLOO_PER_RUN, 12),
-    device: { run: num(e.FRONT_ROOM_RUNS_PER_DEVICE_HOUR, 20), log: num(e.FRONT_ROOM_LOGS_PER_DEVICE_HOUR, 600) },
-    network: { run: num(e.FRONT_ROOM_RUNS_PER_IP_HOUR, 200), log: num(e.FRONT_ROOM_LOGS_PER_IP_HOUR, 6000) },
+    device: { run: num(e.FRONT_ROOM_RUNS_PER_DEVICE_HOUR, 20), log: num(e.FRONT_ROOM_LOGS_PER_DEVICE_HOUR, 600), chat: num(e.FRONT_ROOM_CHATS_PER_DEVICE_HOUR, 120) },
+    network: { run: num(e.FRONT_ROOM_RUNS_PER_IP_HOUR, 200), log: num(e.FRONT_ROOM_LOGS_PER_IP_HOUR, 6000), chat: num(e.FRONT_ROOM_CHATS_PER_IP_HOUR, 1200) },
   };
 }
 
@@ -100,10 +100,10 @@ function refusal(error: string, until: Date): Refusal {
   return { error, status: 429, retryAfter: Math.max(1, Math.ceil((until.getTime() - Date.now()) / 1000)) };
 }
 
-const WHAT = { run: "kits built", log: "responses logged" } as const;
+const WHAT = { run: "kits built", log: "responses logged", chat: "story messages and place searches" } as const;
 
 /** Counts one use against this device's and this network's hourly limits; a refusal when either is over. */
-export async function perVisitor(kind: "run" | "log", request: Request): Promise<Refusal | null> {
+export async function perVisitor(kind: "run" | "log" | "chat", request: Request): Promise<Refusal | null> {
   if (await limitsOff()) return null;
   const { device, network } = limits();
   const id = deviceId(request.headers.get("cookie"));
