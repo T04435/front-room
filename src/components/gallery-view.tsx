@@ -65,6 +65,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
   };
   const [logged, setLogged] = useState<Play[]>(plays);
   const [notice, setNotice] = useState<string | null>(null);
+  // Shown on the page when Stop closes the sheet with nothing calm to open (QA-25).
+  const [stopped, setStopped] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const ro = Boolean(person.example);
   const name = person.preferredName;
@@ -100,7 +102,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
     let live = true;
     fetch(`/api/people/${person.id}/new-tries`, { method: "POST" })
       .then((r) => r.json())
-      .then((b: { changed?: boolean }) => live && b.changed && router.refresh())
+      // Refresh whatever the answer: in development the first of two requests can be the one that found them (QA-27).
+      .then(() => router.refresh())
       .catch(() => {})
       .finally(() => live && setFindingTries(false));
     return () => {
@@ -130,7 +133,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
     await log(g, "upset");
     const calm = calmPick(gallery, g.key);
     setOpen(calm ?? null, true);
-    setNotice(calm ? `Stopped and logged as upset. Something that has calmed ${name}: ${calm.title}.` : `Stopped and logged as upset. Take a break, check the basics (pain, thirst, the toilet), or try something quiet you know ${name} likes.`);
+    if (calm) setNotice(`Stopped and logged as upset. Something that has calmed ${name}: ${calm.title}.`);
+    else setStopped(`Stopped and logged as upset. Nothing has been logged calm for ${name} yet: take a break, and first check the basics (pain, hungry or thirsty, the toilet, too hot or cold). Sit with them quietly.`);
   }
 
   async function answer(g: GalleryItem, a: "yes" | "upset") {
@@ -155,16 +159,16 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
             <p className="text-muted-foreground">Things to play and talk about with {name}, from their life and places. Tap one to play it.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="max-sm:h-11">
               <Link href={`/p/${person.id}/story`}>
                 <MessageCircleHeart aria-hidden /> Get to know {name} better
               </Link>
             </Button>
-            <Button asChild variant="ghost">
+            <Button asChild variant="ghost" className="max-sm:h-11">
               <Link href={`/p/${person.id}/works`}>What works</Link>
             </Button>
             {calmPick(gallery) && (
-              <Button variant="secondary" onClick={() => setOpen(calmPick(gallery), true)}>
+              <Button variant="secondary" className="max-sm:h-11" onClick={() => setOpen(calmPick(gallery), true)}>
                 <Waves aria-hidden /> Something calm now
               </Button>
             )}
@@ -191,6 +195,18 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
           </Alert>
         )}
       </div>
+
+      {stopped && (
+        <Alert>
+          <Waves />
+          <AlertDescription className="flex flex-wrap items-start justify-between gap-2">
+            <span>{stopped}</span>
+            <Button size="sm" variant="ghost" onClick={() => setStopped(null)}>
+              OK
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <Handover person={person} gallery={gallery} />
 
@@ -229,7 +245,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
           {open && (
             <div className="grid gap-4 px-4 pb-6">
               {settling && (
-                <Alert>
+                <Alert className="mt-8">
                   <Waves />
                   <AlertDescription>First, the basics: are they in pain, hungry or thirsty, needing the toilet, too hot or cold? Then try this, softly, and sit with them.</AlertDescription>
                 </Alert>
@@ -244,7 +260,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
               </SheetHeader>
               <div className="flex flex-wrap gap-2">
                 {open.links.map((l, i) => (
-                  <Button key={l.href} asChild variant={i === 0 ? "default" : "outline"}>
+                  <Button key={l.href} asChild variant={i === 0 ? "default" : "outline"} className="max-sm:h-11">
                     <a href={l.href} target="_blank" rel="noreferrer">
                       {i === 0 ? <PlayIcon aria-hidden /> : <ExternalLink aria-hidden />} {l.label}
                     </a>
@@ -282,7 +298,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
                     (mine.length ? (
                       <>
                         Logged: {RESPONSE_LABELS[mine.at(-1)!.response]} · {hm(mine.at(-1)!.at)}
-                        <Button size="xs" variant="ghost" onClick={() => void undo(mine.at(-1)!)}>
+                        <Button size="sm" variant="ghost" className="max-sm:h-11" onClick={() => void undo(mine.at(-1)!)}>
                           <Undo2 aria-hidden /> Undo
                         </Button>
                       </>
@@ -299,7 +315,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
 
               {mine.length > 0 && !ro && <LearnedSomething key={open.key} person={person} name={name} onSaved={() => router.refresh()} />}
 
-              {open.cardId && !ro && (
+              {open.cardId && !ro && open.origin !== "family" && (
                 <div className="flex flex-wrap items-center gap-2 border-t pt-3 text-sm">
                   <span className="text-muted-foreground">From Qloo for their years.</span>
                   <Button size="sm" variant={open.answer === "yes" ? "default" : "outline"} disabled={busy === open.key} onClick={() => void answer(open, "yes")}>
@@ -335,7 +351,7 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4 }: { title: string; 
             const tag = tagOf(g);
             return (
               <li key={g.key} className={cn("shrink-0", big ? "w-52" : "w-44")}>
-                <button type="button" onClick={() => onOpen(g)} className="group grid w-full gap-2 rounded-lg text-left whitespace-normal focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none" aria-label={`${g.title}${g.by ? ` by ${g.by}` : ""}: play`}>
+                <button type="button" onClick={() => onOpen(g)} className="group grid w-full gap-2 rounded-lg text-left whitespace-normal focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none" aria-label={`${g.title}${g.by ? ` by ${g.by}` : ""}: ${g.type === "place" || g.type === "book" ? "open" : "play"}`}>
                   <span className={cn("relative flex aspect-square w-full items-center justify-center rounded-lg", TILE[g.type])}>
                     <Icon className="size-10 opacity-70" aria-hidden />
                     <span className="absolute right-2 bottom-2 flex size-10 items-center justify-center rounded-full bg-foreground text-background opacity-90 transition-transform group-hover:scale-105">
@@ -384,18 +400,24 @@ function LearnedSomething({ person, name, onSaved }: { person: Person; name: str
       <span className="text-sm font-medium">Learned something new about {name}?</span>
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="What you learned">
         {HEARD_KINDS.map((k) => (
-          <Button key={k} size="xs" variant={kind === k ? "default" : "outline"} aria-pressed={kind === k} onClick={() => setKind(k)}>
+          <Button key={k} size="sm" className="max-sm:h-10" variant={kind === k ? "default" : "outline"} aria-pressed={kind === k} onClick={() => setKind(k)}>
             {HEARD_LABELS[k]}
           </Button>
         ))}
       </div>
       {kind && (
-        <div className="flex gap-2">
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
           <Input aria-label="What they said" value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder={kind === "song" ? "e.g. Hummed Moon River" : "In a few words"} />
-          <Button onClick={() => void save()} disabled={!text.trim() || state === "saving"}>
+          <Button type="submit" disabled={!text.trim() || state === "saving"}>
             Save
           </Button>
-        </div>
+        </form>
       )}
       {state === "failed" && <p className="text-sm text-destructive">That didn&apos;t save. Try again.</p>}
     </div>

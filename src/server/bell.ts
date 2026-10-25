@@ -95,12 +95,14 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
     let confirmed = 0;
     for (const pick of picks) {
       const d = artists[Number(pick.ref.slice(1))];
-      const ok = offline() ? true : await checkSong(d.title, pick.title).then((r) => r.found).catch(() => false);
+      if (/^test song\b/i.test(pick.title)) continue;
+      const ok = offline() ? true : await checkSong(pick.artist?.trim() || d.title, pick.title).then((r) => r.found).catch(() => false);
       if (!ok) continue;
       confirmed++;
       // A recording from outside the place's era (by more than a year) isn't kept: the era is the point.
       if (pick.year && d.eraFrom && d.eraTo && (pick.year < d.eraFrom - 1 || pick.year > d.eraTo + 1)) continue;
-      Object.assign(d, { type: "song", artist: d.title, by: d.title, title: pick.title, year: pick.year ?? d.year, parts: [...d.parts, ...(offline() ? [] : ["MusicBrainz"])] });
+      const by = pick.artist?.trim() || d.title;
+      Object.assign(d, { type: "song", artist: by, by, title: pick.title, year: pick.year ?? d.year, parts: [...d.parts, ...(offline() ? [] : ["MusicBrainz"])] });
     }
     emit({
       type: "step-end",

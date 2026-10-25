@@ -2,18 +2,25 @@
 
 Run it with mock data (Qloo fixtures and mock models; only MusicBrainz, which is free, is called):
 
+Present from the production build (no dev overlay, frozen code):
+
 ```bash
-FRONT_ROOM_OFFLINE=1 NEXT_DIST_DIR=.next-qa pnpm exec next dev -p 3520
+FRONT_ROOM_OFFLINE=1 NEXT_DIST_DIR=.next-demo FRONT_ROOM_PGLITE_DIR=.data/pglite-demo sh -c "pnpm exec next build && pnpm exec next start -p 3530"
 ```
 
-Open http://localhost:3520. Use a fictional person.
+Open http://localhost:3530 (or the launch config `front-room-demo`). Use a fictional person. Offline data lives in
+memory: a restart starts empty, apart from the example Margaret.
+
+Before you present:
+- Rehearse once on the presenting device. Copy buttons fall back to a copy box where the clipboard is blocked.
+- Offline, don't answer the "What did they do there?" follow-up live; the mock reads only "worked in/at/as …".
 
 ## 1. A new person: the chat (about 60 s)
 1. **People → Add someone.** Name "Iris". Consent: Family, They agreed. **Start their story.**
 2. The Go-Between explains what helps (the "This is me" themes as chips). Tap **Talk** or paste:
    > Iris was born in 1946 and grew up in Liverpool. She married in '68 and moved to Leeds. Her brother Tom died and
-   > she never talks about him. She loved Cilla.
-3. **Here's what I heard**: born 1946, Liverpool 1946–68, Leeds from 1968, married 1968, loves Cilla. Edit or remove
+   > she never talks about him. She loved Cilla Black.
+3. **Here's what I heard**: born 1946, Liverpool 1946–68, Leeds from 1968, married 1968, loves Cilla Black. Edit or remove
    any; **All right**.
 4. "You mentioned Brother Tom. Shall I steer clear?" → **Never** (only the label is kept, never the reason).
 5. It digs in: "You said they moved to Leeds. What did they do there?"
@@ -28,7 +35,7 @@ Open http://localhost:3520. Use a fictional person.
 3. Tap a song → Spotify or YouTube (nothing hosted) → **Sang along**. Undo is there. **Tearful** is its own response
    (a good cry isn't distress; tearful on two days pauses it for the family to answer).
 4. **Learned something new?** → A place → "Talked about the Cavern Club" → Save.
-5. Tap another → **Stop · something calm instead**: logs the upset, pauses the item, and opens something calm with
+5. First log **Calm** on one song (so Stop has something proven to open). Then tap another → **Stop · something calm instead**: logs the upset, pauses the item, and opens something calm with
    the basics to check first (pain, hungry or thirsty, toilet, too hot or cold).
 6. **Something calm now** at the top: one tap in a hard moment.
 

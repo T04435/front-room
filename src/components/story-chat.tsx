@@ -87,6 +87,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
   const [msgs, setMsgs] = useState<Msg[]>(() => opening(initial, paused));
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
+  const composer = useRef<HTMLTextAreaElement>(null);
   const started = useRef(false);
   // The "find things" offer is made once; it comes back only after a look-up, when the story changes again.
   const offered = useRef(false);
@@ -140,13 +141,16 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
   }
 
   /** After something's settled: ask the next thing needed, or offer to find things. */
-  function carryOn(p: Person, pendingWidgets = 0) {
+  function carryOn(p: Person, pendingWidgets = 0, justDone?: string) {
     // Questions answered since they were asked close themselves.
-    const open = msgs.filter((m): m is Extract<Msg, { kind: "ask" }> => "kind" in m && m.kind === "ask" && !resolved.has(m.id));
+    const settled = (id: string) => resolved.has(id) || id === justDone;
+    const open = msgs.filter((m): m is Extract<Msg, { kind: "ask" }> => "kind" in m && m.kind === "ask" && !settled(m.id));
     const answered = open.filter((m) => !stillNeeded(m.ask, p));
     // Questions a later message answered just go: a bubble saying so is noise.
     if (answered.length) setMsgs((ms) => ms.filter((m) => !answered.some((x) => x.id === m.id)));
     if (pendingWidgets > 0) return;
+    // What they told me may cover the basics, waiting on a Yes: don't ask again under it (QA-35).
+    if (msgs.some((m) => "kind" in m && m.kind === "heard" && !settled(m.id))) return;
     const ask = nextAsk(p);
     const asked = ask && open.some((m) => stillNeeded(m.ask, p) && JSON.stringify(m.ask) === JSON.stringify(ask));
     if (ask && !asked) return push({ id: id(), from: "agent", kind: "ask", ask });
@@ -245,12 +249,12 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
     for (const f of facts) next = applyFact(next, f);
     done(msgId);
     const saved = await save(next);
-    carryOn(saved, msgs.filter((m) => "kind" in m && m.kind === "painful" && !resolved.has(m.id)).length);
+    carryOn(saved, msgs.filter((m) => "kind" in m && m.kind === "painful" && !resolved.has(m.id)).length, msgId);
   }
 
   async function answerAsk(msgId: string, shown: string, next: Person) {
     done(msgId, shown);
-    carryOn(await save(next));
+    carryOn(await save(next), 0, msgId);
   }
 
   return (
@@ -302,7 +306,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
                         if (!("fact" in m)) return;
                         done(m.id, level === "never" ? "Never" : level === "sad_ok" ? "Sad but OK" : "No need");
                         const saved = await save(addSteer(person, m.fact.value, level, /^[A-Z]/.test(m.fact.value) && !/^The /.test(m.fact.value) ? "person" : "topic"));
-                        carryOn(saved);
+                        carryOn(saved, 0, m.id);
                       }}
                       onAnswer={(shown, next) => void answerAsk(m.id, shown, next)}
                       paused={paused}
@@ -335,13 +339,23 @@ export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: 
           {/* One scrolling row on a phone, so the chat keeps the screen. */}
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible" aria-label="What helps">
             {HINTS.map((h) => (
-              <Button key={h.label} size="sm" variant="secondary" className="shrink-0" onClick={() => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`)}>
+              <Button key={h.label} size="sm" variant="secondary" className="shrink-0" onClick={() => {
+                  setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`);
+                  // Back to the box, caret at the end, so typing carries on (QA-29).
+                  requestAnimationFrame(() => {
+                    const el = composer.current;
+                    if (!el) return;
+                    el.focus();
+                    el.setSelectionRange(el.value.length, el.value.length);
+                  });
+                }}>
                 {h.label}
               </Button>
             ))}
           </div>
           <div className="flex items-end gap-2">
             <Textarea
+              ref={composer}
               aria-label={`Tell the Go-Between about ${name}`}
               value={text}
               onChange={(e) => setText(e.target.value)}
@@ -428,7 +442,7 @@ function opening(p: Person, paused: Paused[]): Msg[] {
   const by = p.birthYear ? `born ${p.birthYear}` : p.decade ? `born in the ${p.decade}s` : null;
   const places = p.places.map((x) => `${x.name}${x.fromYear ? ` ${x.fromYear}–${x.toYear ?? ""}` : ""}`).join(", ");
   return [
-    { id: "known", from: "agent", text: `Here's what I know about ${name}: ${[by, places, `${p.moments.length} big moments`, `${p.loves.length} things they love`, `${p.steers.length} ${p.steers.length === 1 ? "thing" : "things"} to steer clear of`].filter(Boolean).join(" · ")}.` },
+    { id: "known", from: "agent", text: `Here's what I know about ${name}: ${[by, places, `${p.moments.length} big ${p.moments.length === 1 ? "moment" : "moments"}`, `${p.loves.length} ${p.loves.length === 1 ? "thing" : "things"} they love`, `${p.steers.length} ${p.steers.length === 1 ? "thing" : "things"} to steer clear of`].filter(Boolean).join(" · ")}.` },
     ...(wouldHelpNext(p, paused, 0).length ? [{ id: "helps", from: "agent" as const, kind: "helps" as const }] : []),
   ];
 }

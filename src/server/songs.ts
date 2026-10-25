@@ -6,7 +6,14 @@ import { offline } from "@/server/env";
 import { LIMITS, MODELS } from "./models";
 
 const schema = z.object({
-  songs: z.array(z.object({ ref: z.string(), title: z.string().describe("A well-known recording by that artist, its exact title"), year: z.number().int().nullable() })),
+  songs: z.array(
+    z.object({
+      ref: z.string(),
+      title: z.string().describe("A well-known recording by that artist, its exact title"),
+      year: z.number().int().nullable(),
+      artist: z.string().nullable().describe("The artist's full name as credited, e.g. 'Cilla Black' when given 'Cilla'"),
+    }),
+  ),
 });
 
 /**
@@ -49,26 +56,35 @@ const OFFLINE_SONGS: Record<string, { title: string; year: number }> = {
   "Dire Straits": { title: "Sultans of Swing", year: 1978 },
 };
 
+/** "Cilla" → "Cilla Black": a first name or surname the family used, matched to one known artist. */
+function offlineArtist(name: string): string | null {
+  if (OFFLINE_SONGS[name]) return name;
+  const n = name.toLowerCase().trim();
+  const hits = Object.keys(OFFLINE_SONGS).filter((k) => k.toLowerCase().split(/\s+/).includes(n));
+  return hits.length === 1 ? hits[0] : null;
+}
+
 export type ArtistAsk = { ref: string; artist: string; from: number; to: number; place?: string };
 
 /**
  * One well-known recording per artist, from the years given: Qloo knows artists, not songs. Titles are the model's
  * picks; callers check them on MusicBrainz before anyone sees them. An artist the model isn't sure of is left out.
  */
-export async function pickSongs(artists: ArtistAsk[], abortSignal?: AbortSignal): Promise<{ ref: string; title: string; year: number | null }[]> {
+export async function pickSongs(artists: ArtistAsk[], abortSignal?: AbortSignal): Promise<{ ref: string; title: string; year: number | null; artist: string | null }[]> {
   if (!artists.length) return [];
   const model: LanguageModel = offline()
     ? new MockLanguageModelV4({
         modelId: "offline-songs",
         doGenerate: async () => ({
-          content: [{ type: "text", text: JSON.stringify({ songs: artists.map((a, i) => ({ ref: a.ref, ...(OFFLINE_SONGS[a.artist] ?? { title: `Test song ${i + 1}`, year: a.from }) })) }) }],
+          // Unknown artists are left out, as the model is told to: a placeholder must never reach the gallery (QA-24).
+          content: [{ type: "text", text: JSON.stringify({ songs: artists.flatMap((a) => { const full = offlineArtist(a.artist); return full ? [{ ref: a.ref, artist: full, ...OFFLINE_SONGS[full] }] : []; }) }) }],
           finishReason: { unified: "stop", raw: undefined },
           usage: { inputTokens: { total: 0, noCache: 0, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 0, text: 0, reasoning: 0 } },
           warnings: [],
         }),
       })
     : MODELS.curator;
-  const prompt = `For each artist, name ONE well-known recording released in (or close to) the years given, the kind people there would have heard most: hits, radio and dance-hall favourites. Give its exact title and release year. Never invent a title; if you're not sure of a recording by an artist in those years, leave that artist out.
+  const prompt = `For each artist, name ONE well-known recording released in (or close to) the years given, the kind people there would have heard most: hits, radio and dance-hall favourites. Give its exact title, its release year, and the artist's full name as credited (the family may use a first name, like "Cilla" or "Dusty"). Never invent a title; if you're not sure of a recording by an artist in those years, leave that artist out.
 
 ${artists.map((a) => `${a.ref}: ${a.artist} (${a.from}–${a.to}${a.place ? `, popular around ${a.place}` : ""})`).join("\n")}`;
   const once = async () =>

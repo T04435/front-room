@@ -124,7 +124,8 @@ export type Help =
   | { id: string; kind: "steer" | "place" | "moment" | "calms" | "work" | "faith" | "hearing"; label: string }
   | { id: string; kind: "heard"; label: string; heardId: string };
 
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+// In the home's zone, as the gallery and What works are (QA-32).
+const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
 
 /**
  * What would help next, most useful first (v2 brief): an unresolved upset or no steer-clear answer; more places and

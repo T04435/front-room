@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { APP_NAME } from "@/lib/app";
 import { careNoteForPlays } from "@/lib/care-note";
-import { playStats, provenCalm, topProven } from "@/lib/learning";
+import { playStats, topProven } from "@/lib/learning";
 import { getPerson, personPlays } from "@/server/people";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +34,8 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
   const plays = await personPlays(id);
   const stats = playStats(plays, person.resolvedUpsets, new Date(), HOME_TZ);
   const works = topProven(stats);
-  const settles = provenCalm(stats).slice(0, 2);
+  // The same rule as the gallery's handover: anything logged Calm, most calm days first (QA-26).
+  const settles = [...stats.values()].filter((s) => s.calmSessions > 0 && s.state !== "paused").sort((a, b) => b.calmSessions - a.calmSessions).slice(0, 2);
   const paused = [...stats.values()].filter((s) => s.state === "paused");
   const resting = [...stats.values()].filter((s) => s.state === "resting");
   // The last day with plays is the last session.
@@ -82,7 +83,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
             <p key={m.id} className="flex gap-2">
               <Check className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden />
               <span>
-                Talking about: {m.label}
+                Talking about: {m.kind === "wedding" ? "Their wedding" : m.label}
                 {m.year && !m.label.includes(String(m.year)) ? ` (${m.year})` : ""} <span className="text-xs text-muted-foreground">· from the family</span>
               </span>
             </p>

@@ -127,6 +127,30 @@ EXAMPLE_PERSON.suggestions = {
       source: i.source,
       ...(EXAMPLE_GENRES[i.title] ? { genres: EXAMPLE_GENRES[i.title] } : {}),
     })),
+  // Her Blackpool years (1972–80), so the gallery reflects both places. Example data in the shape of a Qloo result,
+  // not from a live run: the source line says so.
+  "pl-bpl:example": (
+    [
+      ["song", "Tiger Feet", "Mud", 1974],
+      ["song", "Crocodile Rock", "Elton John", 1972],
+      ["song", "Top of the World", "Carpenters", 1973],
+      ["song", "Sugar Baby Love", "The Rubettes", 1974],
+      ["film", "Grease", undefined, 1978],
+      ["tv", "The Generation Game", undefined, 1971],
+      ["place", "Tower Ballroom", undefined, null],
+      ["place", "Blackpool Pleasure Beach", undefined, null],
+    ] as const
+  ).map(([type, title, by, year], n) => ({
+    id: `ex-bpl-${n}`,
+    placeId: "pl-bpl",
+    type,
+    title,
+    ...(by ? { by } : {}),
+    year,
+    parts: [type === "place" ? "place" : "70s", "Blackpool", "example"],
+    source: "Example data for the demo, shaped like a Qloo result for Blackpool, 1972–80.",
+    ...(type === "film" ? { genres: ["musical", "romance"] } : type === "tv" ? { genres: ["variety", "game show"] } : {}),
+  })),
   "new-tries": [
     { id: "ex-nt1", placeId: "pl-mcr", type: "song", title: "(Sittin' On) The Dock of the Bay", by: "Otis Redding", year: 1968, like: "You Don't Have to Say You Love Me", parts: ["60s", "like Dusty Springfield", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like Dusty Springfield, 60s, Manchester." },
     { id: "ex-nt2", placeId: "pl-mcr", type: "song", title: "Walk On By", by: "Dionne Warwick", year: 1964, like: "You Don't Have to Say You Love Me", parts: ["60s", "like Dusty Springfield", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like Dusty Springfield, 60s, Manchester." },

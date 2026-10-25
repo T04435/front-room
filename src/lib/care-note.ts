@@ -43,6 +43,8 @@ export function careNoteForPlays(plays: import("./learning").Play[], timeZone?: 
   const calm = titles("calm");
   const upset = titles("upset");
   const tearful = titles("tearful");
-  const bits = [engaged.length ? `engaged with ${engaged.join(" and ")}` : null, sang.length ? `sang along to ${sang.join(" and ")}` : null, !engaged.length && !sang.length && calm.length ? `calm with ${calm.join(" and ")}` : null].filter(Boolean).join(", ");
+  // Calm is what the next shift most needs, so it's always said (QA-26).
+  const calmOnly = calm.filter((t) => !sang.includes(t) && !engaged.includes(t));
+  const bits = [engaged.length ? `engaged with ${engaged.join(" and ")}` : null, sang.length ? `sang along to ${sang.join(" and ")}` : null, calmOnly.length ? `calm with ${calmOnly.join(" and ")}` : null].filter(Boolean).join(", ");
   return `${hm(start, timeZone)}, about ${mins} min.${bits ? ` ${bits.charAt(0).toUpperCase()}${bits.slice(1)}.` : ""} ${tearful.length ? `Tearful with ${tearful.join(" and ")}. ` : ""}${upset.length ? `Upset during ${upset.join(" and ")}; stopped.` : "No distress."}`;
 }
