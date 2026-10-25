@@ -4,6 +4,19 @@ Qloo Agentic Hackathon 2026, 4th entry: **Front Room** (renamed from the working
 brand comes from the Front Room design system).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-25 · Live demo verified (Margaret, born 1950, Manchester, likes Dusty Springfield)
+
+- **Run:** about 26 s, 11 live Qloo calls, all through local NotOnQ (no fallbacks needed), the curator on Sonnet 5.5
+  via OIDC, no curator problems.
+- **Playlist:** Dream a Little Dream of Me (Cass Elliot) → Ain't No Sunshine → Son of a Preacher Man → Massachusetts →
+  Maggie May → Hey Jude → Waterloo.
+- **Picks:** Fawlty Towers, Monty Python's Flying Circus, the O2 Ritz ("a dance venue since the 1920s"), and the
+  Palace Theatre.
+- **Prompts:** six, open and non-testing, mixing music, TV and places.
+- **Noise:** Qloo's 70s list around Manchester includes Snoopy, Twiggy and Yolanda. The curator ignores them, but
+  they show in the research steps.
+- **Inline question:** checked live for an unknown town ("Qwxzton" → asks for a bigger town nearby).
+
 ## 2026-10-25 · AI Gateway auth: OIDC, no API key (HQ)
 
 - **Same as Busk Map, GhostQ and NotOnQ.** Local dev uses the `VERCEL_OIDC_TOKEN` from `vercel env pull` on the
