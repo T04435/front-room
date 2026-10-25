@@ -18,6 +18,7 @@ const entity = z.object({
     .optional(),
   query: z.object({ affinity: z.number().optional() }).partial().nullable().optional(),
   location: z.object({ lat: z.number().optional(), lon: z.number().optional() }).partial().nullable().optional(),
+  tags: z.array(z.object({ id: z.string().optional(), tag_id: z.string().optional(), name: z.string().optional() }).passthrough()).nullable().optional(),
 });
 
 export type QlooEntity = {
@@ -28,6 +29,8 @@ export type QlooEntity = {
   disambiguation: string | null;
   popularity: number | null;
   affinity: number | null;
+  /** Genre tag names, lower case ("musical", "crime"): to keep films and TV gentle. */
+  genres: string[];
 };
 
 function toEntity(e: z.infer<typeof entity>): QlooEntity {
@@ -40,6 +43,7 @@ function toEntity(e: z.infer<typeof entity>): QlooEntity {
     disambiguation: e.disambiguation ?? null,
     popularity: e.popularity ?? null,
     affinity: e.query?.affinity ?? null,
+    genres: (e.tags ?? []).filter((t) => (t.id ?? t.tag_id ?? "").includes(":genre:") && t.name).map((t) => t.name!.toLowerCase()),
   };
 }
 

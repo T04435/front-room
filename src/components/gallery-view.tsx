@@ -41,6 +41,7 @@ function tagOf(g: GalleryItem): string | null {
   if (g.origin === "new_try") return g.like ? `New try · like ${g.like}` : "New try";
   if (g.answer === "yes") return "Loved it";
   if (g.origin === "family") return "From the family";
+  if (g.story) return "From their story";
   if (g.stat?.state === "tried") return "Tried";
   return null;
 }
@@ -70,6 +71,12 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
   const [findingTries, setFindingTries] = useState(triesDue);
   const [since] = useState(() => new Date().toISOString());
   const evening = useEvening();
+  // Start here: what works (else the family's song), one new try, one thing to talk about (PR-6).
+  const startHere = [
+    gallery.works[0] ?? gallery.shelves.song.find((g) => g.origin === "family") ?? gallery.shelves.song[0],
+    gallery.newTries[0],
+    gallery.shelves.place.find((g) => g.story) ?? gallery.shelves.film[0] ?? gallery.shelves.place[0],
+  ].filter((g, i, xs): g is GalleryItem => Boolean(g) && xs.findIndex((x) => x?.key === g?.key) === i);
   const isOpen = open !== null;
 
   // Keep the screen on while something's playing (refusal is fine).
@@ -187,6 +194,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
 
       <Handover person={person} gallery={gallery} />
 
+      {startHere.length > 1 && <Shelf title="Start here" hint="Three to begin with" items={startHere} onOpen={setOpen} big limit={3} />}
+
       {gallery.works.length > 0 && (
         <Shelf
           title={`Works for ${name}`}
@@ -241,6 +250,14 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
                     </a>
                   </Button>
                 ))}
+              </div>
+              <div className="grid gap-2 rounded-lg bg-muted/50 p-3">
+                <p className="text-lg leading-snug">{open.hook}</p>
+                <p>
+                  <span className="text-sm text-muted-foreground">Try asking</span>
+                  <br />“{open.prompt.ask}”
+                </p>
+                <p className="text-sm text-muted-foreground">They might answer: {open.prompt.might}</p>
               </div>
               <p className="font-mono text-xs text-muted-foreground" title={open.source}>
                 {open.parts.join(" · ")}
@@ -301,7 +318,10 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
   );
 }
 
-function Shelf({ title, hint, items, onOpen, big }: { title: string; hint?: string; items: GalleryItem[]; onOpen: (g: GalleryItem) => void; big?: boolean }) {
+/** A shelf: four at a time (fewer choices with someone waiting), and More for the rest. */
+function Shelf({ title, hint, items, onOpen, big, limit = 4 }: { title: string; hint?: string; items: GalleryItem[]; onOpen: (g: GalleryItem) => void; big?: boolean; limit?: number }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? items : items.slice(0, limit);
   return (
     <section className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label={title}>
       <div className="flex items-baseline gap-2">
@@ -310,7 +330,7 @@ function Shelf({ title, hint, items, onOpen, big }: { title: string; hint?: stri
       </div>
       <ScrollArea className="w-full whitespace-nowrap">
         <ul className="flex gap-3 p-1 pb-3">
-          {items.map((g) => {
+          {shown.map((g) => {
             const Icon = ICON[g.type];
             const tag = tagOf(g);
             return (
@@ -329,6 +349,14 @@ function Shelf({ title, hint, items, onOpen, big }: { title: string; hint?: stri
               </li>
             );
           })}
+          {items.length > shown.length && (
+            <li className={cn("shrink-0", big ? "w-52" : "w-44")}>
+              <Button variant="outline" className="aspect-square h-auto w-full flex-col text-base" onClick={() => setAll(true)} aria-label={`More ${title.toLowerCase()}: ${items.length - shown.length} more`}>
+                More
+                <span className="text-sm text-muted-foreground">{items.length - shown.length} more</span>
+              </Button>
+            </li>
+          )}
         </ul>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
@@ -388,13 +416,14 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
   const talk = moment ? (moment.kind === "wedding" ? `Their wedding${moment.year ? ` (${moment.year})` : ""}` : moment.label) : home ? `Growing up in ${home.name}` : null;
   const heard = person.staffHeard.filter((h) => h.confirmed).slice(-2).map((h) => h.text);
   const calmSong = calmPick(gallery);
-  const settle = [p.calms, calmSong ? `${calmSong.title} (logged calm)` : null].filter(Boolean).join(" · ") || "Not known yet: log Calm when something settles them";
+  const settle = [p.calms, calmSong ? `${calmSong.title} (logged calm)` : null].filter(Boolean).join(" · ") || "Not known yet: tap Calm when something helps";
   const rows: [string, string][] = [
     ["Call them", p.greeting ?? name],
     ["Works", works.length ? works.join(" · ") : "Nothing proven yet: start with the family's picks"],
     ["Avoid", avoid.length ? avoid.join(" · ") : person.steerAsked ? "Nothing flagged" : "Not asked yet"],
     ...(talk ? [["Talk about", talk] as [string, string]] : []),
-    ["Settles with", settle],
+    ["Calm with", settle],
+    ["First", `Comfortable, no pain, been to the toilet, not too hot or cold · a quiet room · ${p.headphonesOk === true ? "headphones are fine" : p.headphonesOk === false ? "no headphones" : "headphones only if you know they're OK"}`],
     ...(heard.length ? [["Staff heard", heard.join(" · ")] as [string, string]] : []),
     ...(p.hearing ? [["Hearing", `${p.hearing}${p.headphonesOk === false ? "; no headphones" : ""}`] as [string, string]] : []),
     ...(p.bestTime ? [["Best time", p.bestTime] as [string, string]] : []),

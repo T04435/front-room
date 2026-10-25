@@ -60,6 +60,8 @@ export type Suggestion = {
   parts: string[];
   source: string;
   qlooId?: string;
+  /** Films and TV: genre names from Qloo, to keep the gallery gentle. */
+  genres?: string[];
   answer?: "yes" | "unsure" | "upset";
 };
 

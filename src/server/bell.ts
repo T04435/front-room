@@ -193,7 +193,7 @@ async function researchPlace(p: Person, place: Place, era: ReturnType<typeof era
     let found = parseInsights(r.data);
     // TV is thin by place (two shows for London in the probes): fall back to the era's TV anywhere.
     if (found.length < n) found = [...found, ...parseInsights((await get("/v2/insights", base, onCall)).data)];
-    for (const e of found.slice(0, n + 2).filter((x, i, xs) => xs.findIndex((y) => y.id === x.id) === i).slice(0, n)) add({ placeId: place.id, type: kind, title: e.name, year: e.year, parts: [kind === "film" ? "film" : "TV", e.year ? String(e.year) : years, "Qloo"], source: `Qloo: ${kind === "film" ? "films" : "TV"} from ${years}, popular around ${where}.`, qlooId: e.id });
+    for (const e of found.slice(0, n + 2).filter((x, i, xs) => xs.findIndex((y) => y.id === x.id) === i).slice(0, n)) add({ placeId: place.id, type: kind, title: e.name, year: e.year, parts: [kind === "film" ? "film" : "TV", e.year ? String(e.year) : years, "Qloo"], source: `Qloo: ${kind === "film" ? "films" : "TV"} from ${years}, popular around ${where}.`, qlooId: e.id, ...(e.genres.length ? { genres: e.genres } : {}) });
   }
 
   // Long-standing places in the town (Qloo's are today's; these were likely there then too).

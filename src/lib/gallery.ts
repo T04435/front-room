@@ -1,3 +1,4 @@
+import { filmSong, hookFor, inStory, isGentle, isHarsh, isInstitution, promptFor, steerRulesOutHarsh, type Prompt } from "./card-words";
 import { searchLinks } from "./kit";
 import { itemKey, type ItemStat } from "./learning";
 import { steersClear, type Person, type Suggestion } from "./person";
@@ -20,6 +21,13 @@ export type GalleryItem = {
   cardId?: string;
   answer?: Suggestion["answer"];
   stat?: ItemStat;
+  placeId?: string;
+  genres?: string[];
+  /** The story mentions it ("Danced at the Ritz"). */
+  story?: string;
+  /** What the card says to the carer: tied to the person, and one open prompt. */
+  hook: string;
+  prompt: Prompt;
   /** Where to play or see it: we host nothing. */
   links: { label: string; href: string }[];
 };
@@ -35,7 +43,13 @@ export function linksFor(type: GalleryType, title: string, by?: string, year?: n
       { label: "YouTube", href: l.youtube },
     ];
   }
-  if (type === "film" || type === "tv") return [{ label: "Clips on YouTube", href: `https://www.youtube.com/results?search_query=${q(`${title} ${year ?? ""} clip`)}` }];
+  // Nobody watches a whole film at the bedside: a song from it, or the theme tune, then a clip.
+  const yt = (s: string) => `https://www.youtube.com/results?search_query=${q(s)}`;
+  if (type === "film") {
+    const song = filmSong(title);
+    return [song ? { label: `Play “${song}”`, href: yt(`${song} ${title}`) } : { label: "Songs from it", href: yt(`${title} ${year ?? ""} soundtrack`) }, { label: "A clip", href: yt(`${title} ${year ?? ""} clip`) }];
+  }
+  if (type === "tv") return [{ label: "Play the theme", href: yt(`${title} theme tune`) }, { label: "A clip", href: yt(`${title} ${year ?? ""} clip`) }];
   if (type === "book") return [{ label: "Find it", href: `https://openlibrary.org/search?q=${q(`${title} ${by ?? ""}`)}` }];
   return [{ label: "Photos", href: `https://www.google.com/search?tbm=isch&q=${q(title)}` }];
 }
@@ -57,10 +71,16 @@ export type Gallery = {
  */
 export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   const items = new Map<string, GalleryItem>();
-  const put = (g: Omit<GalleryItem, "key" | "links" | "stat">) => {
+  const noHarsh = steerRulesOutHarsh(p);
+  const put = (g: Omit<GalleryItem, "key" | "links" | "stat" | "hook" | "prompt">) => {
     const key = itemKey({ type: g.type, title: g.title, by: g.by });
     if (items.has(key) || steersClear(p, g.title, g.by)) return;
-    items.set(key, { ...g, key, links: linksFor(g.type, g.title, g.by, g.year), stat: stats.get(key) });
+    const family = g.origin === "family";
+    // War, crime and the like go when steer clear points that way (the family's own picks stay); so do institutions.
+    if (!family && (g.type === "film" || g.type === "tv") && noHarsh && isHarsh(g.genres)) return;
+    if (!family && g.type === "place" && isInstitution(g.title)) return;
+    const story = inStory(p, g.title) ?? undefined;
+    items.set(key, { ...g, key, story, links: linksFor(g.type, g.title, g.by, g.year), stat: stats.get(key), hook: story ? `From ${p.preferredName || "their"}’s story: ${story}.` : hookFor(p, g), prompt: promptFor(g.type, g.title) });
   };
   // The family's own loves first.
   for (const l of p.loves) {
@@ -72,13 +92,15 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   for (const [k, cards] of Object.entries(p.suggestions)) {
     for (const c of cards) {
       if (c.answer === "upset" || c.type === "artist") continue;
-      put({ type: c.type, title: c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : k === "family" ? "family" : "qloo", like: c.like, cardId: c.id, answer: c.answer });
+      put({ type: c.type, title: c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : k === "family" ? "family" : "qloo", like: c.like, cardId: c.id, answer: c.answer, placeId: c.placeId, genres: c.genres });
     }
   }
   const all = [...items.values()];
   const state = (g: GalleryItem) => g.stat?.state;
   const live = all.filter((g) => state(g) !== "paused" && state(g) !== "resting");
-  const score = (g: GalleryItem) => (g.answer === "yes" || g.origin === "family" ? 50 : 0) + (g.stat?.sangSessions ?? 0) * 3 + (g.stat?.engagedSessions ?? 0) * 2 + (g.stat?.calmSessions ?? 0);
+  // The family's picks and the story first; gentle films before harsh ones.
+  const score = (g: GalleryItem) =>
+    (g.answer === "yes" || g.origin === "family" ? 50 : 0) + (g.story ? 40 : 0) + (isHarsh(g.genres) ? -30 : isGentle(g.genres) ? 5 : 0) + (g.stat?.sangSessions ?? 0) * 3 + (g.stat?.engagedSessions ?? 0) * 2 + (g.stat?.calmSessions ?? 0);
   const shelf = (t: GalleryType) => live.filter((g) => g.type === t && g.origin !== "new_try").sort((a, b) => score(b) - score(a));
   return {
     works: live.filter((g) => state(g) === "proven").sort((a, b) => score(b) - score(a)),

@@ -98,6 +98,20 @@ export const EXAMPLE_PLAYS: Play[] = EXAMPLE_LOGS.flatMap((l) => {
   return item ? [{ id: l.id, itemKey: item.key, type: item.type, title: item.title, by: item.by?.title, response: l.response, at: l.at }] : [];
 });
 
+/** Genres for her films and TV, as Qloo tags them (the 25 Oct run predates keeping them). */
+const EXAMPLE_GENRES: Record<string, string[]> = {
+  "The Sound of Music": ["musical", "family"],
+  "The Jungle Book": ["animation", "family", "musical"],
+  Papillon: ["drama", "prison", "war"],
+  "The Godfather": ["crime", "drama"],
+  "Who's Afraid of Virginia Woolf?": ["drama"],
+  "American Graffiti": ["comedy", "music"],
+  "Monty Python's Flying Circus": ["comedy"],
+  Columbo: ["crime", "mystery"],
+  "Star Trek": ["science fiction"],
+  "Fawlty Towers": ["comedy"],
+};
+
 /** Her gallery: the example kit's real research (25 Oct), plus three new tries like what works (a live run, 26 Oct). */
 EXAMPLE_PERSON.suggestions = {
   "pl-mcr:example": keyed
@@ -111,6 +125,7 @@ EXAMPLE_PERSON.suggestions = {
       year: i.year,
       parts: i.parts,
       source: i.source,
+      ...(EXAMPLE_GENRES[i.title] ? { genres: EXAMPLE_GENRES[i.title] } : {}),
     })),
   "new-tries": [
     { id: "ex-nt1", placeId: "pl-mcr", type: "song", title: "(Sittin' On) The Dock of the Bay", by: "Otis Redding", year: 1968, like: "You Don't Have to Say You Love Me", parts: ["60s", "like Dusty Springfield", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like Dusty Springfield, 60s, Manchester." },

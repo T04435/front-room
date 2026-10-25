@@ -76,3 +76,32 @@ describe("steer clear", () => {
     expect(g.shelves.song.map((x) => x.title)).toEqual(["Bus Stop"]);
   });
 });
+
+describe("Product's v2.3 rules (the example Margaret, who has 'Loud bangs' in steer clear)", () => {
+  const g = galleryOf(EXAMPLE_PERSON, playStats(EXAMPLE_PLAYS, [], NOW, "Europe/London"));
+  const titles = (xs: { title: string }[]) => xs.map((x) => x.title);
+
+  it("PR-1: no crime, war or prison films and TV when steer clear says loud bangs; gentle ones lead", () => {
+    expect(titles(g.shelves.film)).not.toContain("The Godfather");
+    expect(titles(g.shelves.film)).not.toContain("Papillon");
+    expect(titles(g.shelves.tv)).not.toContain("Columbo");
+    expect(g.shelves.film[0].title).toBe("The Sound of Music");
+    expect(titles(g.shelves.tv)).toContain("Fawlty Towers");
+  });
+
+  it("PR-2: every card has a hook tied to her and an open prompt, never 'remember'", () => {
+    const all = [...g.works, ...g.newTries, ...Object.values(g.shelves).flat()];
+    expect(all.every((x) => x.hook.length > 10 && x.prompt.ask.endsWith("?") && !/remember/i.test(x.prompt.ask + x.hook))).toBe(true);
+    expect(g.shelves.film[0].hook).toBe("Out in 1965, when Margaret was 15, in Manchester.");
+  });
+
+  it("PR-4: films offer a song from them, TV the theme tune", () => {
+    expect(g.shelves.film[0].links[0].label).toBe("Play “Edelweiss”");
+    expect(g.shelves.tv.find((x) => x.title === "Fawlty Towers")!.links[0].label).toBe("Play the theme");
+  });
+
+  it("PR-5: the place from her story first, no universities or research libraries", () => {
+    expect(g.shelves.place[0]).toMatchObject({ title: "O2 Ritz Manchester", story: "Danced at the Ritz every Saturday" });
+    expect(titles(g.shelves.place).some((t) => /universit|research/i.test(t))).toBe(false);
+  });
+});

@@ -117,13 +117,13 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
 
       <Card>
         <CardHeader>
-          <CardTitle>How to settle {person.preferredName}</CardTitle>
+          <CardTitle>What has been calm for {person.preferredName}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2">
           {settles.map((s) => (
             <p key={s.key}>
               {s.title}
-              {s.by ? ` (${s.by})` : ""} settles them <span className="text-xs text-muted-foreground">· calm in {s.calmSessions} {s.calmSessions === 1 ? "session" : "sessions"}, last {day(s.lastAt)}</span>
+              {s.by ? ` (${s.by})` : ""}: logged calm <span className="text-xs text-muted-foreground">· calm in {s.calmSessions} {s.calmSessions === 1 ? "session" : "sessions"}, last {day(s.lastAt)}</span>
             </p>
           ))}
           {p.calms && (
@@ -132,7 +132,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
             </p>
           )}
           {p.bestTime && <p>Best time: {p.bestTime}</p>}
-          {!settles.length && !p.calms && <p className="text-sm text-muted-foreground">Not known yet. Logging Calm in the gallery, and the story chat, fill this in.</p>}
+          {!settles.length && !p.calms && <p className="text-sm text-muted-foreground">Not known yet. Tap Calm in the gallery when something helps, or tell the story chat.</p>}
         </CardContent>
       </Card>
 

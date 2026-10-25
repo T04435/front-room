@@ -74,6 +74,35 @@ const PLACES: Record<string, [name: string, description: string][]> = {
 };
 const placesFor = (town: string) => PLACES[town.toLowerCase().replace(/,.*/, "").trim()] ?? [[`${town} Town Hall`, `The town hall in ${town}`], [`${town} Market`, `The market in ${town}`]];
 
+/** Genre tags as Qloo gives them, so the gentle-first rule shows offline. */
+const GENRES: Record<string, string[]> = {
+  "Singin' in the Rain": ["musical", "comedy"],
+  "Rebel Without a Cause": ["drama"],
+  "Some Like It Hot": ["comedy", "romance"],
+  "Breakfast at Tiffany's": ["romance", "comedy"],
+  "Mary Poppins": ["musical", "family"],
+  "The Sound of Music": ["musical", "family"],
+  "Who's Afraid of Virginia Woolf?": ["drama"],
+  "The Jungle Book": ["animation", "family", "musical"],
+  "Oliver!": ["musical", "family"],
+  "Butch Cassidy and the Sundance Kid": ["western", "crime"],
+  "The Godfather": ["crime", "drama"],
+  "Star Wars": ["science fiction", "action", "war"],
+  Grease: ["musical", "romance"],
+  "E.T. the Extra-Terrestrial": ["family", "science fiction"],
+  "Back to the Future": ["comedy", "science fiction"],
+  "Hancock's Half Hour": ["comedy"],
+  "Coronation Street": ["soap opera", "drama"],
+  "Doctor Who": ["science fiction"],
+  "Top of the Pops": ["music", "variety"],
+  "Dad's Army": ["comedy", "war"],
+  "The Old Grey Whistle Test": ["music"],
+  "Fawlty Towers": ["comedy"],
+  "Only Fools and Horses": ["comedy"],
+  EastEnders: ["soap opera", "drama"],
+};
+const genreTags = (n: string) => ({ tags: (GENRES[n] ?? []).map((g) => ({ id: `urn:tag:genre:media:${g.replace(/\s+/g, "_")}`, name: g })) });
+
 /** Films or TV in the release years asked for (all of them if none fall there, as Qloo leans popular). */
 function inYears(list: readonly (readonly [string, number])[], p: QlooParams) {
   const min = Number(p["filter.release_year.min"] ?? 0);
@@ -100,9 +129,9 @@ function answer(path: string, p: QlooParams): unknown {
     const names = tags.includes("80s") ? ARTISTS_80S : tags.includes("70s") ? ARTISTS_70S : tags.includes("50s") ? ARTISTS_50S : ARTISTS_60S;
     return { results: { entities: names.map((n) => e(`a-${n}`, n)) } };
   }
-  if (type === "urn:entity:movie") return { results: { entities: inYears(FILMS, p).map(([n, y]) => e(`f-${n}`, n, { properties: { release_year: y } })) } };
+  if (type === "urn:entity:movie") return { results: { entities: inYears(FILMS, p).map(([n, y]) => e(`f-${n}`, n, { properties: { release_year: y }, ...genreTags(n) })) } };
   if (type === "urn:entity:place") return { results: { entities: placesFor(String(p["filter.location.query"] ?? "Manchester")).map(([n, d]) => e(`p-${n}`, n, { properties: { description: d } })) } };
-  if (type === "urn:entity:tv_show") return { results: { entities: inYears(TV, p).map(([n, y]) => e(`t-${n}`, n, { properties: { release_year: y } })) } };
+  if (type === "urn:entity:tv_show") return { results: { entities: inYears(TV, p).map(([n, y]) => e(`t-${n}`, n, { properties: { release_year: y }, ...genreTags(n) })) } };
   return { results: { entities: [] } };
 }
 
