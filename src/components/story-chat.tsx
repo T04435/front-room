@@ -3,6 +3,7 @@
 import { ArrowUp, Check, Mic, MicOff, Pencil, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { AgentMark } from "@/components/front-room/agent";
 import { applyStepEvent, RunSteps, type StepItem } from "@/components/run-steps";
 import { PlaceSearch, SteerQuestion, TextInput, YearInput } from "@/components/story-inputs";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
@@ -267,7 +268,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   return (
     <div className="mx-auto grid max-w-2xl gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">{hasGallery ? `Get to know ${name} better` : `${person.preferredName ? `${person.preferredName}’s` : "Their"} story`}</h1>
+        <h1 className="font-heading text-[30px] leading-[36px]">{hasGallery ? `Get to know ${name} better` : `${person.preferredName ? `${person.preferredName}’s` : "Their"} story`}</h1>
         <div className="flex gap-2">
           {hasGallery && (
             <Button asChild variant="outline" size="sm">
@@ -294,7 +295,9 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
           ) : (
             <Message key={m.id}>
               <MessageContent className="grid w-full gap-1">
-                <span className="text-xs font-medium text-muted-foreground">Go-Between</span>
+                <span className="flex items-center gap-1.5 text-[15px] font-medium text-muted-foreground">
+                  <AgentMark size={20} decorative state={busy && m.id === msgs.at(-1)?.id ? "working" : "rest"} /> Go-Between
+                </span>
                 <Bubble variant="secondary" className="max-w-full">
                   <BubbleContent className="grid gap-3 text-base">
                     <AgentBody
@@ -746,7 +749,7 @@ function HelpChips({ person, name, onHelp, ro, paused, provenCalm }: { person: P
       <span>What would help me most next for {name}:</span>
       <span className="flex flex-wrap gap-1.5">
         {helps.map((h) => (
-          <Button key={h.id} size="xs" variant={h.kind === "upset" ? "destructive" : "outline"} disabled={ro} onClick={() => onHelp(h)}>
+          <Button key={h.id} size="xs" variant={h.kind === "upset" ? "destructive" : "outline"} disabled={ro} onClick={() => onHelp(h)} className="h-auto min-h-8 max-w-full py-1 text-left whitespace-normal">
             {h.label}
           </Button>
         ))}

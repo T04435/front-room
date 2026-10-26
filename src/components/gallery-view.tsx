@@ -19,12 +19,13 @@ import { HEARD_KINDS, type Person, type StaffHeard } from "@/lib/person";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<GalleryType, typeof Music> = { song: Music, film: Film, tv: Tv, book: BookOpen, place: MapPin };
+// Tile grounds from the brand palette (Apricot, Rose, Plum tints), behind the picture or the icon.
 const TILE: Record<GalleryType, string> = {
-  song: "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-  film: "bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-200",
-  tv: "bg-violet-100 text-violet-900 dark:bg-violet-950 dark:text-violet-200",
-  book: "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
-  place: "bg-sky-100 text-sky-900 dark:bg-sky-950 dark:text-sky-200",
+  song: "bg-accent/60 text-accent-foreground",
+  film: "bg-secondary text-primary",
+  tv: "bg-muted text-primary",
+  book: "bg-accent/30 text-primary",
+  place: "bg-secondary/70 text-primary",
 };
 const SHELF: Record<GalleryType, string> = { song: "Songs", film: "Films", tv: "On the telly", book: "Books", place: "Places they knew" };
 const LOG_ICON = { calm: Waves, engaged: Eye, sang: Music, tearful: Droplet, upset: TriangleAlert } as const;
@@ -189,7 +190,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
       <div className="grid gap-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="grid gap-1">
-            <h1 className="text-3xl font-semibold">{name}</h1>
+            <h1 className="font-heading text-[34px] leading-[40px]">{name}</h1>
             <p className="text-muted-foreground">Things to play and talk about with {name}, from their life and places. Tap one to play it.</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -516,7 +517,7 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
       <CardHeader>
         <CardTitle className="flex flex-wrap items-baseline justify-between gap-2">
           {visiting ? "Before you visit" : "Before you start"}
-          <span className="flex rounded-lg border p-0.5 text-xs font-normal" role="group" aria-label="Who this card is for">
+          <span className="flex rounded-lg border p-0.5 font-sans text-xs font-normal" role="group" aria-label="Who this card is for">
             {(["staff", "visit"] as const).map((m) => (
               <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={cn("rounded-md px-2.5 py-1 max-sm:min-h-10", mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
                 {m === "staff" ? "For staff" : "For a visit"}

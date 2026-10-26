@@ -52,7 +52,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
   return (
     <div className="grid max-w-2xl gap-5">
       <div className="grid gap-1">
-        <h1 className="flex items-center gap-2 text-3xl font-semibold">
+        <h1 className="flex items-center gap-2 font-heading text-[34px] leading-[40px]">
           <ClipboardList className="size-6" aria-hidden /> What works
         </h1>
         <p className="text-lg">

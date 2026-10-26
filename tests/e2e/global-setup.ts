@@ -9,7 +9,7 @@ export default async function globalSetup() {
   const health = (await res.json()) as { offline?: boolean };
   if (!health.offline) throw new Error("The server on :3510 isn't in offline mode; e2e would spend real Qloo and model credit.");
 
-  const pages = ["/", "/quick", "/kits", "/kits/example", "/people/new", "/p/margaret-x", "/p/margaret-x/story", "/p/margaret-x/works"];
+  const pages = ["/", "/people", "/quick", "/kits", "/kits/example", "/people/new", "/p/margaret-x", "/p/margaret-x/story", "/p/margaret-x/works"];
   // GETs only: on POST-only routes they answer 405, which still compiles them, and change nothing.
   const routes = ["/api/version", "/api/run", "/api/people", "/api/people/margaret-x", "/api/people/margaret-x/extract", "/api/people/margaret-x/research", "/api/people/margaret-x/plays", "/api/people/margaret-x/answer", "/api/people/margaret-x/new-tries", "/api/kits/example/log"];
   for (const path of [...pages, ...routes]) await fetch(`${BASE}${path}`).catch(() => {});

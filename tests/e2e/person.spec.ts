@@ -56,7 +56,7 @@ test("the gallery plays an item, logs and undoes a response, and Stop pauses it"
 });
 
 test("the example Margaret opens as a read-only gallery that has learned", async ({ page, request }) => {
-  await page.goto("/");
+  await page.goto("/people");
   await page.getByRole("link", { name: /Example: Margaret/ }).click();
   await expect(page).toHaveURL(/\/p\/margaret-x$/);
   await expect(page.getByRole("region", { name: "Works for Margaret" })).toBeVisible();
