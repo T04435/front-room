@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Check, Droplet, ExternalLink, Eye, Film, Heart, MapPin, MessageCircleHeart, Music, OctagonX, Play as PlayIcon, Sparkles, ThumbsDown, TriangleAlert, Tv, Undo2, Waves } from "lucide-react";
+import { BookOpen, Check, Droplet, Plus, ExternalLink, Eye, Film, Heart, MapPin, MessageCircleHeart, Music, OctagonX, Play as PlayIcon, Sparkles, ThumbsDown, TriangleAlert, Tv, Undo2, Waves } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -277,7 +277,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
           }}
         >
           {open && (
-            <div className="grid gap-4 px-4 pb-6">
+            <div className="grid gap-3 px-4 pb-4">
               {settling && (
                 <Alert className="mt-8 max-sm:mt-12">
                   <Waves />
@@ -289,7 +289,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
                   {TYPE_WORD[open.type]}
                   {tagOf(open) && <Badge variant="secondary">{tagOf(open)}</Badge>}
                 </span>
-                <SheetTitle className="text-3xl leading-tight">{open.title}</SheetTitle>
+                <SheetTitle className="text-2xl leading-tight sm:text-3xl">{open.title}</SheetTitle>
                 <SheetDescription className="text-lg">{[open.by, open.year].filter(Boolean).join(", ")}</SheetDescription>
               </SheetHeader>
               <div className="flex flex-wrap gap-2">
@@ -321,7 +321,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
                     const Icon = LOG_ICON[r];
                     const on = mine.some((p) => p.response === r);
                     return (
-                      <Button key={r} variant={on ? "default" : "outline"} className="h-14 justify-start text-base" disabled={ro} aria-pressed={on} onClick={() => void log(open, r)}>
+                      <Button key={r} variant={on ? "default" : "outline"} className="h-12 justify-start text-base" disabled={ro} aria-pressed={on} onClick={() => void log(open, r)}>
                         {on ? <Check aria-hidden /> : <Icon aria-hidden className={r === "upset" ? "text-destructive" : undefined} />} {RESPONSE_LABELS[r]}
                       </Button>
                     );
@@ -417,6 +417,8 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: st
 
 /** "Learned something?" after a play: a name, a place, a job…, saved as staff-heard for the family to confirm in the story chat. */
 function LearnedSomething({ person, name, onSaved }: { person: Person; name: string; onSaved: () => void }) {
+  // Folded to one line until tapped, so the sheet fits the screen (it read as cut off).
+  const [unfolded, setUnfolded] = useState(false);
   const [kind, setKind] = useState<StaffHeard["kind"] | null>(null);
   const [text, setText] = useState("");
   const [state, setState] = useState<"idle" | "saving" | "saved" | "failed">("idle");
@@ -430,6 +432,14 @@ function LearnedSomething({ person, name, onSaved }: { person: Person; name: str
     onSaved();
   }
   if (state === "saved") return <p className="border-t pt-3 text-sm">Noted for {name}&apos;s family to confirm in Get to know them better.</p>;
+  if (!unfolded)
+    return (
+      <div className="border-t pt-2">
+        <Button variant="ghost" className="max-sm:h-11 -ml-2" onClick={() => setUnfolded(true)}>
+          <Plus aria-hidden /> Learned something new about {name}?
+        </Button>
+      </div>
+    );
   return (
     <div className="grid gap-2 border-t pt-3">
       <span className="text-sm font-medium">Learned something new about {name}?</span>
