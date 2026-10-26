@@ -83,12 +83,15 @@ function stillNeeded(ask: Ask, p: Person): boolean {
  * kept, the words are not), a steer-clear question for anything painful, and one question that digs into what was
  * said. When it knows enough it offers to find things for them with Qloo, right here, then opens their gallery.
  */
-export function StoryChat({ initial, paused, provenCalm, autoFind }: { initial: Person; paused: Paused[]; provenCalm: number; autoFind?: boolean }) {
+export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { initial: Person; paused: Paused[]; provenCalm: number; autoFind?: boolean; starter?: string }) {
   const [person, setPerson] = useState(initial);
-  const [text, setText] = useState("");
+  const [text, setText] = useState(starter ?? "");
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<StepItem[]>([]);
-  const [msgs, setMsgs] = useState<Msg[]>(() => opening(initial, paused));
+  const [msgs, setMsgs] = useState<Msg[]>(() => [
+    ...opening(initial, paused),
+    ...(starter ? [{ id: "example", from: "agent" as const, text: `This is a fictional example: ${initial.preferredName}'s “This is me” is in the box below. Edit it if you like, then press Send.` }] : []),
+  ]);
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);

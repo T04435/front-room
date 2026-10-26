@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { EXAMPLES, type Example } from "@/lib/examples";
 import type { Consent } from "@/lib/person";
 
 const BY: { value: Consent["by"]; label: string }[] = [
@@ -30,6 +31,22 @@ export function ConsentForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** An example: a fictional person, the family telling it, their story waiting in the chat box to send. */
+  async function startExample(ex: Example) {
+    setBusy(true);
+    setError(null);
+    try {
+      const consent: Consent = { by: "family", basis: "agreed", at: new Date().toISOString() };
+      const res = await fetch("/api/people", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preferredName: ex.name, consent }) });
+      const body = (await res.json()) as { id?: string; error?: string };
+      if (!res.ok || !body.id) throw new Error(body.error ?? "Couldn't start the example. Try again.");
+      router.push(`/p/${body.id}/story?example=${ex.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't start the example. Try again.");
+      setBusy(false);
+    }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return setError("Give the name they like to be called.");
@@ -50,6 +67,19 @@ export function ConsentForm() {
 
   return (
     <form onSubmit={submit} className="grid max-w-xl gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>No one in mind? Start from an example</CardTitle>
+          <CardDescription>A fictional person and their “This is me” story, ready in the chat box. Sending it runs the real chat and look-up.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          {EXAMPLES.map((ex) => (
+            <Button key={ex.id} type="button" variant="outline" className="max-sm:h-11" disabled={busy} onClick={() => void startExample(ex)}>
+              {ex.label}
+            </Button>
+          ))}
+        </CardContent>
+      </Card>
       <div className="grid gap-2">
         <Label htmlFor="name">The name they like to be called</Label>
         <Input id="name" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} placeholder="e.g. Maggie" autoComplete="off" />

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { StoryChat } from "@/components/story-chat";
 import { APP_NAME } from "@/lib/app";
+import { exampleById } from "@/lib/examples";
 import { familyQuestions, playStats, provenCalm } from "@/lib/learning";
 import { getPerson, personPlays } from "@/server/people";
 
@@ -21,5 +22,8 @@ export default async function StoryPage({ params, searchParams }: PageProps<"/p/
   if (!person) notFound();
   const stats = playStats(await personPlays(id), person.resolvedUpsets);
   const paused = familyQuestions(stats, person.resolvedUpsets);
-  return <StoryChat initial={person} paused={paused} provenCalm={provenCalm(stats).length} autoFind={(await searchParams).find === "1"} />;
+  const query = await searchParams;
+  // An example's story waits in the chat box, only for a person with nothing told yet.
+  const example = typeof query.example === "string" && !person.places.length ? exampleById(query.example) : null;
+  return <StoryChat initial={person} paused={paused} provenCalm={provenCalm(stats).length} autoFind={query.find === "1"} starter={example?.text} />;
 }
