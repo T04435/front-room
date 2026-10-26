@@ -1,8 +1,8 @@
-# Front Room · demo script (offline, no API spend)
+# Front Room · demo script
 
-Run it with mock data (Qloo fixtures and mock models; only MusicBrainz, which is free, is called):
-
-Present from the production build (no dev overlay, frozen code):
+Present it live (real Qloo and the AI model; needs `.env.local` with a current `VERCEL_OIDC_TOKEN`): the launch
+config `front-room-dev` on http://localhost:3500. For a rehearsal with no spend, use mock data on the production
+build:
 
 ```bash
 FRONT_ROOM_OFFLINE=1 NEXT_DIST_DIR=.next-demo FRONT_ROOM_PGLITE_DIR=.data/pglite-demo sh -c "pnpm exec next build && pnpm exec next start -p 3530"
@@ -15,6 +15,12 @@ Before you present:
 - Rehearse once on the presenting device. Copy buttons fall back to a copy box where the clipboard is blocked.
 - Offline, don't answer the "What did they do there?" follow-up live; the mock reads only "worked in/at/as …".
 - Keep to UK towns offline (the mock has no data for, say, Lahore; live Qloo does). Use Joan, Iris or Margaret.
+
+## Examples for judges
+
+Add someone → **No one in mind? Start from an example**: Joan (Liverpool, then Leeds), Rosa (Sevilla, then Madrid, in
+Spanish) or Amrit (Lahore, then Bradford, Punjabi). Their "This is me" waits in the chat box; Send runs the real chat
+and the live Qloo look-up (about a minute, mostly MusicBrainz checking songs).
 
 ## The 30-second version (for the video)
 
