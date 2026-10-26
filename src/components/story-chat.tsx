@@ -687,7 +687,7 @@ function AskInput({ ask, person, name, onAnswer }: { ask: Ask; person: Person; n
   }
 }
 
-const LANGUAGES = ["English", "Welsh", "Gaelic", "Punjabi", "Urdu", "Polish", "Jamaican Patois"];
+const LANGUAGES = ["English", "Welsh", "Gaelic", "Spanish", "Punjabi", "Urdu", "Polish", "Jamaican Patois"];
 
 function LanguageAsk({ name, onSave }: { name: string; onSave: (lang: string) => void }) {
   const [other, setOther] = useState("");
