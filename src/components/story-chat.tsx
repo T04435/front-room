@@ -469,7 +469,8 @@ function askQuestion(ask: Ask, p: Person, name: string): string {
 }
 
 /** "brother Tom" mid-sentence; names and "The war" keep their capital. */
-const midSentence = (label: string) => label.replace(/^(Brother|Sister|Mother|Father|Mum|Dad|Son|Daughter|Husband|Wife|Uncle|Aunt|Auntie|Cousin|Grandson|Granddaughter) /, (w) => w.toLowerCase());
+const midSentence = (label: string) =>
+  label.replace(/^(Brother|Sister|Mother|Father|Mum|Dad|Son|Daughter|Husband|Wife|Uncle|Aunt|Auntie|Cousin|Grandson|Granddaughter|Hermano|Hermana|Madre|Padre|Hijo|Hija|Marido|Esposo|Esposa|Tío|Tía|Primo|Prima) /, (w) => w.toLowerCase());
 
 function steerNote(label: string, answer?: string): string {
   if (answer === "Never") return `I'll steer clear of ${midSentence(label)}.`;

@@ -22,7 +22,7 @@ Kinds:
 Every fact has a quote: the teller's own words it came from, short (under 15 words), copied exactly.
 Don't record pronouns, surnames, addresses, diagnoses or medication, even if said.
 
-followUps: one or two short, warm questions for the teller (the family or carer, not the person) that dig into what they just said, toward what a "This is me" still lacks: the years at a place, what they did there, the songs at a dance or a wedding, what they loved, what calms or upsets them. Ground them in their words ("You said they moved to Blackpool when they married. What did they do there?"). Use the person's name or "they". Never ask about anything painful they mentioned. Write the follow-ups in the language the teller used (Spanish if they wrote Spanish).
+followUps: one or two short, warm questions for the teller (the family or carer, not the person) that dig into what they just said, toward what a "This is me" still lacks: the years at a place, what they did there, the songs at a dance or a wedding, what they loved, what calms or upsets them. Ground them in their words ("You said they moved to Blackpool when they married. What did they do there?"). Use the person's name or "they". Never ask about anything painful they mentioned. Write the follow-ups in the language the teller used (Spanish if they wrote Spanish). Never use the word "remember", in any language (no "recuerdas", "te acuerdas", "souviens", "ricordi"): ask what they did, liked or felt instead.
 
 The teller may write in any language: extract the facts the same way, keeping names, titles and quotes as they wrote them.`;
 
@@ -49,7 +49,7 @@ export async function extractFacts(text: string, person: Person, abortSignal?: A
     ).output;
   // Never ask what's already in their story (seen offline, QA-8; a guard for the model too).
   const asksKnown = (q: string) => (person.places.length > 0 && /where did .* grow up/i.test(q)) || (birthYearOf(person) !== null && /when (was|were) .* born/i.test(q));
-  const tidy = (o: { facts: Fact[]; followUps: string[] }) => ({ facts: clean(o.facts, text), followUps: o.followUps.filter((q) => q.trim() && !/remember/i.test(q) && !asksKnown(q)).slice(0, 2) });
+  const tidy = (o: { facts: Fact[]; followUps: string[] }) => ({ facts: clean(o.facts, text), followUps: o.followUps.filter((q) => q.trim() && !NO_REMEMBER.test(q) && !asksKnown(q)).slice(0, 2) });
   try {
     return tidy(await once());
   } catch (error) {
@@ -57,6 +57,9 @@ export async function extractFacts(text: string, person: Person, abortSignal?: A
     return tidy(await once());
   }
 }
+
+/** "Remember" in the languages families are likeliest to use: testing memory is what the product never does. */
+const NO_REMEMBER = /remember|recall|recuerd|acuerd|souvien|rappel|ricord|erinner|lembr/i;
 
 /** Drops facts with nothing in them, and quotes that aren't in the text (the model must quote, not invent). */
 function clean(facts: Fact[], text: string): Fact[] {
