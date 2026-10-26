@@ -12,6 +12,7 @@ const entity = z.object({
       release_year: z.union([z.number(), z.string()]).nullable().optional(),
       short_description: z.string().nullable().optional(),
       description: z.string().nullable().optional(),
+      image: z.object({ url: z.string().optional() }).partial().nullable().optional(),
     })
     .partial()
     .nullable()
@@ -29,6 +30,8 @@ export type QlooEntity = {
   disambiguation: string | null;
   popularity: number | null;
   affinity: number | null;
+  /** Qloo's picture of it (an artist photo, a film poster, a place), when there is one. */
+  image: string | null;
   /** Genre tag names, lower case ("musical", "crime"): to keep films and TV gentle. */
   genres: string[];
 };
@@ -43,6 +46,7 @@ function toEntity(e: z.infer<typeof entity>): QlooEntity {
     disambiguation: e.disambiguation ?? null,
     popularity: e.popularity ?? null,
     affinity: e.query?.affinity ?? null,
+    image: e.properties?.image?.url?.startsWith("https://") ? e.properties.image.url : null,
     genres: (e.tags ?? []).filter((t) => (t.id ?? t.tag_id ?? "").includes(":genre:") && t.name).map((t) => t.name!.toLowerCase()),
   };
 }

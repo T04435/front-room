@@ -1,4 +1,7 @@
 import { EXAMPLE_KIT } from "./example-kit";
+import { exampleImage } from "./example-images";
+
+const EXAMPLE_IMAGES_NT = (by: string) => exampleImage("song", "", by);
 import type { Kit } from "./kit";
 import { itemKey, type Goal, type Logged, type Play } from "./learning";
 import type { Person } from "./person";
@@ -33,7 +36,7 @@ export const EXAMPLE_PERSON: Person = {
     { id: "lv-2", type: "film", title: "The Sound of Music", year: 1965, source: "ring_a_bell", placeId: "pl-mcr" },
     { id: "lv-3", type: "place", title: "O2 Ritz Manchester", source: "ring_a_bell", placeId: "pl-mcr" },
     { id: "lv-4", type: "song", title: "Waterloo", by: "ABBA", year: 1974, source: "ring_a_bell", placeId: "pl-mcr" },
-    { id: "lv-5", type: "book", title: "The Mallen Streak", by: "Catherine Cookson", year: 1973, source: "family", quote: "read every Catherine Cookson" },
+    { id: "lv-5", type: "book", title: "The Mallen Streak", by: "Catherine Cookson", year: 1973, source: "family", quote: "read every Catherine Cookson", image: exampleImage("book", "The Mallen Streak") },
   ],
   steers: [
     { id: "st-1", kind: "person", label: "Brother Tom", level: "never", source: "family", at: "2026-10-19T10:05:00.000Z" },
@@ -127,6 +130,7 @@ EXAMPLE_PERSON.suggestions = {
       parts: i.parts,
       source: i.source,
       ...(EXAMPLE_GENRES[i.title] ? { genres: EXAMPLE_GENRES[i.title] } : {}),
+      ...(exampleImage(i.type, i.title, i.by?.title) ? { image: exampleImage(i.type, i.title, i.by?.title) } : {}),
     })),
   // Her Blackpool years (1972–80), so the gallery reflects both places. Example data in the shape of a Qloo result,
   // not from a live run: the source line says so.
@@ -151,10 +155,11 @@ EXAMPLE_PERSON.suggestions = {
     parts: [type === "place" ? "place" : "70s", "Blackpool", "example"],
     source: "Example data for the demo, shaped like a Qloo result for Blackpool, 1972–80.",
     ...(type === "film" ? { genres: ["musical", "romance"] } : type === "tv" ? { genres: ["variety", "game show"] } : {}),
+    ...(exampleImage(type, title, by) ? { image: exampleImage(type, title, by) } : {}),
   })),
   "new-tries": [
-    { id: "ex-nt1", placeId: "pl-mcr", type: "song", title: "(Sittin' On) The Dock of the Bay", by: "Otis Redding", year: 1968, like: "You Don't Have to Say You Love Me", parts: ["60s", "like Dusty Springfield", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like Dusty Springfield, 60s, Manchester." },
-    { id: "ex-nt2", placeId: "pl-mcr", type: "song", title: "Walk On By", by: "Dionne Warwick", year: 1964, like: "You Don't Have to Say You Love Me", parts: ["60s", "like Dusty Springfield", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like Dusty Springfield, 60s, Manchester." },
-    { id: "ex-nt3", placeId: "pl-mcr", type: "song", title: "Mamma Mia", by: "ABBA", year: 1975, like: "Waterloo", parts: ["70s", "like Waterloo", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like ABBA, 70s, Manchester." },
+    { id: "ex-nt1", placeId: "pl-mcr", type: "song", title: "(Sittin' On) The Dock of the Bay", by: "Otis Redding", image: EXAMPLE_IMAGES_NT("Otis Redding"), year: 1968, like: "You Don't Have to Say You Love Me", parts: ["60s", "like Dusty Springfield", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like Dusty Springfield, 60s, Manchester." },
+    { id: "ex-nt2", placeId: "pl-mcr", type: "song", title: "Walk On By", by: "Dionne Warwick", image: EXAMPLE_IMAGES_NT("Dionne Warwick"), year: 1964, like: "You Don't Have to Say You Love Me", parts: ["60s", "like Dusty Springfield", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like Dusty Springfield, 60s, Manchester." },
+    { id: "ex-nt3", placeId: "pl-mcr", type: "song", title: "Mamma Mia", by: "ABBA", image: EXAMPLE_IMAGES_NT("ABBA"), year: 1975, like: "Waterloo", parts: ["70s", "like Waterloo", "Manchester", "Qloo"], source: "New try: Qloo, liked by people who like ABBA, 70s, Manchester." },
   ],
 };

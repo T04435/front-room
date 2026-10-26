@@ -48,7 +48,7 @@ export async function findNewTries(p: Person, stats: Map<string, ItemStat>, onCa
   } catch (e) {
     if (!(e instanceof QlooError)) throw e;
   }
-  const artists: { name: string; like: string }[] = [];
+  const artists: { name: string; like: string; image: string | null }[] = [];
   for (const seed of seeds) {
     try {
       const match = pickByName(parseSearch((await qlooGet("/search", { query: seed.name, types: "urn:entity:artist", take: 5 }, onCall)).data), seed.name);
@@ -56,7 +56,7 @@ export async function findNewTries(p: Person, stats: Map<string, ItemStat>, onCa
       const r = await qlooGet("/v2/insights", { "filter.type": "urn:entity:artist", "signal.interests.entities": match.id, "filter.tags": tag, "signal.location.query": home.name, take: 8 }, onCall);
       for (const e of parseInsights(r.data)) {
         if (known.has(nameKey(e.name)) || steersClear(p, e.name) || artists.some((a) => nameKey(a.name) === nameKey(e.name))) continue;
-        artists.push({ name: e.name, like: seed.like });
+        artists.push({ name: e.name, like: seed.like, image: e.image });
         if (artists.length >= COUNT + 2) break;
       }
     } catch (e) {
@@ -80,6 +80,7 @@ export async function findNewTries(p: Person, stats: Map<string, ItemStat>, onCa
       like: a.like,
       parts: [lead.short, `like ${a.like}`, home.name, "Qloo", ...(offline() ? [] : ["MusicBrainz"])],
       source: `New try: Qloo, liked by people who like ${a.like}, ${lead.short}, ${home.name}.`,
+      ...(a.image ? { image: a.image } : {}),
     });
   }
   return { ...p, suggestions: { ...p.suggestions, [NEW_TRIES_KEY]: fresh }, researched: { ...p.researched, [NEW_TRIES_KEY]: JSON.stringify(seeds) } };

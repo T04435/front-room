@@ -284,13 +284,20 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
                   <AlertDescription>First, the basics: are they in pain, hungry or thirsty, needing the toilet, too hot or cold? Then try this, softly, and sit with them.</AlertDescription>
                 </Alert>
               )}
-              <SheetHeader className="px-0">
+              <SheetHeader className="flex-row items-start gap-3 px-0">
+                {open.image && (
+                  <span className={cn("relative size-20 shrink-0 overflow-hidden rounded-lg sm:size-24", TILE[open.type])}>
+                    <Art src={open.image} />
+                  </span>
+                )}
+                <span className="grid min-w-0 gap-1">
                 <span className="flex items-center gap-2 text-sm text-muted-foreground">
                   {TYPE_WORD[open.type]}
                   {tagOf(open) && <Badge variant="secondary">{tagOf(open)}</Badge>}
                 </span>
                 <SheetTitle className="text-2xl leading-tight sm:text-3xl">{open.title}</SheetTitle>
                 <SheetDescription className="text-lg">{[open.by, open.year].filter(Boolean).join(", ")}</SheetDescription>
+                </span>
               </SheetHeader>
               <div className="flex flex-wrap gap-2">
                 {open.links.map((l, i) => (
@@ -387,8 +394,9 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: st
             return (
               <li key={g.key} className={cn("shrink-0", grid ? "min-w-0" : big ? "w-52" : "w-44")}>
                 <button type="button" onClick={() => onOpen(g)} className="group grid w-full gap-2 rounded-lg text-left whitespace-normal focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none" aria-label={`${g.title}${g.by ? ` by ${g.by}` : ""}: ${g.type === "place" || g.type === "book" ? "open" : "play"}`}>
-                  <span className={cn("relative flex aspect-square w-full items-center justify-center rounded-lg", TILE[g.type])}>
+                  <span className={cn("relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg", TILE[g.type])}>
                     <Icon className="size-10 opacity-70" aria-hidden />
+                    {g.image && <Art src={g.image} />}
                     <span className="absolute right-2 bottom-2 flex size-10 items-center justify-center rounded-full bg-foreground text-background opacity-90 transition-transform group-hover:scale-105">
                       <PlayIcon className="size-5" aria-hidden />
                     </span>
@@ -531,5 +539,18 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
         </Link>
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * A tile's picture (Qloo's artist photo, poster or place image), over the icon: if it fails to load it hides, and the
+ * icon shows. Remote images from Qloo's CDN, so a plain img.
+ */
+function Art({ src }: { src: string }) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- remote art from Qloo's CDN, many sizes; no optimisation needed.
+    <img src={src} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="absolute inset-0 size-full rounded-[inherit] object-cover" />
   );
 }

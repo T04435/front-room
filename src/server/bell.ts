@@ -77,7 +77,14 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
   // The artists the family named become songs too, first on the shelf: their own music beats era picks.
   const named = p.loves.filter((l) => l.type === "artist" && l.source !== "ring_a_bell" && !steersClear(p, l.title));
   if (named.length) {
-    const family: Draft[] = named.map((l) => ({ placeId: "family", type: "artist", title: l.title, year: l.year ?? null, eraFrom: by + 10, eraTo: by + 40, parts: ["the family", l.title], source: `The family said ${p.preferredName || "they"} loved ${l.title}.` }));
+    const family: Draft[] = [];
+    for (const l of named) {
+      // Qloo knows the artist: their picture for the tile (and the name as credited).
+      const match = await get("/search", { query: l.title, types: "urn:entity:artist", take: 3 }, onCall)
+        .then((r) => pickByName(parseSearch(r.data), l.title) ?? parseSearch(r.data)[0] ?? null)
+        .catch(() => null);
+      family.push({ placeId: "family", type: "artist", title: l.title, year: l.year ?? null, eraFrom: by + 10, eraTo: by + 40, parts: ["the family", l.title], source: `The family said ${p.preferredName || "they"} loved ${l.title}.`, ...(match?.image ? { image: match.image } : {}) });
+    }
     drafts.set(FAMILY_KEY, family);
     emit({ type: "step-start", id: "family", tool: "family_music", title: "From what the family told me", running: `Finding a song each for ${named.map((l) => l.title).join(", ")}` });
     emit({ type: "step-end", id: "family", ok: true, summary: `The family named ${named.map((l) => l.title).join(", ")}: their songs go first.`, items: [], chips: named.map((l) => l.title), sources: [], sourceLine: "the family" });
@@ -158,7 +165,7 @@ async function researchPlace(p: Person, place: Place, era: ReturnType<typeof era
     const r = await get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": t.id, "signal.location.query": where, take: 10 }, onCall);
     const share = Math.max(2, Math.round((PER_PLACE.artists * t.years) / Math.max(1, era.to - era.from + 1)));
     for (const e of parseInsights(r.data).slice(0, share)) {
-      add({ placeId: place.id, type: "artist", title: e.name, year: decadeStart(t.short), eraFrom: era.from, eraTo: era.to, parts: [t.short, where, r.servedBy === "notonq" ? "via NotOnQ" : "Qloo"], source: `Qloo: artists popular around ${where} in the ${t.short}.`, qlooId: e.id });
+      add({ placeId: place.id, type: "artist", title: e.name, year: decadeStart(t.short), eraFrom: era.from, eraTo: era.to, parts: [t.short, where, r.servedBy === "notonq" ? "via NotOnQ" : "Qloo"], source: `Qloo: artists popular around ${where} in the ${t.short}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
     }
   }
 
@@ -172,7 +179,7 @@ async function researchPlace(p: Person, place: Place, era: ReturnType<typeof era
     const r = await get("/v2/insights", { "filter.type": "urn:entity:artist", "signal.interests.entities": match.id, "filter.tags": lead?.id, "signal.location.query": where, take: 4 }, onCall);
     for (const e of parseInsights(r.data).slice(0, 2)) {
       if (nameKey(e.name) === nameKey(match.name)) continue;
-      add({ placeId: place.id, type: "artist", title: e.name, year: lead ? decadeStart(lead.short) : null, eraFrom: era.from, eraTo: era.to, parts: [lead?.short ?? years, `like ${match.name}`, "Qloo"], source: `Qloo: liked by people who like ${match.name}${lead ? `, ${lead.short}` : ""}, around ${where}.`, qlooId: e.id });
+      add({ placeId: place.id, type: "artist", title: e.name, year: lead ? decadeStart(lead.short) : null, eraFrom: era.from, eraTo: era.to, parts: [lead?.short ?? years, `like ${match.name}`, "Qloo"], source: `Qloo: liked by people who like ${match.name}${lead ? `, ${lead.short}` : ""}, around ${where}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
     }
   }
 
@@ -183,7 +190,7 @@ async function researchPlace(p: Person, place: Place, era: ReturnType<typeof era
     if (!match) continue;
     const r = await get("/v2/insights", { "filter.type": "urn:entity:book", "signal.interests.entities": match.id, take: 5 }, onCall);
     for (const e of parseInsights(r.data).slice(0, 3)) {
-      if (nameKey(e.name) !== nameKey(match.name)) add({ placeId: place.id, type: "book", title: e.name, year: e.year, parts: ["book", `like ${match.name}`, "Qloo"], source: `Qloo: liked by readers of ${match.name}.`, qlooId: e.id });
+      if (nameKey(e.name) !== nameKey(match.name)) add({ placeId: place.id, type: "book", title: e.name, year: e.year, parts: ["book", `like ${match.name}`, "Qloo"], source: `Qloo: liked by readers of ${match.name}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
     }
   }
 
@@ -195,12 +202,12 @@ async function researchPlace(p: Person, place: Place, era: ReturnType<typeof era
     let found = parseInsights(r.data);
     // TV is thin by place (two shows for London in the probes): fall back to the era's TV anywhere.
     if (found.length < n) found = [...found, ...parseInsights((await get("/v2/insights", base, onCall)).data)];
-    for (const e of found.slice(0, n + 2).filter((x, i, xs) => xs.findIndex((y) => y.id === x.id) === i).slice(0, n)) add({ placeId: place.id, type: kind, title: e.name, year: e.year, parts: [kind === "film" ? "film" : "TV", e.year ? String(e.year) : years, "Qloo"], source: `Qloo: ${kind === "film" ? "films" : "TV"} from ${years}, popular around ${where}.`, qlooId: e.id, ...(e.genres.length ? { genres: e.genres } : {}) });
+    for (const e of found.slice(0, n + 2).filter((x, i, xs) => xs.findIndex((y) => y.id === x.id) === i).slice(0, n)) add({ placeId: place.id, type: kind, title: e.name, year: e.year, parts: [kind === "film" ? "film" : "TV", e.year ? String(e.year) : years, "Qloo"], source: `Qloo: ${kind === "film" ? "films" : "TV"} from ${years}, popular around ${where}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}), ...(e.genres.length ? { genres: e.genres } : {}) });
   }
 
   // Long-standing places in the town (Qloo's are today's; these were likely there then too).
   const r = await get("/v2/insights", { "filter.type": "urn:entity:place", "filter.location.query": where, "filter.tags": "urn:tag:ambience:qloo:historic", take: 6 }, onCall);
-  for (const e of parseInsights(r.data).slice(0, PER_PLACE.places)) add({ placeId: place.id, type: "place", title: e.name, year: null, parts: ["place", where, "Qloo"], source: `Qloo: a long-standing place in ${where}, still there today.`, qlooId: e.id });
+  for (const e of parseInsights(r.data).slice(0, PER_PLACE.places)) add({ placeId: place.id, type: "place", title: e.name, year: null, parts: ["place", where, "Qloo"], source: `Qloo: a long-standing place in ${where}, still there today.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
 
   return out;
 }

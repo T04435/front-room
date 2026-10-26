@@ -23,6 +23,7 @@ export type GalleryItem = {
   stat?: ItemStat;
   placeId?: string;
   genres?: string[];
+  image?: string;
   /** Tearful with it, and the family hasn't said keep it or steer clear yet. */
   askFamily?: boolean;
   /** The story mentions it ("Danced at the Ritz"). */
@@ -93,13 +94,13 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   for (const l of p.loves) {
     if (l.source === "ring_a_bell") continue;
     if ((l.type === "song" && l.by) || l.type === "film" || l.type === "tv" || l.type === "book" || l.type === "place") {
-      put({ type: l.type, title: l.title, by: l.by, year: l.year ?? null, parts: ["the family"], source: "The family said they love it.", origin: "family" });
+      put({ type: l.type, title: l.title, by: l.by, year: l.year ?? null, parts: ["the family"], source: "The family said they love it.", origin: "family", ...(l.image ? { image: l.image } : {}) });
     }
   }
   for (const [k, cards] of Object.entries(p.suggestions)) {
     for (const c of cards) {
       if (c.answer === "upset" || c.type === "artist") continue;
-      put({ type: c.type, title: c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : k === "family" ? "family" : "qloo", like: c.like, cardId: c.id, answer: c.answer, placeId: c.placeId, genres: c.genres });
+      put({ type: c.type, title: c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : k === "family" ? "family" : "qloo", like: c.like, cardId: c.id, answer: c.answer, placeId: c.placeId, genres: c.genres, image: c.image });
     }
   }
   const all = [...items.values()];

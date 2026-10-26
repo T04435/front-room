@@ -25,6 +25,8 @@ export type Love = {
   title: string;
   /** A song's artist. */
   by?: string;
+  /** A picture for the tile, when one is known (Qloo's image URL). */
+  image?: string;
   year?: number | null;
   qlooId?: string;
   source: (typeof LOVE_SOURCES)[number];
@@ -60,6 +62,8 @@ export type Suggestion = {
   parts: string[];
   source: string;
   qlooId?: string;
+  /** A picture for the tile: Qloo's image (an artist photo for songs, a poster, a place). Only the URL is kept. */
+  image?: string;
   /** Films and TV: genre names from Qloo, to keep the gallery gentle. */
   genres?: string[];
   answer?: "yes" | "unsure" | "upset";
