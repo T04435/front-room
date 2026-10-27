@@ -11,6 +11,6 @@ export default async function globalSetup() {
 
   const pages = ["/", "/people", "/quick", "/kits", "/kits/example", "/people/new", "/p/margaret-x", "/p/margaret-x/story", "/p/margaret-x/works"];
   // GETs only: on POST-only routes they answer 405, which still compiles them, and change nothing.
-  const routes = ["/api/version", "/api/run", "/api/people", "/api/people/margaret-x", "/api/people/margaret-x/extract", "/api/people/margaret-x/research", "/api/people/margaret-x/plays", "/api/people/margaret-x/answer", "/api/people/margaret-x/new-tries", "/api/kits/example/log"];
+  const routes = ["/api/version", "/api/people", "/api/people/margaret-x", "/api/people/margaret-x/extract", "/api/people/margaret-x/research", "/api/people/margaret-x/plays", "/api/people/margaret-x/answer", "/api/people/margaret-x/new-tries", "/api/people/margaret-x/read", "/api/people/margaret-x/pictures"];
   for (const path of [...pages, ...routes]) await fetch(`${BASE}${path}`).catch(() => {});
 }
