@@ -25,7 +25,10 @@ const get = (path: string, params: QlooParams, onCall: OnCall) => qlooGet<unknow
 export function placesToResearch(p: Person): Place[] {
   const by = birthYearOf(p);
   if (by === null) return [];
-  return p.places.filter((pl) => p.researched[researchKey(pl, by)] !== researchInputs(p, pl)).slice(0, MAX_PLACES);
+  // A place they left as a small child (before about 8) has no years of theirs to look up: born in Lahore, grew up in
+  // Amritsar after 1947.
+  const remembered = (pl: Place) => pl.toYear === null || pl.toYear >= by + 8;
+  return p.places.filter((pl) => remembered(pl) && p.researched[researchKey(pl, by)] !== researchInputs(p, pl)).slice(0, MAX_PLACES);
 }
 
 /** `eraFrom`/`eraTo`: the place's era, so a song picked for an artist comes from those years. */
@@ -37,7 +40,7 @@ type Draft = Omit<Suggestion, "id"> & { artist?: string; eraFrom?: number; eraTo
  * and taste entities only: never names or steer-clear topics. Everything passes the steer-clear list. Artists become
  * songs (the model's picks, checked on MusicBrainz). Returns the person with the new cards, ready to save.
  */
-export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abortSignal?: AbortSignal): Promise<Person> {
+export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abortSignal?: AbortSignal, onEarly?: (early: Person) => Promise<void>): Promise<Person> {
   const by = birthYearOf(p)!;
   const places = placesToResearch(p);
   const drafts = new Map<string, Draft[]>();
@@ -90,6 +93,11 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
     emit({ type: "step-end", id: "family", ok: true, summary: `The family named ${named.map((l) => l.title).join(", ")}: their songs go first.`, items: [], chips: named.map((l) => l.title), sources: [], sourceLine: "the family" });
   }
 
+  const keys = [...places.map((place) => ({ key: researchKey(place, by), place })), ...(drafts.has(FAMILY_KEY) ? [{ key: FAMILY_KEY, place: null }] : [])];
+  // Films, TV, places and books are ready now: save them, so the gallery can open while the songs are checked (about
+  // one a second on MusicBrainz). The person's songs from before stay until the new ones land.
+  if (onEarly) await onEarly({ ...withCards(p, keys, drafts, true), researched: { ...withCards(p, keys, drafts, true).researched, [SONGS_PENDING]: new Date().toISOString() } });
+
   // Artists into songs: one call for every place, then MusicBrainz confirms each title.
   const artists = [...drafts.values()].flat().filter((d) => d.type === "artist");
   if (artists.length) {
@@ -123,11 +131,28 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
     });
   }
 
+  const done = withCards(p, keys, drafts, false);
+  const { [SONGS_PENDING]: _pending, ...researched } = done.researched;
+  void _pending;
+  return { ...done, researched };
+}
+
+/** Marks a person whose songs are still being checked (the gallery says so, and refreshes until they land). */
+export const SONGS_PENDING = "songs-pending";
+
+/** Whether a look-up is still checking songs (a mark older than 5 minutes is a look-up that died, not one running). */
+export function songsPending(p: Person, now = new Date()): boolean {
+  const at = p.researched[SONGS_PENDING];
+  return Boolean(at) && now.getTime() - new Date(at).getTime() < 5 * 60_000;
+}
+
+/** The person with the drafts as cards; `early` keeps their old songs, as the new ones aren't checked yet. */
+function withCards(p: Person, keys: { key: string; place: Place | null }[], drafts: Map<string, Draft[]>, early: boolean): Person {
   const suggestions = { ...p.suggestions };
   const researched = { ...p.researched };
-  const keys = [...places.map((place) => ({ key: researchKey(place, by), place })), ...(drafts.has(FAMILY_KEY) ? [{ key: FAMILY_KEY, place: null }] : [])];
   for (const { key, place } of keys) {
     const old = new Map((suggestions[key] ?? []).map((s) => [nameKey(s.title), s]));
+    const keepOldSongs = early ? (suggestions[key] ?? []).filter((s) => s.type === "song") : [];
     const fresh = (drafts.get(key) ?? []).filter((d) => d.type !== "artist" && !steersClear(p, d.title, d.by));
     // Answers already given stay with their card.
     suggestions[key] = fresh.map((d, i) => {
@@ -136,7 +161,9 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
       void artist;
       return { ...card, id: before?.id ?? `${place?.id ?? "family"}-${i}-${nameKey(d.title).replace(/\s+/g, "-").slice(0, 24)}`, ...(before?.answer ? { answer: before.answer } : {}) };
     });
-    if (place) researched[key] = researchInputs(p, place);
+    suggestions[key] = [...suggestions[key], ...keepOldSongs.filter((s) => !suggestions[key].some((c) => nameKey(c.title) === nameKey(s.title)))];
+    // Researched only once the songs are in: an early save that's cut off gets looked up again.
+    if (place && !early) researched[key] = researchInputs(p, place);
   }
   return { ...p, suggestions, researched };
 }

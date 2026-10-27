@@ -33,7 +33,8 @@ type Msg =
   | { id: string; from: "agent"; kind: "help"; help: Help }
   | { id: string; from: "agent"; kind: "find" }
   | { id: string; from: "agent"; kind: "finding" }
-  | { id: string; from: "agent"; kind: "found" };
+  | { id: string; from: "agent"; kind: "found" }
+  | { id: string; from: "agent"; kind: "early" };
 
 /** What helps, from the Alzheimer's Society's "This is me": each adds a starter line to the box. */
 const HINTS: { label: string; starter: (n: string) => string }[] = [
@@ -258,6 +259,11 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
         for (const line of lines) {
           if (!line.trim()) continue;
           const event = JSON.parse(line) as RunEvent;
+          // Films, TV and places are saved: the gallery can open now, and the songs join it when they're checked.
+          if (event.type === "ready") {
+            push({ id: id(), from: "agent", kind: "early" });
+            continue;
+          }
           setSteps((xs) => applyStepEvent(xs, event, n++));
           if (event.type === "error") failed = event.message;
         }
@@ -265,6 +271,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
       if (failed) say(failed);
       else {
         setPerson((await (await fetch(`/api/people/${person.id}`)).json()) as Person);
+        // The early "open it now" offer has done its job.
+        setMsgs((ms) => ms.filter((m) => !("kind" in m && m.kind === "early")));
         push({ id: id(), from: "agent", kind: "found" });
       }
     } catch (e) {
@@ -578,6 +586,17 @@ function AgentBody(props: BodyProps) {
         <span className="grid gap-2">
           <span>Looking through {person.places.map((p) => p.name).join(" and ")} for the years {name} was young.</span>
           {props.steps.length > 0 && <RunSteps items={props.steps} />}
+        </span>
+      );
+    case "early":
+      return resolved ? null : (
+        <span className="grid gap-2">
+          <span>The films, TV and places for {name} are ready. The songs are being checked one by one; they&apos;ll join the gallery in a minute, even if you open it now.</span>
+          <span>
+            <Button asChild size="sm" variant="outline">
+              <Link href={props.galleryHref}>Open the gallery now</Link>
+            </Button>
+          </span>
         </span>
       );
     case "found":

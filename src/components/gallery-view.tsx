@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { calmPick, TYPE_WORD, type Gallery, type GalleryItem, type GalleryType } from "@/lib/gallery";
 import { RESPONSE_LABELS, RESPONSES } from "@/lib/kit";
@@ -86,7 +87,7 @@ function tagOf(g: GalleryItem): string | null {
  * and places from Qloo for their life and places, and what the family said they love. Tap one to play it (Spotify,
  * YouTube; nothing hosted here) and log how it went; the gallery learns from it.
  */
-export function GalleryView({ person, gallery, plays, stale, triesDue }: { person: Person; gallery: Gallery; plays: Play[]; stale: boolean; triesDue: boolean }) {
+export function GalleryView({ person, gallery, plays, stale, triesDue, songsPending = false }: { person: Person; gallery: Gallery; plays: Play[]; stale: boolean; triesDue: boolean; songsPending?: boolean }) {
   const router = useRouter();
   const [open, setOpenItem] = useState<GalleryItem | null>(null);
   // Opened to settle them (Stop, or Something calm now): the sheet starts with the basics to check first.
@@ -115,6 +116,13 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
     gallery.shelves.place.find((g) => g.story) ?? gallery.shelves.film[0] ?? gallery.shelves.place[0],
   ].filter((g, i, xs): g is GalleryItem => Boolean(g) && xs.findIndex((x) => x?.key === g?.key) === i);
   const isOpen = open !== null;
+
+  // Songs still being checked after a look-up: refresh until they land.
+  useEffect(() => {
+    if (!songsPending) return;
+    const t = setInterval(() => router.refresh(), 6000);
+    return () => clearInterval(t);
+  }, [songsPending, router]);
 
   // Keep the screen on while something's playing (refusal is fine).
   useEffect(() => {
@@ -241,6 +249,12 @@ export function GalleryView({ person, gallery, plays, stale, triesDue }: { perso
             </Button>
           </AlertDescription>
         </Alert>
+      )}
+
+      {songsPending && (
+        <p className="flex items-center gap-2 text-muted-foreground" role="status">
+          <Spinner /> Checking {name}&apos;s songs one by one on MusicBrainz; they&apos;ll appear here in a minute.
+        </p>
       )}
 
       <Handover person={person} gallery={gallery} />

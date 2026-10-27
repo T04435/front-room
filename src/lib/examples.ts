@@ -58,12 +58,12 @@ Fe: Católica. Le gusta rezar el rosario por la tarde.`,
   {
     id: "amrit",
     name: "Amrit",
-    label: "Amrit · Lahore, then Bradford",
+    label: "Amrit · Amritsar, then Bradford",
     text: `This is me: Amrit
 
 I like to be called: Amrit. The grandchildren call me Bauji.
 
-Where I grew up: Amrit was born in 1944 and grew up in Lahore, speaking Punjabi. His family crossed the new border in 1947.
+Where I grew up: Amrit was born in 1944 in Lahore. At Partition in 1947 the family crossed to Amritsar, and he grew up in Amritsar, speaking Punjabi.
 
 Music and films: He loved Mohammed Rafi and the films of Raj Kapoor. Awaara was his favourite.
 

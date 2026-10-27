@@ -1,5 +1,6 @@
 import type { RunEvent } from "@/lib/run-events";
 import { missingMinimum } from "@/lib/person";
+import { after } from "next/server";
 import { placesToResearch, researchPerson } from "@/server/bell";
 import { providerStatus } from "@/server/env";
 import { addQlooCalls, perVisitor, refusalResponse, takeRun } from "@/server/limits";
@@ -24,22 +25,43 @@ export async function POST(request: Request, ctx: RouteContext<"/api/people/[id]
 
   const encoder = new TextEncoder();
   let calls = 0;
+  // The page may leave once the early cards are saved ("Open the gallery now"): the songs still finish and save, so
+  // the work runs on (with after()) whether or not anyone is still reading the stream.
+  const out: { reader: ReadableStreamDefaultController<Uint8Array> | null } = { reader: null };
   const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      const emit = (event: RunEvent) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-      const started = Date.now();
-      try {
-        const next = await researchPerson(person, emit, (log) => void (!log.cached && calls++), request.signal);
-        await savePerson(next);
-        emit({ type: "done", qlooCalls: calls, qlooCached: 0, seconds: Math.round((Date.now() - started) / 1000) });
-      } catch (error) {
-        console.error("research failed", error instanceof Error ? error.message : error);
-        if (!request.signal.aborted) emit({ type: "error", message: "The look-up stopped part-way. Try again in a minute." });
-      } finally {
-        await addQlooCalls(calls).catch(() => {});
-        controller.close();
-      }
+    start(controller) {
+      out.reader = controller;
+    },
+    cancel() {
+      out.reader = null;
     },
   });
+  const emit = (event: RunEvent) => {
+    try {
+      out.reader?.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
+    } catch {
+      out.reader = null;
+    }
+  };
+  const job = (async () => {
+    const started = Date.now();
+    try {
+      const next = await researchPerson(person, emit, (log) => void (!log.cached && calls++), undefined, async (early) => {
+        await savePerson(early);
+        emit({ type: "ready" });
+      });
+      await savePerson(next);
+      emit({ type: "done", qlooCalls: calls, qlooCached: 0, seconds: Math.round((Date.now() - started) / 1000) });
+    } catch (error) {
+      console.error("research failed", error instanceof Error ? error.message : error);
+      emit({ type: "error", message: "The look-up stopped part-way. Try again in a minute." });
+    } finally {
+      await addQlooCalls(calls).catch(() => {});
+      try {
+        out.reader?.close();
+      } catch {}
+    }
+  })();
+  after(() => job);
   return new Response(stream, { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-store" } });
 }

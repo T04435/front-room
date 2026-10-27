@@ -20,8 +20,8 @@ describe("the example stories (offline reader)", () => {
     expect(followUps[0]).toMatch(/^Dijo que se mudó a Madrid/);
   });
 
-  it("Amrit (Lahore, Punjabi): born, the place and the language", async () => {
+  it("Amrit (Amritsar, Punjabi): born, the place and the language", async () => {
     const { facts } = await extractFacts(EXAMPLES[2].text, person("Amrit"));
-    expect(kinds(facts)).toEqual(expect.arrayContaining(["birthYear:1944", "place:Lahore", "place:Bradford", "language:Punjabi"]));
+    expect(kinds(facts)).toEqual(expect.arrayContaining(["birthYear:1944", "place:Amritsar", "place:Bradford", "language:Punjabi"]));
   });
 });

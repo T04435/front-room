@@ -16,7 +16,9 @@ export type RunEvent =
   | { type: "kit"; kit: Kit }
   /** `budget`: a daily budget or a rate limit was hit; the page shows the budget-spent state and points to saved kits. */
   | { type: "error"; message: string; budget?: boolean }
-  | { type: "done"; qlooCalls: number; qlooCached: number; seconds: number };
+  | { type: "done"; qlooCalls: number; qlooCached: number; seconds: number }
+  /** A person's films, TV and places are saved; their songs are still being checked. */
+  | { type: "ready" };
 
 /** "Margaret’s" or "Their", for step titles and status lines; `lower` for mid-sentence. */
 export function possessive(name: string | undefined, lower = false): string {

@@ -19,7 +19,7 @@ Before you present:
 ## Examples for judges
 
 Add someone → **No one in mind? Start from an example**: Joan (Liverpool, then Leeds), Rosa (Sevilla, then Madrid, in
-Spanish) or Amrit (Lahore, then Bradford, Punjabi). Their "This is me" waits in the chat box; Send runs the real chat
+Spanish) or Amrit (born in Lahore, grew up in Amritsar, then Bradford; Punjabi). Their "This is me" waits in the chat box; Send runs the real chat
 and the live Qloo look-up (about a minute, mostly MusicBrainz checking songs).
 
 ## The 30-second version (for the video)
