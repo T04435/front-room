@@ -4,6 +4,27 @@ Qloo Agentic Hackathon 2026, 4th entry: **Front Room** (renamed from the working
 brand comes from the Front Room design system).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-27 · Brand, landing page and the last features before the submission
+
+- **Brand:** the Front Room design system is ported from feat/brand: tokens, fonts, logo, header and footer, and the
+  Go-Between's mark. There's a landing page at `/`; People moved to `/people`.
+- **Examples:** three fictional "This is me" stories in the full form (Joan; Rosa, in Spanish; Amrit, born in Lahore
+  and grown up in Amritsar). They're one tap from the landing page. The chat reads Spanish, and follow-ups come in the
+  teller's language.
+- **Pictures:** real pictures from Qloo on every tile (URLs only); older galleries get theirs once.
+- **New:**
+  - read a photo or PDF of a paper "This is me" (about 4 s live; nothing stored);
+  - print the handover card;
+  - the gallery opens as soon as films, TV and places are in, and songs follow with `after()`;
+  - "a few words" in the language they grew up speaking.
+- **Removed:** the v1 kit builder.
+- **QA pass 5 (brand):** fixed the phone chat width, focus rings, a sticky Stop button and the remaining phone layout
+  issues. Still open, offline only: the mock data has no Spanish or Punjabi music and no pictures. Live works: checked
+  with Rosa and Amrit.
+- **Docs:** README rewritten; `DEVPOST.md` drafted.
+- **Waiting for the user:** the push of `feat/mvp` (the permission check blocked it), merging to `main` for
+  production, and the video.
+
 ## 2026-10-27 (early) · Overnight loop result: product-v2.5.1, features frozen for the 18:00 demo
 
 - **Tags (local, none pushed):**
