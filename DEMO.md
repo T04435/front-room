@@ -18,9 +18,14 @@ Before you present:
 
 ## Examples for judges
 
-Add someone → **No one in mind? Start from an example**: Joan (Liverpool, then Leeds), Rosa (Sevilla, then Madrid, in
-Spanish) or Amrit (born in Lahore, grew up in Amritsar, then Bradford; Punjabi). Their "This is me" waits in the chat box; Send runs the real chat
-and the live Qloo look-up (about a minute, mostly MusicBrainz checking songs).
+On the landing page (or Add someone), tap an example: Joan (Liverpool, then Leeds), Rosa (Sevilla, then Madrid, in
+Spanish) or Amrit (born in Lahore, grew up in Amritsar, then Bradford; Punjabi). Their full "This is me" waits in the
+chat box; Send runs the real chat and the live Qloo look-up. Films, TV and places are ready in about 20 seconds ("Open
+the gallery now"); songs join as MusicBrainz checks them.
+
+Also worth showing:
+- **A paper form:** the paperclip in the chat reads a photo or PDF of a "This is me" into the box (about 5 seconds live).
+- **Print** on What works: the handover card as one clean sheet for the door or the care file.
 
 ## The 30-second version (for the video)
 
