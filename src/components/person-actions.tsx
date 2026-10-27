@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Printer } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 
@@ -53,6 +53,7 @@ export function CopyText({ text, label = "Copy" }: { text: string; label?: strin
     <Button
       variant="outline"
       size="sm"
+      className="max-sm:h-11 print:hidden"
       onClick={async () => {
         if (!(await copy(text))) return;
         setCopied(true);
@@ -60,6 +61,15 @@ export function CopyText({ text, label = "Copy" }: { text: string; label?: strin
       }}
     >
       {copied ? <Check aria-hidden /> : <Copy aria-hidden />} {copied ? "Copied" : label}
+    </Button>
+  );
+}
+
+/** Prints the page (the What works card prints as one clean sheet for the door or the care file). */
+export function PrintButton({ label = "Print the card" }: { label?: string }) {
+  return (
+    <Button variant="outline" size="sm" className="max-sm:h-11 print:hidden" onClick={() => window.print()}>
+      <Printer aria-hidden /> {label}
     </Button>
   );
 }

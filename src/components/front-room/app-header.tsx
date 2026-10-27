@@ -10,7 +10,7 @@ export function AppHeader() {
   const path = usePathname();
   const current = path === "/people/new" ? "new" : path.startsWith("/people") || path.startsWith("/p/") ? "people" : null;
   return (
-    <header className="border-b">
+    <header className="border-b print:hidden">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-3">
         <Link href="/" aria-label="Front Room, home" className="rounded-md">
           <Logo size="sm" />

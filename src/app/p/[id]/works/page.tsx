@@ -2,7 +2,7 @@ import { Check, ClipboardList, X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CopyText } from "@/components/person-actions";
+import { CopyText, PrintButton } from "@/components/person-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { APP_NAME } from "@/lib/app";
@@ -62,6 +62,9 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
         <p className="text-sm text-muted-foreground">
           {days} {days === 1 ? "day" : "days"} of play logged{lastDay ? ` · last ${day(lastDay.at)}` : ""}. Each line says when it was last confirmed.
         </p>
+        <div className="mt-1">
+          <PrintButton />
+        </div>
       </div>
 
       <Card>
@@ -177,7 +180,9 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
         </Card>
       )}
 
-      <div>
+      <p className="hidden text-xs print:block">Printed from Front Room on {day(new Date().toISOString())}. Observations by staff and family, not a clinical record.</p>
+
+      <div className="print:hidden">
         <Button asChild>
           <Link href={`/p/${id}`}>Play something for {person.preferredName}</Link>
         </Button>

@@ -156,3 +156,26 @@
     stroke-dashoffset: 0;
   }
 }
+
+/* Printing the What works card: black on white, no shadows, cards kept whole. */
+@media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #000000;
+    --card: #ffffff;
+    --muted-foreground: #333333;
+    --border: #999999;
+    --shadow-card: none;
+  }
+  html {
+    font-size: 13px;
+  }
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  [data-slot="card"] {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+}
