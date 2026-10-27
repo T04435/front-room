@@ -87,7 +87,7 @@ function tagOf(g: GalleryItem): string | null {
  * and places from Qloo for their life and places, and what the family said they love. Tap one to play it (Spotify,
  * YouTube; nothing hosted here) and log how it went; the gallery learns from it.
  */
-export function GalleryView({ person, gallery, plays, stale, triesDue, songsPending = false }: { person: Person; gallery: Gallery; plays: Play[]; stale: boolean; triesDue: boolean; songsPending?: boolean }) {
+export function GalleryView({ person, gallery, plays, stale, triesDue, songsPending = false, picturesDue = false }: { person: Person; gallery: Gallery; plays: Play[]; stale: boolean; triesDue: boolean; songsPending?: boolean; picturesDue?: boolean }) {
   const router = useRouter();
   const [open, setOpenItem] = useState<GalleryItem | null>(null);
   // Opened to settle them (Stop, or Something calm now): the sheet starts with the basics to check first.
@@ -116,6 +116,15 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
     gallery.shelves.place.find((g) => g.story) ?? gallery.shelves.film[0] ?? gallery.shelves.place[0],
   ].filter((g, i, xs): g is GalleryItem => Boolean(g) && xs.findIndex((x) => x?.key === g?.key) === i);
   const isOpen = open !== null;
+
+  // Cards from before pictures were kept: fetch theirs once, quietly, then show them.
+  useEffect(() => {
+    if (!picturesDue) return;
+    fetch(`/api/people/${person.id}/pictures`, { method: "POST" })
+      .then((r) => r.json())
+      .then((b: { changed?: boolean }) => b.changed && router.refresh())
+      .catch(() => {});
+  }, [picturesDue, person.id, router]);
 
   // Songs still being checked after a look-up: refresh until they land.
   useEffect(() => {

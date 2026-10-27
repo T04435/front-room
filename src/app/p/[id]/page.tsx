@@ -9,6 +9,7 @@ import { galleryOf } from "@/lib/gallery";
 import { familyQuestions, playStats, provenCalm } from "@/lib/learning";
 import { birthYearOf, researchInputs, researchKey } from "@/lib/person";
 import { songsPending } from "@/server/bell";
+import { picturesDue } from "@/server/pictures";
 import { NEW_TRIES_KEY, newTriesStale } from "@/server/new-tries";
 import { getPerson, linkDevice, personPlays } from "@/server/people";
 
@@ -42,5 +43,5 @@ export default async function PersonPage({ params }: PageProps<"/p/[id]">) {
   // Songs still being checked after a look-up: the gallery says so and refreshes, rather than offering another look-up.
   const pending = songsPending(person);
   const stale = !pending && by !== null && person.places.some((pl) => person.researched[researchKey(pl, by)] !== researchInputs(person, pl));
-  return <GalleryView person={person} gallery={gallery} plays={plays} stale={stale} songsPending={pending} triesDue={!pending && !person.example && newTriesStale(person, stats)} />;
+  return <GalleryView person={person} gallery={gallery} plays={plays} stale={stale} songsPending={pending} picturesDue={!pending && picturesDue(person)} triesDue={!pending && !person.example && newTriesStale(person, stats)} />;
 }

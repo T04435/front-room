@@ -100,10 +100,13 @@ export default function Home() {
         <ul className="grid gap-2 sm:grid-cols-3">
           {EXAMPLES.map((e) => (
             <li key={e.id}>
-              <Link href="/people/new" className="block rounded-lg border-2 border-input bg-card p-4 hover:bg-accent">
-                <span className="font-semibold">{e.name}</span>
-                <span className="block text-[15px] text-muted-foreground">{e.label.split(" · ")[1]}</span>
-              </Link>
+              {/* A form: one tap starts the example person and opens their chat with the story ready. */}
+              <form action={`/start/${e.id}`} method="post">
+                <button type="submit" className="block w-full rounded-lg border-2 border-input bg-card p-4 text-left hover:bg-accent">
+                  <span className="font-semibold">{e.name}</span>
+                  <span className="block text-[15px] text-muted-foreground">{e.label.split(" · ")[1]}</span>
+                </button>
+              </form>
             </li>
           ))}
         </ul>
