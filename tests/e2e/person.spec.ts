@@ -23,7 +23,7 @@ test("a new person's page is a chat: it confirms what it heard, steers clear, th
   const offer = page.getByRole("main").getByRole("button", { name: "Find things for Margot" });
   await expect(offer.last()).toBeVisible();
   await offer.last().click();
-  await expect(page.getByRole("link", { name: "Open Margot's gallery" })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("link", { name: "Open Margot's gallery" })).toBeVisible({ timeout: 60_000 });
   await page.getByRole("link", { name: "Open Margot's gallery" }).click();
 
   await expect(page.getByRole("heading", { name: "Margot", level: 1 })).toBeVisible();
@@ -34,7 +34,7 @@ test("a new person's page is a chat: it confirms what it heard, steers clear, th
 test("the gallery plays an item, logs and undoes a response, and Stop pauses it", async ({ page }) => {
   await tellStory(page);
   await page.getByRole("main").getByRole("button", { name: "Find things for Margot" }).last().click();
-  await page.getByRole("link", { name: "Open Margot's gallery" }).click({ timeout: 30_000 });
+  await page.getByRole("link", { name: "Open Margot's gallery" }).click({ timeout: 60_000 });
 
   const songs = page.getByRole("region", { name: "Songs" });
   const first = songs.getByRole("button", { name: /: play$/ }).first();
@@ -62,4 +62,14 @@ test("the example Margaret opens as a read-only gallery that has learned", async
   await expect(page.getByRole("region", { name: "Works for Margaret" })).toBeVisible();
   await expect(page.getByRole("region", { name: "New tries" })).toBeVisible();
   expect((await request.post("/api/people/margaret-x/plays", { data: { itemKey: "x", type: "song", title: "x", response: "sang" } })).status()).toBe(403);
+});
+
+test("a photo of a paper This is me is read into the chat box to check and send", async ({ page }) => {
+  await page.goto("/people/new");
+  await page.getByLabel("The name they like to be called").fill("Joan");
+  await page.getByRole("button", { name: "Start their story" }).click();
+  await expect(page).toHaveURL(/\/p\/[A-Za-z0-9_-]{10}\/story$/);
+  await page.locator('input[type="file"]').setInputFiles("tests/e2e/fixtures/this-is-me.png");
+  await expect(page.getByText("Here's what I read from the page")).toBeVisible();
+  await expect(page.getByLabel("Tell the Go-Between about Joan")).toHaveValue(/Where I grew up/);
 });

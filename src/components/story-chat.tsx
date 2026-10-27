@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Check, Mic, MicOff, Pencil, Sparkles, X } from "lucide-react";
+import { ArrowUp, Check, Mic, MicOff, Paperclip, Pencil, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AgentMark } from "@/components/front-room/agent";
@@ -96,6 +96,29 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   const [resolved, setResolved] = useState<Set<string>>(new Set());
   const endRef = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  /** A photo or PDF of a paper "This is me": the model writes out what it says, into the box to check and send. */
+  async function readFile(file: File | undefined) {
+    if (fileInput.current) fileInput.current.value = "";
+    if (!file || busy) return;
+    setBusy(true);
+    say(`Reading ${file.type === "application/pdf" ? "the PDF" : "the photo"}…`);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/people/${person.id}/read`, { method: "POST", body: form });
+      const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
+      if (!res.ok || !body.text) throw new Error(body.error ?? "That didn't go through. Try again, or type it in.");
+      setText((t) => (t.trim() ? `${t}\n\n${body.text}` : body.text!));
+      say("Here's what I read from the page: it's in the box below. Check it, change anything that's wrong, then press Send. The page itself isn't kept.");
+      requestAnimationFrame(() => composer.current?.focus());
+    } catch (e) {
+      say(e instanceof Error ? e.message : "That didn't go through. Try again, or type it in.");
+    } finally {
+      setBusy(false);
+    }
+  }
   const started = useRef(false);
   // The "find things" offer is made once; it comes back only after a look-up, when the story changes again.
   const offered = useRef(false);
@@ -379,6 +402,10 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
               className="max-h-48 min-h-14"
               maxLength={8000}
             />
+            <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" className="hidden" onChange={(e) => void readFile(e.target.files?.[0])} />
+            <Button size="icon" variant="outline" aria-label="Read a photo or PDF of a “This is me”" title="Read a photo or PDF of a “This is me”" disabled={busy} onClick={() => fileInput.current?.click()}>
+              <Paperclip aria-hidden />
+            </Button>
             <TalkButton onText={(t) => setText((x) => `${x}${x && !x.endsWith(" ") ? " " : ""}${t}`)} />
             <Button size="icon" aria-label="Send" onClick={() => void send()} disabled={busy || text.trim().length < 3}>
               <ArrowUp aria-hidden />
