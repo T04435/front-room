@@ -373,7 +373,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
                       "Tap as often as you like. Each tap is saved with the time."
                     ))}
                 </p>
-                <Button variant="destructive" className="h-12" disabled={ro} onClick={() => void stop(open)}>
+                {/* Always in reach: it sticks to the bottom of the sheet on a phone (QA-65). */}
+                <Button variant="destructive" className={cn("h-12", !ro && "sticky bottom-2 z-10 bg-[color-mix(in_oklch,var(--destructive)_12%,var(--popover))] shadow-[var(--shadow-card)]")} disabled={ro} onClick={() => void stop(open)}>
                   <OctagonX aria-hidden /> Stop · something calm instead
                 </Button>
               </div>
@@ -421,10 +422,11 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: st
                   <span className={cn("relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg", TILE[g.type])}>
                     <Icon className="size-10 opacity-70" aria-hidden />
                     {g.image && <Art src={g.image} />}
-                    <span className="absolute right-2 bottom-2 flex size-10 items-center justify-center rounded-full bg-foreground text-background opacity-90 transition-transform group-hover:scale-105">
+                    <span className={cn("absolute right-2 bottom-2 flex size-10 items-center justify-center rounded-full bg-foreground text-background opacity-90 transition-transform group-hover:scale-105", grid && "max-sm:size-8")}>
                       <PlayIcon className="size-5" aria-hidden />
                     </span>
-                    {tag && <Badge className="absolute top-2 left-2 block max-w-[85%] justify-start truncate">{tag}</Badge>}
+                    {/* Small Start here tiles on a phone: no badge over the picture (QA-68); it's in the sheet. */}
+                    {tag && <Badge className={cn("absolute top-2 left-2 block max-w-[85%] justify-start truncate", grid && "max-sm:hidden")}>{tag}</Badge>}
                   </span>
                   <span className="line-clamp-2 font-medium">{g.title}</span>
                   <span className="line-clamp-1 text-sm text-muted-foreground">{[g.by, g.year].filter(Boolean).join(", ") || (g.type === "place" ? (g.parts.find((x) => !["place", "Qloo"].includes(x)) ?? "Place") : TYPE_WORD[g.type])}</span>
@@ -521,7 +523,7 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
   const rows: [string, string][] = [
     ["Call them", p.greeting ?? name],
     ...(person.languages.length && !person.languages.every((l) => /^english$/i.test(l))
-      ? [["Grew up speaking", `${person.languages.join(", ")}. A few words in it help: hello, thank you.`] as [string, string]]
+      ? [["Grew up speaking", `${person.languages.join(", ")}.${greetingsIn(person.languages) ? ` A few words in it help: ${greetingsIn(person.languages)}.` : " A few words in it help."}`] as [string, string]]
       : []),
     ["Works", works.length ? works.join(" · ") : "Nothing proven yet: start with the family's picks"],
     ["Avoid", avoid.length ? avoid.join(" · ") : person.steerAsked ? "Nothing flagged" : "Not asked yet"],
@@ -542,7 +544,7 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
           {visiting ? "Before you visit" : "Before you start"}
           <span className="flex rounded-lg border p-0.5 font-sans text-xs font-normal" role="group" aria-label="Who this card is for">
             {(["staff", "visit"] as const).map((m) => (
-              <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={cn("rounded-md px-2.5 py-1 max-sm:min-h-10", mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
+              <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)} className={cn("min-h-9 rounded-md px-3 py-1 max-sm:min-h-11", mode === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted")}>
                 {m === "staff" ? "For staff" : "For a visit"}
               </button>
             ))}
@@ -577,4 +579,28 @@ function Art({ src }: { src: string }) {
     // eslint-disable-next-line @next/next/no-img-element -- remote art from Qloo's CDN, many sizes; no optimisation needed.
     <img src={src} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={() => setBroken(true)} className="absolute inset-0 size-full rounded-[inherit] object-cover" />
   );
+}
+
+/** "Hello" and "thank you" in the languages families name most, for the handover card; nothing for one we don't know. */
+const GREETINGS: Record<string, string> = {
+  spanish: "hola, gracias",
+  español: "hola, gracias",
+  punjabi: "sat sri akal, dhanvaad",
+  urdu: "assalam-o-alaikum, shukriya",
+  welsh: "shwmae, diolch",
+  gaelic: "halò, tapadh leat",
+  polish: "dzień dobry, dziękuję",
+  "jamaican patois": "wah gwaan, tanks",
+  italian: "ciao, grazie",
+  portuguese: "olá, obrigado",
+  irish: "dia duit, go raibh maith agat",
+  bengali: "nomoshkar, dhonnobad",
+  gujarati: "kem cho, aabhar",
+  hindi: "namaste, dhanyavaad",
+  cantonese: "nei hou, m̀h gōi",
+  greek: "yia sou, efharistó",
+};
+function greetingsIn(languages: string[]): string | null {
+  const l = languages.find((x) => !/^english/i.test(x));
+  return l ? (GREETINGS[l.toLowerCase().trim()] ?? null) : null;
 }

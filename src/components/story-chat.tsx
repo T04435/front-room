@@ -378,7 +378,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
       {!ro && (
         <div className="sticky bottom-0 grid gap-2 border-t bg-background pt-3 pb-4">
           {/* One scrolling row on a phone, so the chat keeps the screen. */}
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible" aria-label="What helps">
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" aria-label="What helps">
             {HINTS.map((h) => (
               <Button key={h.label} size="sm" variant="secondary" className="shrink-0" onClick={() => {
                   setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`);
@@ -394,7 +394,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
               </Button>
             ))}
           </div>
-          <div className="flex items-end gap-2">
+          {/* On a phone the box takes the full width and the buttons sit under it (QA-62). */}
+          <div className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
             <Textarea
               ref={composer}
               aria-label={`Tell the Go-Between about ${name}`}
@@ -407,9 +408,10 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
                 }
               }}
               placeholder={`Tell me about ${name}. Talk (your phone's dictation), type or paste.`}
-              className="max-h-48 min-h-14"
+              className="max-h-48 min-h-14 min-w-0 basis-full max-sm:max-h-28 sm:basis-auto sm:flex-1"
               maxLength={8000}
             />
+            <span className="ml-auto flex gap-2">
             <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" className="hidden" onChange={(e) => void readFile(e.target.files?.[0])} />
             <Button size="icon" variant="outline" aria-label="Read a photo or PDF of a “This is me”" title="Read a photo or PDF of a “This is me”" disabled={busy} onClick={() => fileInput.current?.click()}>
               <Paperclip aria-hidden />
@@ -418,6 +420,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
             <Button size="icon" aria-label="Send" onClick={() => void send()} disabled={busy || text.trim().length < 3}>
               <ArrowUp aria-hidden />
             </Button>
+            </span>
           </div>
           <p className="hidden text-xs text-muted-foreground sm:block">Only what you confirm is kept; the words themselves aren&apos;t.</p>
         </div>

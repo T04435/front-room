@@ -74,7 +74,7 @@ export function ConsentForm() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {EXAMPLES.map((ex) => (
-            <Button key={ex.id} type="button" variant="outline" className="max-sm:h-11" disabled={busy} onClick={() => void startExample(ex)}>
+            <Button key={ex.id} type="button" variant="outline" className="h-auto min-h-12 max-w-full py-2 text-left whitespace-normal" disabled={busy} onClick={() => void startExample(ex)}>
               {ex.label}
             </Button>
           ))}

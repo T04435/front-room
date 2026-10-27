@@ -44,7 +44,9 @@ export default function Home() {
     <div className="grid gap-16">
       <section className="grid items-center gap-10 md:grid-cols-[1.1fr_1fr]">
         <div className="grid gap-6">
-          <Logo size="lg" />
+          <span className="max-sm:hidden">
+            <Logo size="lg" />
+          </span>
           <h1 className="font-heading text-[40px] leading-[46px] sm:text-[52px] sm:leading-[58px]">Bring their years into the room.</h1>
           <p className="text-xl text-muted-foreground">
             Care homes write life stories, then the carer on at 18:00 has never met the person. Front Room turns the family&apos;s words into the music, films and places of their youth, and keeps track of what worked, so
@@ -52,9 +54,9 @@ export default function Home() {
           </p>
           <div className="flex flex-wrap gap-3">
             <Button asChild size="lg">
-              <Link href="/people/new">
+              <a href="#try">
                 Start with an example <ArrowRight aria-hidden />
-              </Link>
+              </a>
             </Button>
             <Button asChild size="lg" variant="outline">
               <Link href="/p/margaret-x">See Margaret&apos;s gallery</Link>
@@ -62,7 +64,7 @@ export default function Home() {
           </div>
           <p className="text-[15px] text-muted-foreground">No sign-up. Use a fictional person: three ready-made “This is me” stories are one tap away.</p>
         </div>
-        <div className="grid grid-cols-3 gap-3" aria-hidden>
+        <div className="grid grid-cols-3 gap-3 pb-6" aria-hidden>
           {WALL.map((src, i) => (
             <span key={src} className={i % 2 ? "translate-y-6" : ""}>
               {/* eslint-disable-next-line @next/next/no-img-element -- remote art from Qloo's CDN. */}
@@ -89,14 +91,14 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="grid gap-4 rounded-[var(--radius)] bg-secondary p-6 sm:p-8" aria-labelledby="try">
+      <section id="try" className="grid scroll-mt-6 gap-4 rounded-[var(--radius)] bg-secondary p-6 sm:p-8" aria-labelledby="try-title">
         <div className="flex items-center gap-3">
           <AgentMark size={40} decorative />
-          <h2 id="try" className="font-heading text-[26px] leading-[32px]">
+          <h2 id="try-title" className="font-heading text-[26px] leading-[32px]">
             No one in mind? Start from a story
           </h2>
         </div>
-        <p className="text-muted-foreground">Each one runs for real: the chat reads it, and Qloo looks up their years and places.</p>
+        <p className="text-muted-foreground">One tap starts a fictional person with their story ready to send. The chat reads it, and Qloo looks up their years and places.</p>
         <ul className="grid gap-2 sm:grid-cols-3">
           {EXAMPLES.map((e) => (
             <li key={e.id}>
