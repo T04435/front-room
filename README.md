@@ -113,13 +113,19 @@ Every call goes to [NotOnQ](https://notonq.vercel.app)'s drop-in API first (the 
 any error, or after 4 seconds, the same request goes straight to `hackathon.api.qloo.com`
 (`src/lib/qloo-transport.ts`). Results are cached for 24 hours.
 
-For each place in their story (up to four per run), the era is the years they lived there that overlap ages 10 to
-30 (`src/lib/person.ts`). Then, in `src/server/bell.ts`:
+First each place is pinned to a real town (`src/server/locality.ts`): a bare "Glasgow" is Glasgow, Kentucky to Qloo,
+so the place is searched as a locality and kept in the country most of their places share (else the UK). Places
+within 12 km of each other are one town (Govan is researched with Glasgow). A place with no end year ends where the
+next one starts. The era is the years they lived there that overlap ages 10 to 30 (`src/lib/person.ts`). All towns
+are looked up at once, and the gallery opens as soon as the first is in. Then, in `src/server/bell.ts`:
 
 | What | Call |
 |---|---|
+| Where the place is | `GET /search`, `types=urn:entity:locality`, `query=<place>` (again with `, <country>` if needed) |
+| Venues the story names | `GET /search`, `types=urn:entity:place`, `query=<venue> <town>` (the Barrowland); kept only if the name matches |
 | The decade's music tag | `GET /v2/tags` with `filter.query` (e.g. "60s") and `filter.tag.types=urn:tag:genre:music` |
-| Era artists around the place | `GET /v2/insights`, `filter.type=urn:entity:artist`, `filter.tags=<decade tag>`, `signal.location.query=<place>` |
+| The town's own music first | `GET /v2/insights`, `filter.type=urn:entity:artist`, `filter.tags=<decade tag>,<local tag>`, `operator.filter.tags=intersection` (Scottish, then British; Punjabi; Cuban…) |
+| Era artists around the place | `GET /v2/insights`, `filter.type=urn:entity:artist`, `filter.tags=<decade tag>`, `signal.location.query=<town, country>` |
 | Films and TV of the era | `GET /v2/insights`, `filter.type=urn:entity:movie` or `urn:entity:tv_show`, `filter.release_year.min/max`, `signal.location.query`, `filter.exclude.tags=urn:tag:genre:media:horror` (and the same without the place if it comes back thin) |
 | Historic places | `GET /v2/insights`, `filter.type=urn:entity:place`, `filter.location.query=<place>`, `filter.tags=urn:tag:ambience:qloo:historic` |
 | Things like what they love | `GET /search` for the loved artist, film, show or book, then `GET /v2/insights` with `signal.interests.entities=<its id>` (artists also with the decade tag and the place) |

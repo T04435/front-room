@@ -46,9 +46,12 @@ export async function POST(request: Request, ctx: RouteContext<"/api/people/[id]
   const job = (async () => {
     const started = Date.now();
     try {
+      // Each town saves as it lands; the first one opens the gallery ("Open the gallery now").
+      let ready = false;
       const next = await researchPerson(person, emit, (log) => void (!log.cached && calls++), undefined, async (early) => {
         await savePerson(early);
-        emit({ type: "ready" });
+        if (!ready) emit({ type: "ready" });
+        ready = true;
       });
       await savePerson(next);
       emit({ type: "done", qlooCalls: calls, qlooCached: 0, seconds: Math.round((Date.now() - started) / 1000) });

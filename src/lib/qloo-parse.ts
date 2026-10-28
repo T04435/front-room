@@ -34,6 +34,9 @@ export type QlooEntity = {
   image: string | null;
   /** Genre tag names, lower case ("musical", "crime"): to keep films and TV gentle. */
   genres: string[];
+  /** Localities and places: where it is. */
+  lat: number | null;
+  lon: number | null;
 };
 
 function toEntity(e: z.infer<typeof entity>): QlooEntity {
@@ -47,6 +50,8 @@ function toEntity(e: z.infer<typeof entity>): QlooEntity {
     popularity: e.popularity ?? null,
     affinity: e.query?.affinity ?? null,
     image: e.properties?.image?.url?.startsWith("https://") ? e.properties.image.url : null,
+    lat: e.location?.lat ?? null,
+    lon: e.location?.lon ?? null,
     genres: (e.tags ?? []).filter((t) => (t.id ?? t.tag_id ?? "").includes(":genre:") && t.name).map((t) => t.name!.toLowerCase()),
   };
 }

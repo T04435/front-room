@@ -594,7 +594,7 @@ function AgentBody(props: BodyProps) {
     case "early":
       return resolved ? null : (
         <span className="grid gap-2">
-          <span>The films, TV and places for {name} are ready. The songs are being checked one by one; they&apos;ll join the gallery in a minute, even if you open it now.</span>
+          <span>The first films, TV and places for {name} are ready. The rest, and the songs (checked one by one), join the gallery in a minute, even if you open it now.</span>
           <span>
             <Button asChild size="sm" variant="outline">
               <Link href={props.galleryHref}>Open the gallery now</Link>

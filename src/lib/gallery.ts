@@ -1,4 +1,4 @@
-import { filmSong, hookFor, inStory, isGentle, isHarsh, isInstitution, promptFor, steerRulesOutHarsh, type Prompt } from "./card-words";
+import { filmSong, hookFor, inStory, isGentle, isHarsh, isInstitution, promptFor, steerRulesOutHarsh, whyFor, whyShort, type Prompt } from "./card-words";
 import { searchLinks } from "./kit";
 import { itemKey, type ItemStat } from "./learning";
 import { steersClear, type Person, type Suggestion } from "./person";
@@ -28,6 +28,11 @@ export type GalleryItem = {
   askFamily?: boolean;
   /** The story mentions it ("Danced at the Ritz"). */
   story?: string;
+  /** Found on Qloo because the story names it (A6: only these, and the family's own, say "From their story"). */
+  fromStory?: string;
+  /** Why it's here, plainly (A8): what Qloo matched, or that the family named it; and the same in a few words. */
+  why: string;
+  whyShort: string;
   /** What the card says to the carer: tied to the person, and one open prompt. */
   hook: string;
   prompt: Prompt;
@@ -78,17 +83,19 @@ export type Gallery = {
 export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   const items = new Map<string, GalleryItem>();
   const noHarsh = steerRulesOutHarsh(p);
-  const put = (g: Omit<GalleryItem, "key" | "links" | "stat" | "hook" | "prompt">) => {
+  const put = (g: Omit<GalleryItem, "key" | "links" | "stat" | "hook" | "prompt" | "why" | "whyShort">) => {
     const key = itemKey({ type: g.type, title: g.title, by: g.by });
     if (items.has(key) || steersClear(p, g.title, g.by)) return;
     const family = g.origin === "family";
     // War, crime and the like go when steer clear points that way (the family's own picks stay); so do institutions.
     if (!family && (g.type === "film" || g.type === "tv") && noHarsh && isHarsh(g.genres)) return;
     if (!family && g.type === "place" && isInstitution(g.title)) return;
-    const story = inStory(p, g.title) ?? undefined;
+    // The story's words go only on what the story names: a venue found for it, or a Qloo place the family mentioned
+    // (the Ritz). Never a song that shares a word with it ("Dancing Queen" and "went dancing": A6).
+    const story = g.fromStory ?? (g.type === "place" ? (inStory(p, g.title) ?? undefined) : undefined);
     const st = stats.get(key);
     const askFamily = Boolean(st && st.tearfulSessions > 0 && st.state !== "paused" && !p.resolvedUpsets.includes(key));
-    items.set(key, { ...g, key, story, askFamily, links: linksFor(g.type, g.title, g.by, g.year), stat: stats.get(key), hook: story ? `From ${p.preferredName || "their"}’s story: ${story}.` : hookFor(p, g), prompt: promptFor(g.type, g.title) });
+    items.set(key, { ...g, key, story, askFamily, links: linksFor(g.type, g.title, g.by, g.year), stat: stats.get(key), hook: story ? `From ${p.preferredName || "their"}’s story: ${story}.` : hookFor(p, g), prompt: promptFor(g.type, g.title), why: whyFor(p, g), whyShort: whyShort(p, g) });
   };
   // The family's own loves first.
   for (const l of p.loves) {
@@ -100,7 +107,7 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   for (const [k, cards] of Object.entries(p.suggestions)) {
     for (const c of cards) {
       if (c.answer === "upset" || c.type === "artist") continue;
-      put({ type: c.type, title: c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : k === "family" ? "family" : "qloo", like: c.like, cardId: c.id, answer: c.answer, placeId: c.placeId, genres: c.genres, image: c.image });
+      put({ type: c.type, title: c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : k === "family" ? "family" : "qloo", like: c.like, cardId: c.id, answer: c.answer, placeId: c.placeId, genres: c.genres, image: c.image, ...(c.fromStory ? { fromStory: c.fromStory } : {}) });
     }
   }
   const all = [...items.values()];

@@ -67,6 +67,8 @@ export type Suggestion = {
   /** Films and TV: genre names from Qloo, to keep the gallery gentle. */
   genres?: string[];
   answer?: "yes" | "unsure" | "upset";
+  /** Named in their story (a venue the family mentioned), found on Qloo: the story's words. */
+  fromStory?: string;
 };
 
 export type Person = {

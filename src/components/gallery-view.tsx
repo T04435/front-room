@@ -268,6 +268,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
 
       <Handover person={person} gallery={gallery} />
 
+      <HowQloo name={name} places={person.places.map((x) => x.name)} open={ro} />
+
       {startHere.length > 1 && <Shelf title="Start here" hint="Three to begin with" items={startHere} onOpen={setOpen} limit={3} grid />}
 
       {gallery.works.length > 0 && (
@@ -340,8 +342,9 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
                 </p>
                 <p className="text-sm text-muted-foreground">They might answer: {open.prompt.might}</p>
               </div>
-              <p className="font-mono text-xs text-muted-foreground" title={open.source}>
-                {open.parts.join(" · ")}
+              {/* What Qloo matched, in words (A8), not a source code line. */}
+              <p className="leading-snug">
+                <span className="font-medium">Why this:</span> {open.why}
               </p>
 
               <div className="grid gap-2">
@@ -400,6 +403,40 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
   );
 }
 
+/**
+ * How Qloo finds these (A8): the story's places and years go to Qloo, one look-up per town and era, and everything is
+ * filtered by steer clear. Open on the example, folded on everyone else's page.
+ */
+function HowQloo({ name, places, open }: { name: string; places: string[]; open: boolean }) {
+  const steps = [
+    ["Their story", `The family tells the Go-Between about ${name}: where they lived and when, what they loved, what to steer clear of.`],
+    ["Places and years", `Each place becomes a real town (${places.slice(0, 2).join(", ") || "where they lived"}) and the years ${name} was there, best between about 10 and 30.`],
+    ["Qloo, per town and era", "Qloo finds artists of those decades (the town’s own music first), films and TV from those years popular there, long-standing places, the venues the story names, and things like what they love."],
+    ["Steer clear", "Anything that touches steer clear is left out, everywhere. The model only picks a song per artist, checked on MusicBrainz, and writes the prompts."],
+  ];
+  return (
+    <details open={open} className="group rounded-lg border bg-card p-4 text-sm">
+      <summary className="cursor-pointer font-medium">How Qloo finds these</summary>
+      <ol className="mt-3 grid gap-2 sm:grid-cols-4">
+        {steps.map(([title, text], i) => (
+          <li key={title} className="grid content-start gap-1 rounded-md bg-muted/50 p-3">
+            <span className="font-medium">
+              {i + 1}. {title}
+            </span>
+            <span className="text-muted-foreground">{text}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-muted-foreground">
+        Each card says why it’s here.{" "}
+        <a className="underline underline-offset-2" href="https://github.com/T04435/front-room#the-qloo-calls" target="_blank" rel="noreferrer">
+          The Qloo calls, one by one
+        </a>
+      </p>
+    </details>
+  );
+}
+
 /** A shelf: four at a time (fewer choices with someone waiting), and More for the rest. */
 function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: string; hint?: string; items: GalleryItem[]; onOpen: (g: GalleryItem) => void; big?: boolean; limit?: number; grid?: boolean }) {
   const [all, setAll] = useState(false);
@@ -429,7 +466,8 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: st
                     {tag && <Badge className={cn("absolute top-2 left-2 block max-w-[85%] justify-start truncate", grid && "max-sm:hidden")}>{tag}</Badge>}
                   </span>
                   <span className="line-clamp-2 font-medium">{g.title}</span>
-                  <span className="line-clamp-1 text-sm text-muted-foreground">{[g.by, g.year].filter(Boolean).join(", ") || (g.type === "place" ? (g.parts.find((x) => !["place", "Qloo"].includes(x)) ?? "Place") : TYPE_WORD[g.type])}</span>
+                  <span className="line-clamp-1 text-sm text-muted-foreground">{[g.by, g.year].filter(Boolean).join(", ") || (g.type === "place" ? (g.parts.find((x) => !["place", "Qloo", "their story"].includes(x)) ?? "Place") : TYPE_WORD[g.type])}</span>
+                  {!grid && <span className="line-clamp-1 text-sm text-muted-foreground">{g.whyShort}</span>}
                 </button>
               </li>
             );

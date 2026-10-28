@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { EXAMPLE_KITS, EXAMPLE_LOGS, EXAMPLE_PERSON, EXAMPLE_PERSON_ID, EXAMPLE_PLAYS } from "@/lib/example-person";
 import type { Kit } from "@/lib/kit";
 import type { Logged, Play } from "@/lib/learning";
-import { completeness, type Person, type PersonSummary } from "@/lib/person";
+import { completeness, type Person, type PersonSummary, withEndYears } from "@/lib/person";
 import { db } from "@/server/db";
 
 /** Person ids are the private link: 10 url-safe characters, unguessable. */
@@ -17,7 +17,10 @@ export async function getPerson(id: string): Promise<Person | null> {
   if (!isPersonId(id)) return null;
   const sql = await db();
   const rows = await sql.query<{ person: Person | string }>("SELECT person FROM people WHERE id = $1", [id]);
-  return rows[0] ? parse(rows[0].person) : null;
+  if (!rows[0]) return null;
+  const person = parse(rows[0].person);
+  // However the places were saved, one with no end year ends where the next starts (A7).
+  return { ...person, places: withEndYears(person.places) };
 }
 
 /** Saves a person (never the example, which is read-only). */

@@ -105,3 +105,32 @@ describe("Product's v2.3 rules (the example Margaret, who has 'Loud bangs' in st
     expect(titles(g.shelves.place).some((t) => /universit|research/i.test(t))).toBe(false);
   });
 });
+
+describe("why each card is here (A6, A8)", () => {
+  const base: Person = {
+    ...emptyPerson("why-test-1", "Edie", null),
+    birthYear: 1949,
+    places: [{ id: "gla", name: "Glasgow", fromYear: 1949, toYear: 1971 }],
+    moments: [{ id: "m", kind: "dance", year: null, label: "Went dancing at the Barrowland", venue: "Barrowland" }],
+    suggestions: {
+      "gla:1959-1971": [
+        { id: "s1", placeId: "gla", type: "song", title: "Dancing Queen", by: "ABBA", year: 1976, parts: ["70s", "Glasgow", "Qloo", "MusicBrainz"], source: "Qloo: artists popular around Glasgow in the 70s." },
+        { id: "s2", placeId: "gla", type: "song", title: "Shout", by: "Lulu", year: 1964, parts: ["60s", "Glasgow", "Scottish", "Qloo", "MusicBrainz"], source: "Qloo: Scottish artists of the 60s, popular around Glasgow." },
+      ],
+      story: [{ id: "s3", placeId: "gla", type: "place", title: "Barrowland Ballroom", year: null, parts: ["their story", "Glasgow", "Qloo"], source: "Named in Edie’s story; Qloo found the place in Glasgow.", fromStory: "Went dancing at the Barrowland" }],
+    },
+  };
+  const g = galleryOf(base, new Map());
+  const find = (t: string) => [...Object.values(g.shelves).flat()].find((x) => x.title === t)!;
+
+  it("says 'from their story' only for what the story names", () => {
+    expect(find("Dancing Queen").story).toBeUndefined();
+    expect(find("Barrowland Ballroom").story).toBe("Went dancing at the Barrowland");
+  });
+
+  it("says plainly what Qloo matched", () => {
+    expect(find("Shout").why).toBe("Qloo picked the artist: Scottish artists of the 60s, popular around Glasgow. The song is one of theirs, checked on MusicBrainz.");
+    expect(find("Shout").whyShort).toBe("Qloo · 60s · Glasgow · Scottish");
+    expect(find("Barrowland Ballroom").why).toContain("Edie’s story names it");
+  });
+});

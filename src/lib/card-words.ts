@@ -50,6 +50,37 @@ export function hookFor(p: Pick<Person, "preferredName" | "birthYear" | "decade"
   return place ? `Popular in ${place} in ${name}'s young years.` : `From ${name}'s young years.`;
 }
 
+/**
+ * Why a card is here, in a plain sentence a judge or a carer can read (A8): what Qloo matched (the era, the town, a
+ * taste link) or that the family named it. Built from the card's own source line, so it never claims more than that.
+ */
+export function whyFor(p: Pick<Person, "preferredName" | "places">, item: { type: string; title: string; by?: string; origin: string; like?: string; parts: string[]; source: string; placeId?: string; fromStory?: string }): string {
+  const name = p.preferredName || "them";
+  const checked = item.parts.includes("MusicBrainz") ? " The song is one of theirs, checked on MusicBrainz." : "";
+  if (item.fromStory) {
+    const town = p.places.find((x) => x.id === item.placeId)?.name;
+    return `${name}’s story names it (“${item.fromStory}”), and Qloo found the place${town ? ` in ${town}` : ""}.`;
+  }
+  if (item.origin === "family") return item.parts.length > 1 && item.by ? `The family named ${item.by}.${checked}` : "The family named it.";
+  if (item.origin === "new_try") return item.like ? `Qloo: people who like ${item.like} also like this. ${item.like} works for ${name}.` : `Qloo: like what ${name} loves.`;
+  // "Qloo: Scottish artists of the 60s, popular around Glasgow." → as Qloo said it, plus the song check.
+  const said = item.source.replace(/^Qloo:\s*/, "").replace(/\.$/, "");
+  return `Qloo picked ${item.type === "song" ? "the artist" : "it"}: ${said}.${checked}`;
+}
+
+/** The same, in a few words for a tile: "Scottish · 60s", "Like Lulu", "Their story". */
+export function whyShort(p: Pick<Person, "places">, item: { type: string; origin: string; like?: string; parts: string[]; placeId?: string; fromStory?: string }): string {
+  if (item.fromStory) return "Named in their story";
+  if (item.origin === "family") return "The family named it";
+  if (item.origin === "new_try") return item.like ? `Qloo · like ${item.like}` : "Qloo · new try";
+  const town = p.places.find((x) => x.id === item.placeId)?.name;
+  const like = item.parts.find((x) => x.startsWith("like "));
+  if (like) return `Qloo · ${like}`;
+  if (item.type === "song") return `Qloo · ${item.parts.filter((x) => x !== "Qloo" && x !== "MusicBrainz" && x !== "via NotOnQ").slice(0, 3).join(" · ")}`;
+  if (item.type === "place") return `Qloo · long-standing in ${town ?? item.parts[1]}`;
+  return `Qloo · ${[item.parts[1], town].filter(Boolean).join(" · ")}`;
+}
+
 /** War, crime, horror and the like: not for reminiscence when steer clear points that way, and never first. */
 const HARSH = /\b(war|horror|crime|thriller|gangster|prison|slasher|military|disaster|mystery)\b/;
 export const isHarsh = (genres: string[] | undefined) => (genres ?? []).some((g) => HARSH.test(g));
