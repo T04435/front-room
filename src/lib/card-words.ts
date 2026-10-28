@@ -11,22 +11,49 @@ const SONG_PROMPTS: Prompt[] = [
   { ask: "Did you ever dance to this? Where was it playing?", might: "A dance hall, a wedding, the radio at home, a name." },
   { ask: "Who did you listen to this with?", might: "A friend, a sister, a sweetheart, the people at work." },
   { ask: "Can you hum the start of this one?", might: "A hum, a line, a laugh, or just tapping along." },
+  { ask: "Where were you when this was on the radio?", might: "Home, work, a café, the car, a kitchen." },
 ];
+// A13: films, telly and places get more than one prompt too, and a football ground gets its own.
+const FILM_PROMPTS: Prompt[] = [
+  { ask: "Did you see this at the pictures? Who did you go with?", might: "A friend or a sweetheart, the cinema's name, a favourite song from it." },
+  { ask: "Who was your favourite in this one?", might: "A star's name, a character, a song from it." },
+  { ask: "What was the cinema like back then?", might: "The queue, the usherette, the seats, the price of a ticket." },
+];
+const TV_PROMPTS: Prompt[] = [
+  { ask: "Did you watch this at home? Who watched it with you?", might: "Family round the set, a favourite character, a catchphrase." },
+  { ask: "What night was this on?", might: "A day of the week, what came before it, tea in front of the telly." },
+  { ask: "Who was your favourite on this?", might: "A character, a presenter, a catchphrase." },
+];
+const PLACE_PROMPTS: ((where: string) => Prompt)[] = [
+  (where) => ({ ask: `Did you ever go to ${where}? What was it like?`, might: "A night out, who they went with, a day they recall." }),
+  (where) => ({ ask: `Who would you go to ${where} with?`, might: "Family, friends, a sweetheart, people from work." }),
+];
+const GROUND = /stadium|park\b.*(fc|football)|\bground\b|ibrox|hampden|anfield|old trafford|celtic park|maine road/i;
 // The same song always gets the same prompt; different songs get different ones.
 const pick = <T,>(xs: T[], key: string) => xs[[...key].reduce((n, c) => (n * 31 + c.charCodeAt(0)) >>> 0, 7) % xs.length];
 
 const PROMPTS: Record<"song" | "film" | "tv" | "book" | "place", (title: string) => Prompt> = {
   song: (title) => pick(SONG_PROMPTS, title),
-  film: () => ({ ask: "Did you see this at the pictures? Who did you go with?", might: "A friend or a sweetheart, the cinema's name, a favourite song from it." }),
-  tv: () => ({ ask: "Did you watch this at home? Who watched it with you?", might: "Family round the set, a favourite character, a catchphrase." }),
+  film: (title) => pick(FILM_PROMPTS, title),
+  tv: (title) => pick(TV_PROMPTS, title),
   book: () => ({ ask: "Did you read this? What was it about?", might: "Where they read it, who lent it, a character." }),
-  // Today's brand names off ("O2 Ritz Manchester" → "the Ritz Manchester"), and "the Cavern Club" mid-sentence.
-  place: (title) => ({ ask: `Did you ever go to ${placeName(title)}? What was it like?`, might: "A night out, who they went with, what they wore." }),
+  // "the Cavern Club" mid-sentence; a football ground gets the match, not what they wore.
+  place: (title) =>
+    GROUND.test(title)
+      ? { ask: `Did you ever go to a match at ${placeName(title)}? Who did you go with?`, might: "A team, a famous game, who took them, the crowd and the noise." }
+      : pick(PLACE_PROMPTS, title)(placeName(title)),
 };
 
+/** Today's sponsor names off a place (A12): "O2 Ritz Manchester" → "Ritz Manchester", "(Barclays) Hampden" → "Hampden". */
+export function historicName(title: string): string {
+  return title
+    .replace(/^O2 (Academy |Apollo |Arena |Ritz )?/, (_m, rest: string | undefined) => (rest ?? ""))
+    .replace(/^\([^)]*\)\s*/, "")
+    .trim();
+}
+
 function placeName(title: string): string {
-  if (title.startsWith("O2 ")) return `the ${title.slice(3)}`;
-  return title.replace(/^The /, "the ");
+  return historicName(title).replace(/^The /, "the ");
 }
 
 export const promptFor = (type: keyof typeof PROMPTS, title: string): Prompt => PROMPTS[type](title);

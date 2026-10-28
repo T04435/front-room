@@ -436,7 +436,7 @@ export const EXAMPLE_KIT: Kit = {
         "Manchester",
         "Qloo"
       ],
-      "title": "O2 Ritz Manchester",
+      "title": "The Ritz, Manchester",
       "source": "Qloo: a long-standing place in Manchester, still there today.",
       "entityId": null,
       "description": "Intimate, longstanding Manchester live-music venue with excellent sound, welcoming staff and robust accessibility support, hosting a wide range of concerts and events."

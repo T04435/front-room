@@ -101,7 +101,7 @@ describe("Product's v2.3 rules (the example Margaret, who has 'Loud bangs' in st
   });
 
   it("PR-5: the place from her story first, no universities or research libraries", () => {
-    expect(g.shelves.place[0]).toMatchObject({ title: "O2 Ritz Manchester", story: "Danced at the Ritz every Saturday" });
+    expect(g.shelves.place[0]).toMatchObject({ title: "The Ritz, Manchester", story: "Danced at the Ritz every Saturday" });
     expect(titles(g.shelves.place).some((t) => /universit|research/i.test(t))).toBe(false);
   });
 });
@@ -130,7 +130,7 @@ describe("why each card is here (A6, A8)", () => {
 
   it("says plainly what Qloo matched", () => {
     expect(find("Shout").why).toBe("Qloo picked the artist: Scottish artists of the 60s, popular around Glasgow. The song is one of theirs, checked on MusicBrainz.");
-    expect(find("Shout").whyShort).toBe("Qloo · 60s · Glasgow · Scottish");
+    expect(find("Shout").whyShort).toBe("Qloo · Scottish 60s · Glasgow");
     expect(find("Barrowland Ballroom").why).toContain("Edie’s story names it");
   });
 });

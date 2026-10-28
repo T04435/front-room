@@ -59,7 +59,8 @@ function nextAsk(p: Person): Ask | null {
   if (!p.preferredName.trim()) return { kind: "name" };
   if (birthYearOf(p) === null) return { kind: "born" };
   if (!p.places.length) return { kind: "place" };
-  const noFrom = p.places.find((x, i) => x.fromYear === null && i > 0 && !x.yearsUnknown);
+  // Never "when did they move to" a place they grew up in (A15).
+  const noFrom = p.places.find((x, i) => x.fromYear === null && i > 0 && !x.yearsUnknown && !/grew|born|raised|childhood|crec|naci/i.test(x.role ?? ""));
   if (noFrom) return { kind: "from", placeId: noFrom.id };
   const noTo = p.places.find((x, i) => x.toYear === null && i < p.places.length - 1 && !x.yearsUnknown);
   if (noTo) return { kind: "to", placeId: noTo.id };
@@ -335,7 +336,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
       </div>
 
       <div className="grid gap-3" aria-live="polite">
-        {msgs.map((m) =>
+        {/* A question the story has answered since goes, even before anything else is confirmed (A15). */}
+        {msgs.filter((m) => !("kind" in m && m.kind === "ask" && !stillNeeded(m.ask, person))).map((m) =>
           m.from === "you" ? (
             <Message key={m.id} align="end">
               <Bubble align="end">

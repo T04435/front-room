@@ -62,7 +62,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
           {p.greeting ? <span className="text-muted-foreground"> · {p.greeting}</span> : null}
         </p>
         <p className="text-sm text-muted-foreground">
-          {days} {days === 1 ? "day" : "days"} of play logged{lastDay ? ` · last ${day(lastDay.at)}` : ""}. Each line says when it was last confirmed.
+          {days} {days === 1 ? "day" : "days"} of play logged{lastDay ? ` · last ${day(lastDay.at)}` : ""}. Each line says when it was last confirmed (UK dates and times).
         </p>
         <div className="mt-1">
           <PrintButton />

@@ -26,7 +26,6 @@ export const EXAMPLE_IMAGES: Record<string, string> = {
   "place:Blackpool Pleasure Beach": "https://images.qloo.com/i/F30E114C-FEB2-4D51-A16B-F59BBE855E0B-420x-auto.jpg",
   "place:John Rylands Research Institute and Library": "https://images.qloo.com/i/461A4756-AE0D-4343-8DA1-93DD4CB96656-420x-auto.jpg",
   "place:Manchester Art Gallery": "https://images.qloo.com/i/069C2257-E652-4AF4-A441-4A5749D10E7B-420x-auto.jpg",
-  "place:O2 Ritz Manchester": "https://images.qloo.com/i/B2BC593A-23C5-4137-B05A-A5D419528712-420x-auto.jpg",
   "place:Old Trafford Cricket Ground": "https://images.qloo.com/i/B629E4B4-8199-44CB-9B6F-97FE5E711C60-420x-auto.jpg",
   "place:Palace Theatre Manchester": "https://images.qloo.com/i/78D921E6-34E2-4822-9C43-56C7D1A17DE6-420x-auto.jpg",
   "place:The University of Manchester": "https://images.qloo.com/i/1C86D18E-A6C2-41C7-A642-D3922BDD5623-420x-auto.jpg",

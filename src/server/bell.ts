@@ -96,6 +96,18 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
     done.push({ key: STORY_KEY, place: null });
   });
 
+  // Films, TV and books the family named: Qloo's year and picture for their tiles (A14).
+  const loves = Promise.all(
+    p.loves.map(async (l) => {
+      const types = l.type === "film" ? "urn:entity:movie" : l.type === "tv" ? "urn:entity:tv_show" : l.type === "book" ? "urn:entity:book" : null;
+      if (!types || l.source === "ring_a_bell" || (l.image && l.year)) return l;
+      const match = await get("/search", { query: l.title, types, take: 3 }, onCall)
+        .then((r) => pickByName(parseSearch(r.data), l.title) ?? null)
+        .catch(() => null);
+      return match ? { ...l, year: l.year ?? match.year, ...(match.image && !l.image ? { image: match.image } : {}) } : l;
+    }),
+  );
+
   await Promise.all([
     venues,
     ...towns.map(async ({ place, also, where: loc, era }) => {
@@ -195,7 +207,7 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
   const final = withCards(p, keys, drafts, false);
   const { [SONGS_PENDING]: _pending, ...researched } = final.researched;
   void _pending;
-  return { ...final, researched };
+  return { ...final, researched, loves: await loves };
 }
 
 /** Venues named in the story, found on Qloo. */

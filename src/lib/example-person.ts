@@ -34,7 +34,7 @@ export const EXAMPLE_PERSON: Person = {
   loves: [
     { id: "lv-1", type: "artist", title: "Dusty Springfield", source: "family", quote: "she loved Dusty" },
     { id: "lv-2", type: "film", title: "The Sound of Music", year: 1965, source: "ring_a_bell", placeId: "pl-mcr" },
-    { id: "lv-3", type: "place", title: "O2 Ritz Manchester", source: "ring_a_bell", placeId: "pl-mcr" },
+    { id: "lv-3", type: "place", title: "The Ritz, Manchester", source: "ring_a_bell", placeId: "pl-mcr" },
     { id: "lv-4", type: "song", title: "Waterloo", by: "ABBA", year: 1974, source: "ring_a_bell", placeId: "pl-mcr" },
     { id: "lv-5", type: "book", title: "The Mallen Streak", by: "Catherine Cookson", year: 1973, source: "family", quote: "read every Catherine Cookson", image: exampleImage("book", "The Mallen Streak") },
   ],

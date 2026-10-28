@@ -1,4 +1,4 @@
-import { filmSong, hookFor, inStory, isGentle, isHarsh, isInstitution, promptFor, steerRulesOutHarsh, whyFor, whyShort, type Prompt } from "./card-words";
+import { filmSong, historicName, hookFor, inStory, isGentle, isHarsh, isInstitution, promptFor, steerRulesOutHarsh, whyFor, whyShort, type Prompt } from "./card-words";
 import { searchLinks } from "./kit";
 import { itemKey, type ItemStat } from "./learning";
 import { steersClear, type Person, type Suggestion } from "./person";
@@ -107,7 +107,8 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   for (const [k, cards] of Object.entries(p.suggestions)) {
     for (const c of cards) {
       if (c.answer === "upset" || c.type === "artist") continue;
-      put({ type: c.type, title: c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : k === "family" ? "family" : "qloo", like: c.like, cardId: c.id, answer: c.answer, placeId: c.placeId, genres: c.genres, image: c.image, ...(c.fromStory ? { fromStory: c.fromStory } : {}) });
+      // Places by their own name, not today's sponsor's (A12).
+      put({ type: c.type, title: c.type === "place" ? historicName(c.title) : c.title, by: c.by, year: c.year, parts: c.parts, source: c.source, origin: k === "new-tries" ? "new_try" : k === "family" ? "family" : "qloo", like: c.like, cardId: c.id, answer: c.answer, placeId: c.placeId, genres: c.genres, image: c.image, ...(c.fromStory ? { fromStory: c.fromStory } : {}) });
     }
   }
   const all = [...items.values()];

@@ -68,7 +68,8 @@ function useCardMode(): ["staff" | "visit", (m: "staff" | "visit") => void] {
   return [chosen ?? "staff", set];
 }
 // Times in the home's zone everywhere (QA-16); the demo homes are in the UK.
-const hm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
+// Said so on screen, for anyone reading from elsewhere (A18).
+const hm = (iso: string) => `${new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })} UK time`;
 
 /** A small tag on a tile: why it's here, or how it's gone. */
 function tagOf(g: GalleryItem): string | null {
@@ -110,11 +111,17 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
   const [since] = useState(() => new Date().toISOString());
   const evening = useEvening();
   // Start here: what works (else the family's song), one new try, one thing to talk about (PR-6).
+  // While new tries load (or when there are none), the third is another song, a film or a place (A14).
   const startHere = [
     gallery.works[0] ?? gallery.shelves.song.find((g) => g.origin === "family") ?? gallery.shelves.song[0],
     gallery.newTries[0],
     gallery.shelves.place.find((g) => g.story) ?? gallery.shelves.film[0] ?? gallery.shelves.place[0],
-  ].filter((g, i, xs): g is GalleryItem => Boolean(g) && xs.findIndex((x) => x?.key === g?.key) === i);
+    gallery.shelves.song[1],
+    gallery.shelves.film[0],
+    gallery.shelves.place[0],
+  ]
+    .filter((g, i, xs): g is GalleryItem => Boolean(g) && xs.findIndex((x) => x?.key === g?.key) === i)
+    .slice(0, 3);
   const isOpen = open !== null;
 
   // Cards from before pictures were kept: fetch theirs once, quietly, then show them.
@@ -307,7 +314,11 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
               {settling && (
                 <Alert className="mt-8 max-sm:mt-12">
                   <Waves />
-                  <AlertDescription>First, the basics: are they in pain, hungry or thirsty, needing the toilet, too hot or cold? Then try this, softly, and sit with them.</AlertDescription>
+                  {/* What Stop did goes up here, in its own place, not under the sticky Stop button (A16). */}
+                  <AlertDescription>
+                    {notice?.startsWith("Stopped") && <span className="block font-medium">{notice}</span>}
+                    First, the basics: are they in pain, hungry or thirsty, needing the toilet, too hot or cold? Then try this, softly, and sit with them.
+                  </AlertDescription>
                 </Alert>
               )}
               <SheetHeader className="flex-row items-start gap-3 px-0">
@@ -362,7 +373,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
                   })}
                 </div>
                 <p aria-live="polite" className="flex min-h-6 flex-wrap items-center gap-2 text-sm">
-                  {notice ??
+                  {(settling && notice?.startsWith("Stopped") ? null : notice) ??
                     (mine.length ? (
                       <>
                         Logged: {RESPONSE_LABELS[mine.at(-1)!.response]} · {hm(mine.at(-1)!.at)}
