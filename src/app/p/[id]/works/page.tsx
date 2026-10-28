@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { APP_NAME } from "@/lib/app";
 import { careNoteForPlays } from "@/lib/care-note";
 import { playStats, topProven } from "@/lib/learning";
+import { talkingPoints } from "@/lib/person";
 import { getPerson, personPlays } from "@/server/people";
 
 export const dynamic = "force-dynamic";
@@ -43,7 +44,8 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
   const lastDay = plays.filter((p) => p.response !== "none").at(-1);
   const days = new Set(plays.map((p) => dayOf(p.at))).size;
   const p = person.practical;
-  const talks = person.moments.slice(0, 2);
+  // The same steer-clear rule as the gallery: no wedding when the husband is on steer clear (A3).
+  const talks = talkingPoints(person).slice(0, 2);
   const heard = person.staffHeard.filter((h) => h.confirmed);
   // One copyable line per day of play, newest first (the last three).
   const playDays = [...new Set(plays.filter((x) => x.response !== "none").map((x) => dayOf(x.at)))].slice(-3).reverse();

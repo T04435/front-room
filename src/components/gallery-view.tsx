@@ -16,7 +16,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { calmPick, TYPE_WORD, type Gallery, type GalleryItem, type GalleryType } from "@/lib/gallery";
 import { RESPONSE_LABELS, RESPONSES } from "@/lib/kit";
 import type { Play } from "@/lib/learning";
-import { HEARD_KINDS, type Person, type StaffHeard } from "@/lib/person";
+import { HEARD_KINDS, type Person, type StaffHeard, talkingPoints } from "@/lib/person";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<GalleryType, typeof Music> = { song: Music, film: Film, tv: Tv, book: BookOpen, place: MapPin };
@@ -514,7 +514,8 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
   const p = person.practical;
   const works = gallery.works.slice(0, 3).map((g) => (g.by ? `${g.title} (${g.by})` : g.title));
   const avoid = [...person.steers.filter((s) => s.level === "never").map((s) => s.label), ...gallery.paused.map((g) => `${g.title} (upset)`)];
-  const moment = person.moments[0];
+  // Never a moment that touches steer clear: no wedding when the husband is on it (A3).
+  const moment = talkingPoints(person)[0];
   const home = person.places[0];
   const talk = moment ? (moment.kind === "wedding" ? `Their wedding${moment.year ? ` (${moment.year})` : ""}` : moment.label) : home ? `Growing up in ${home.name}` : null;
   const heard = person.staffHeard.filter((h) => h.confirmed).slice(-2).map((h) => h.text);

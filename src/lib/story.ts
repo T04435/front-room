@@ -1,4 +1,4 @@
-import { type Fact, LOVE_TYPES, MOMENT_KINDS, type Person, type Place, type Steer } from "./person";
+import { type Fact, LOVE_TYPES, MOMENT_KINDS, type Person, type Place, type Steer, momentSteered, withEndYears } from "./person";
 import { nameKey } from "./qloo-parse";
 
 /** Short ids for story entries. */
@@ -47,9 +47,10 @@ export function describeFact(f: Fact): string {
 export function addPlace(p: Person, place: Omit<Place, "id"> & { id?: string }): Person {
   const same = p.places.find((x) => nameKey(x.name) === nameKey(place.name));
   if (same) {
-    return { ...p, places: p.places.map((x) => (x === same ? { ...x, fromYear: x.fromYear ?? place.fromYear, toYear: x.toYear ?? place.toYear, role: x.role ?? place.role, label: x.label ?? place.label } : x)) };
+    return { ...p, places: withEndYears(p.places.map((x) => (x === same ? { ...x, fromYear: x.fromYear ?? place.fromYear, toYear: x.toYear ?? place.toYear, role: x.role ?? place.role, label: x.label ?? place.label } : x))) };
   }
-  return { ...p, places: [...p.places, { ...place, id: place.id ?? uid("pl") }].sort((a, b) => (a.fromYear ?? 9999) - (b.fromYear ?? 9999)) };
+  // A place with no end year ends where the next one starts (A7).
+  return { ...p, places: withEndYears([...p.places, { ...place, id: place.id ?? uid("pl") }].sort((a, b) => (a.fromYear ?? 9999) - (b.fromYear ?? 9999))) };
 }
 
 /** Records a steer-clear answer: "never" or "sad but OK" keep the label (only the label); "no need" keeps nothing. */
@@ -143,7 +144,8 @@ export function wouldHelpNext(p: Person, paused: { key: string; title: string; l
   if (!p.steerAsked && !p.steers.length) out.push({ id: "steer", kind: "steer", label: "Anything to steer clear of?" });
   const last = p.places.at(-1);
   out.push({ id: "place", kind: "place", label: last ? `After ${last.name}, where did ${name} live?` : `Where did ${name} grow up?` });
-  if (!p.moments.some((m) => m.kind === "wedding" || m.kind === "dance")) out.push({ id: "moment", kind: "moment", label: "A wedding, or dancing?" });
+  // No wedding question when steer clear names a husband, wife or partner (A3).
+  if (!p.moments.some((m) => m.kind === "wedding" || m.kind === "dance")) out.push({ id: "moment", kind: "moment", label: momentSteered(p, { kind: "wedding", label: "wedding" }) ? "Dancing, or a big day out?" : "A wedding, or dancing?" });
   if (provenCalm < 3 && !p.practical.calms) out.push({ id: "calms", kind: "calms", label: `What calms ${name}?` });
   if (!p.practical.work) out.push({ id: "work", kind: "work", label: "Their work" });
   if (!p.practical.faith) out.push({ id: "faith", kind: "faith", label: "Faith, or keep it out?" });

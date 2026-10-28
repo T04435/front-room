@@ -1,4 +1,4 @@
-import type { Person } from "./person";
+import { momentSteered, type Person } from "./person";
 
 /**
  * What a card says to the carer: a hook tied to the person, and one open prompt (never testing, never the word
@@ -63,13 +63,13 @@ export const steerRulesOutHarsh = (p: Pick<Person, "steers">) => p.steers.some((
 export const isInstitution = (title: string) => /universit|research|institute|college|library|offices?\b|hotel|hospital|headquarters/i.test(title);
 
 /** The moment in the story that mentions a place, film or song ("Danced at the Ritz" → "O2 Ritz Manchester"), if any. */
-export function inStory(p: Pick<Person, "moments" | "places">, title: string): string | null {
+export function inStory(p: Pick<Person, "moments" | "places" | "steers">, title: string): string | null {
   const town = new Set(p.places.map((x) => x.name.toLowerCase()));
   const words = title
     .toLowerCase()
     .split(/[^a-z']+/)
     .filter((w) => w.length >= 4 && !town.has(w) && !["the", "theatre", "street", "road", "hall", "park", "club", "centre", "center"].includes(w));
-  const hit = p.moments.find((m) => words.some((w) => new RegExp(`\\b${w}\\b`).test(`${m.label} ${m.venue ?? ""}`.toLowerCase())));
+  const hit = p.moments.filter((m) => !momentSteered(p, m)).find((m) => words.some((w) => new RegExp(`\\b${w}\\b`).test(`${m.label} ${m.venue ?? ""}`.toLowerCase())));
   return hit?.label ?? null;
 }
 

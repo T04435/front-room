@@ -195,6 +195,39 @@ export function steersClear(p: Pick<Person, "steers">, ...texts: (string | undef
   });
 }
 
+/**
+ * Places in order, each with no end year closed where the next one starts (A7): "Glasgow, 1949" then "Blackpool,
+ * 1971" makes Glasgow 1949–1971, so its era never runs past the move.
+ */
+export function withEndYears(places: Place[]): Place[] {
+  const dated = places.filter((x) => x.fromYear !== null).sort((a, b) => a.fromYear! - b.fromYear!);
+  return places.map((x) => {
+    if (x.fromYear === null || x.toYear !== null) return x;
+    const next = dated.find((y) => y.fromYear! > x.fromYear!);
+    return next ? { ...x, toYear: next.fromYear } : x;
+  });
+}
+
+/** Partners: a steer-clear naming one rules out the wedding too. */
+const PARTNER = /\b(husband|wife|partner|spouse|fianc[eé]e?|ex|first husband|first wife|marriage|wedding)\b/i;
+
+/**
+ * Whether a moment (a talking point) touches anything on steer clear (A3): its words match a steer-clear label, or a
+ * steer-clear names a husband, wife or partner and the moment is the wedding. The same rule as the gallery's.
+ */
+export function momentSteered(p: Pick<Person, "steers">, m: Pick<Moment, "kind" | "label" | "venue">): boolean {
+  if (steersClear(p, m.label, m.venue)) return true;
+  // A name in a steer-clear, said in the moment: "Husband Frank" against "Married Frank in 1971".
+  const said = ` ${nameKey(`${m.label} ${m.venue ?? ""}`)} `;
+  const names = (label: string) => label.split(/\s+/).filter((w) => /^[A-Z][a-z]{2,}/.test(w) && !PARTNER.test(w)).map(nameKey);
+  if (p.steers.some((s) => names(s.label).some((w) => said.includes(` ${w} `)))) return true;
+  const partner = p.steers.some((s) => PARTNER.test(s.label));
+  return partner && (m.kind === "wedding" || /\b(wedding|married|marriage|honeymoon|engaged)\b/i.test(m.label));
+}
+
+/** The talking points to offer: moments that don't touch steer clear. */
+export const talkingPoints = (p: Pick<Person, "steers" | "moments">) => p.moments.filter((m) => !momentSteered(p, m));
+
 // ---- What the story chat's extractor returns (candidates, never saved until confirmed) -----------------------------
 
 export const factSchema = z.object({
