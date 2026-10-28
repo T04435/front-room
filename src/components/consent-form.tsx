@@ -22,30 +22,22 @@ const BY: { value: Consent["by"]; label: string }[] = [
  * Adding someone: the name they like to be called, and consent first (who is telling the story, and on what basis).
  * Front Room records the decision; it doesn't make it.
  */
-export function ConsentForm() {
+export function ConsentForm({ initialExample = null }: { initialExample?: Example | null }) {
   const router = useRouter();
-  const [name, setName] = useState("");
+  // An example (a fictional person and their "This is me") still goes through consent here (A11).
+  const [example, setExample] = useState<Example | null>(initialExample);
+  const [name, setName] = useState(initialExample?.name ?? "");
   const [by, setBy] = useState<Consent["by"]>("family");
   const [basis, setBasis] = useState<Consent["basis"]>("agreed");
   const [role, setRole] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /** An example: a fictional person, the family telling it, their story waiting in the chat box to send. */
-  async function startExample(ex: Example) {
-    setBusy(true);
+  const pick = (ex: Example) => {
+    setExample(ex);
+    setName(ex.name);
     setError(null);
-    try {
-      const consent: Consent = { by: "family", basis: "agreed", at: new Date().toISOString() };
-      const res = await fetch("/api/people", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preferredName: ex.name, consent }) });
-      const body = (await res.json()) as { id?: string; error?: string };
-      if (!res.ok || !body.id) throw new Error(body.error ?? "Couldn't start the example. Try again.");
-      router.push(`/p/${body.id}/story?example=${ex.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Couldn't start the example. Try again.");
-      setBusy(false);
-    }
-  }
+  };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -55,10 +47,12 @@ export function ConsentForm() {
     setError(null);
     try {
       const consent: Consent = { by, basis, ...(basis === "best_interests" ? { role: role.trim() } : {}), at: new Date().toISOString() };
-      const res = await fetch("/api/people", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preferredName: name.trim(), consent }) });
-      const body = (await res.json()) as { id?: string; error?: string };
+      const ex = example && name.trim() === example.name ? example : null;
+      const res = await fetch("/api/people", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preferredName: name.trim(), consent, ...(ex ? { example: ex.id } : {}) }) });
+      const body = (await res.json()) as { id?: string; told?: boolean; error?: string };
       if (!res.ok || !body.id) throw new Error(body.error ?? "Couldn't add them. Try again.");
-      router.push(`/p/${body.id}/story`);
+      // An example already told on this device opens where it was left; otherwise the story waits in the chat box.
+      router.push(ex ? (body.told ? `/p/${body.id}` : `/p/${body.id}/story?example=${ex.id}`) : `/p/${body.id}/story`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't add them. Try again.");
       setBusy(false);
@@ -72,12 +66,13 @@ export function ConsentForm() {
           <CardTitle>No one in mind? Start from an example</CardTitle>
           <CardDescription>A fictional person and their “This is me” story, ready in the chat box. Sending it runs the real chat and look-up.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
+        <CardContent className="flex flex-wrap gap-2" role="group" aria-label="Examples">
           {EXAMPLES.map((ex) => (
-            <Button key={ex.id} type="button" variant="outline" className="h-auto min-h-12 max-w-full py-2 text-left whitespace-normal" disabled={busy} onClick={() => void startExample(ex)}>
+            <Button key={ex.id} type="button" variant={example?.id === ex.id ? "default" : "outline"} aria-pressed={example?.id === ex.id} className="h-auto min-h-12 max-w-full py-2 text-left whitespace-normal" disabled={busy} onClick={() => pick(ex)}>
               {ex.label}
             </Button>
           ))}
+          {example && <p className="basis-full text-sm text-muted-foreground">{example.name} is fictional. Check who is telling it below, then start their story.</p>}
         </CardContent>
       </Card>
       <div className="grid gap-2">
@@ -124,7 +119,7 @@ export function ConsentForm() {
       )}
       <div>
         <Button type="submit" disabled={busy}>
-          {busy ? "Adding…" : "Start their story"}
+          {busy ? "Adding…" : example && name.trim() === example.name ? `Start ${example.name}’s story` : "Start their story"}
         </Button>
       </div>
     </form>

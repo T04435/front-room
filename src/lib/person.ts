@@ -93,6 +93,8 @@ export type Person = {
   suggestions: Record<string, Suggestion[]>;
   researched: Record<string, string>;
   example?: boolean;
+  /** Started from one of the landing page's example stories (Joan, Rosa, Amrit): reused on the same device. */
+  exampleOf?: string;
   createdAt: string;
   updatedAt: string;
 };

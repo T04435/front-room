@@ -76,9 +76,14 @@ export function whyShort(p: Pick<Person, "places">, item: { type: string; origin
   const town = p.places.find((x) => x.id === item.placeId)?.name;
   const like = item.parts.find((x) => x.startsWith("like "));
   if (like) return `Qloo · ${like}`;
-  if (item.type === "song") return `Qloo · ${item.parts.filter((x) => x !== "Qloo" && x !== "MusicBrainz" && x !== "via NotOnQ").slice(0, 3).join(" · ")}`;
+  // Songs: ["60s", "Glasgow", "British", "Qloo", …] → "Qloo · British 60s · Glasgow".
+  if (item.type === "song") {
+    const [decade, at, word] = item.parts;
+    const local = word && !["Qloo", "MusicBrainz", "via NotOnQ"].includes(word) ? `${word} ` : "";
+    return `Qloo · ${local}${decade} · ${town ?? at}`;
+  }
   if (item.type === "place") return `Qloo · long-standing in ${town ?? item.parts[1]}`;
-  return `Qloo · ${[item.parts[1], town].filter(Boolean).join(" · ")}`;
+  return town ? `Qloo · popular around ${town}` : "Qloo · popular then";
 }
 
 /** War, crime, horror and the like: not for reminiscence when steer clear points that way, and never first. */

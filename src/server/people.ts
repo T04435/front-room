@@ -76,6 +76,14 @@ function summarise(p: Person, kits: { createdAt: string }[]): PersonSummary {
   };
 }
 
+/** The person this device already started from an example story (A11: one Joan, not a new one per tap). */
+export async function exampleOnDevice(deviceId: string | null, exampleId: string): Promise<Person | null> {
+  if (!deviceId) return null;
+  const sql = await db();
+  const rows = await sql.query<{ person: Person | string }>("SELECT p.person FROM device_people d JOIN people p ON p.id = d.person_id WHERE d.device_id = $1 ORDER BY p.updated_at DESC", [deviceId]);
+  return rows.map((r) => parse(r.person)).find((p) => p.exampleOf === exampleId) ?? null;
+}
+
 /** This device's people, most recently changed first, then the example Margaret. */
 export async function listPeople(deviceId: string | null): Promise<PersonSummary[]> {
   const out: PersonSummary[] = [];

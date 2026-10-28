@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Check, Mic, MicOff, Paperclip, Pencil, Sparkles, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Lightbulb, Mic, MicOff, Paperclip, Pencil, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AgentMark } from "@/components/front-room/agent";
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Message, MessageContent } from "@/components/ui/message";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { birthYearOf, missingMinimum, researchInputs, researchKey, type Fact, type Person } from "@/lib/person";
 import type { FamilyQuestion } from "@/lib/learning";
 import type { RunEvent } from "@/lib/run-events";
@@ -130,10 +131,28 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   // New tries alone don't make a gallery (as on the person page): it takes a look-up.
   const hasGallery = Object.entries(person.suggestions).some(([k, cs]) => k !== "new-tries" && cs.length);
 
+  // A new Go-Between message: scroll to its start, so it's read from the top (A9: scrolling to the end of a tall
+  // container left a big screen blank). Anything else (your message, a step): just keep the end in view.
   // Braces: scrollIntoView returns a Promise in newer browsers, and an effect may only return a clean-up function.
+  // Several at once (what I heard, then a question): the first of them.
+  const seen = useRef(msgs.length);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [msgs.length, steps.length]);
+    const fresh = msgs.slice(Math.min(seen.current, msgs.length));
+    seen.current = msgs.length;
+    if (!fresh.length) return;
+    const first = fresh.find((m) => m.from === "agent");
+    const el = first && fresh.at(-1)?.from === "agent" ? document.querySelector<HTMLElement>(`[data-msg="${first.id}"]`) : null;
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    else endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [msgs]);
+  // Look-up steps: keep the latest in view.
+  useEffect(() => {
+    if (steps.length) endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [steps.length]);
+  // On a phone the ideas fold away once the conversation has started, so it gets the screen (A10).
+  const [ideas, setIdeas] = useState(false);
+  const talked = msgs.some((m) => m.from === "you");
+  const cue = Boolean(starter) && !talked && !busy && text.trim().length > 0;
 
   // Arriving with ?find=1 (the gallery's "Find more"): look things up straight away.
   useEffect(() => {
@@ -324,7 +343,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
               </Bubble>
             </Message>
           ) : (
-            <Message key={m.id}>
+            <Message key={m.id} data-msg={m.id} className="scroll-mt-20">
               <MessageContent className="grid w-full gap-1">
                 <span className="flex items-center gap-1.5 text-[15px] font-medium text-muted-foreground">
                   <AgentMark size={20} decorative state={busy && m.id === msgs.at(-1)?.id ? "working" : "rest"} /> Go-Between
@@ -372,13 +391,19 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
             <Spinner /> The Go-Between is reading that…
           </p>
         )}
-        <div ref={endRef} className="scroll-mb-56" />
+        <div ref={endRef} className="scroll-mb-40" />
       </div>
 
       {!ro && (
         <div className="sticky bottom-0 grid gap-2 border-t bg-background pt-3 pb-4">
-          {/* One scrolling row on a phone, so the chat keeps the screen. */}
-          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1" aria-label="What helps">
+          {/* On a phone, once you've started, the ideas sit behind one button (A10). */}
+          {talked && (
+            <Button size="sm" variant="ghost" className="justify-self-start sm:hidden" aria-expanded={ideas} onClick={() => setIdeas((x) => !x)}>
+              <Lightbulb aria-hidden /> {ideas ? "Hide ideas" : "Ideas of what to say"}
+            </Button>
+          )}
+          {/* One scrolling row, so the chat keeps the screen; a thin scrollbar (A17). */}
+          <div className={cn("-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]", talked && !ideas && "max-sm:hidden")} aria-label="What helps">
             {HINTS.map((h) => (
               <Button key={h.label} size="sm" variant="secondary" className="shrink-0" onClick={() => {
                   setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`);
@@ -394,6 +419,12 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
               </Button>
             ))}
           </div>
+          {/* An example's story waits in the box: say plainly what to do next (A11). */}
+          {cue && (
+            <p className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 font-medium text-primary" role="status">
+              <ArrowDown aria-hidden className="size-4 shrink-0" /> {name}&apos;s story is in the box. Tap Send to read it.
+            </p>
+          )}
           {/* On a phone the box takes the full width and the buttons sit under it (QA-62). */}
           <div className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
             <Textarea
@@ -417,7 +448,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
               <Paperclip aria-hidden />
             </Button>
             <TalkButton onText={(t) => setText((x) => `${x}${x && !x.endsWith(" ") ? " " : ""}${t}`)} />
-            <Button size="icon" aria-label="Send" onClick={() => void send()} disabled={busy || text.trim().length < 3}>
+            <Button size="icon" aria-label="Send" className={cn(cue && "animate-pulse ring-4 ring-primary/30")} onClick={() => void send()} disabled={busy || text.trim().length < 3}>
               <ArrowUp aria-hidden />
             </Button>
             </span>

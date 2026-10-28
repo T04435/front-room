@@ -98,17 +98,15 @@ export default function Home() {
             No one in mind? Start from a story
           </h2>
         </div>
-        <p className="text-muted-foreground">One tap starts a fictional person with their story ready to send. The chat reads it, and Qloo looks up their years and places.</p>
+        <p className="text-muted-foreground">Pick a fictional person, say who is telling it, and their story waits in the chat, ready to send. The chat reads it, and Qloo looks up their years and places.</p>
         <ul className="grid gap-2 sm:grid-cols-3">
           {EXAMPLES.map((e) => (
             <li key={e.id}>
-              {/* A form: one tap starts the example person and opens their chat with the story ready. */}
-              <form action={`/start/${e.id}`} method="post">
-                <button type="submit" className="block w-full rounded-lg border-2 border-input bg-card p-4 text-left hover:bg-accent">
-                  <span className="font-semibold">{e.name}</span>
-                  <span className="block text-[15px] text-muted-foreground">{e.label.split(" · ")[1]}</span>
-                </button>
-              </form>
+              {/* To the consent step with the example picked: the person is made once consent is given (A11). */}
+              <Link href={`/people/new?example=${e.id}`} className="block w-full rounded-lg border-2 border-input bg-card p-4 text-left hover:bg-accent">
+                <span className="font-semibold">{e.name}</span>
+                <span className="block text-[15px] text-muted-foreground">{e.label.split(" · ")[1]}</span>
+              </Link>
             </li>
           ))}
         </ul>
