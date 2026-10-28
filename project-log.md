@@ -4,6 +4,40 @@ Qloo Agentic Hackathon 2026, 4th entry: **Front Room** (renamed from the working
 brand comes from the Front Room design system).
 Devpost deadline 30 Oct 2026, 23:45 ET. Newest first.
 
+## 2026-10-29 · The product audit's fixes: Qloo's work shown, local results, steer clear kept (HQ)
+
+HQ ran an independent audit of `feat/mvp` at 2523aaa (`../product/audit-2026-10-29/README.md`). Built in order, local
+commits only:
+
+- **A8, Qloo's work shown.** Each card's sheet says **Why this:** in a plain sentence ("Qloo picked the artist:
+  British artists of the 60s, popular around Glasgow. The song is one of theirs, checked on MusicBrainz."), and each
+  tile has a short line ("Qloo · British 60s · Glasgow", "Named in their story"). A **How Qloo finds these** panel
+  (open on Margaret) shows story → places and years → Qloo per town and era → steer clear, and links the README table.
+- **A3, steer clear.** A talking point that names someone on steer clear, or the wedding when a husband, wife or
+  partner is on it, is never offered (handover, What works, the "a wedding?" ask). Same rule as the gallery.
+- **A5, local.** The cause of the US top tens: Qloo read a bare "Glasgow" as Glasgow, Kentucky (probe: the first six
+  locality results were all US or Costa Rica). Each place is now pinned to a town first (`src/server/locality.ts`):
+  the country most of their places share, else the UK, asking again as "Glasgow, United Kingdom" when needed.
+  `signal.location.weight` and `filter.location.query` made no difference to artists (probed). The town's own music
+  comes first through tag intersections: decade ∩ Scottish (empty for the 60s), then decade ∩ British (the Beatles,
+  the Stones, the Who, the Kinks), then the decade anywhere. Venues the story names are searched as Qloo places in
+  the town ("Barrowland Glasgow" → Barrowland Ballroom) and kept only when the name matches.
+- **A6, honest.** "From their story" only on what the story names: venues found for it, and Qloo places the family
+  mentioned. "Dancing Queen" no longer borrows "went dancing at the Barrowland".
+- **A7.** A place with no end year ends where the next one starts (when added, and whenever a person is read).
+- **A4, faster.** Places within 12 km are one town (Govan with Glasgow); all towns and every call inside a town run at
+  once; the gallery opens when the first town is in. Live, cold, three places: 16 s to "Open the gallery now" (was
+  about 90 s), 20 s for every town, about 70 s with songs.
+- **A9, A10.** A reply scrolls to the first new Go-Between message. On a phone the idea chips fold behind "Ideas of
+  what to say" once the conversation starts.
+- **A11.** Landing examples go through the consent step (example picked), the same device gets the same example
+  person back, and the story shows "Tap Send to read it".
+- **P2:** A12 sponsor names off places (The Ritz, Manchester; no modern photo), A13 varied prompts (a ground asks about
+  a match), A14 three in Start here and Qloo's year and picture for family-named films, A15 no "when did they move" for
+  a place they grew up in, A16 the Stop note at the top of the sheet, A17 a thin chip scrollbar, A18 "UK time".
+- **A19, default taken:** Qloo's entity images stay on the cards (artists, posters, places), with "Taste data from
+  Qloo" in the footer. The licensing question is still the user's.
+
 ## 2026-10-27 · Brand, landing page and the last features before the submission
 
 - **Brand:** the Front Room design system is ported from feat/brand: tokens, fonts, logo, header and footer, and the

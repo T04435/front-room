@@ -19,9 +19,16 @@ Before you present:
 ## Examples for judges
 
 On the landing page (or Add someone), tap an example: Joan (Liverpool, then Leeds), Rosa (Sevilla, then Madrid, in
-Spanish) or Amrit (born in Lahore, grew up in Amritsar, then Bradford; Punjabi). Their full "This is me" waits in the
-chat box; Send runs the real chat and the live Qloo look-up. Films, TV and places are ready in about 20 seconds ("Open
-the gallery now"); songs join as MusicBrainz checks them.
+Spanish) or Amrit (born in Lahore, grew up in Amritsar, then Bradford; Punjabi). It opens the consent step with the
+example picked (tap **Start Joan's story**); a device that already started Joan gets the same Joan back. Their full
+"This is me" waits in the chat box with "Tap Send to read it". Send runs the real chat (about 10 seconds to "Here's
+what I heard") and, after **All right** and **Find things**, the live Qloo look-up.
+
+**Timings, measured live on 29 Oct** (a three-place story: Glasgow, Govan, Blackpool; dev server, nothing cached):
+the first town's films, TV and places at **16 s** ("Open the gallery now"), every town at 20 s, and the songs at about
+70 s (MusicBrainz checks one song a second; they join the open gallery). Places in the same town are looked up once
+(Govan with Glasgow), and all towns run at once. A repeat look-up within 24 hours is cached and near-instant. Before
+these changes the same story took about 90 s to the gallery.
 
 Also worth showing:
 - **A paper form:** the paperclip in the chat reads a photo or PDF of a "This is me" into the box (about 5 seconds live).
@@ -39,7 +46,7 @@ Fictional Joan, on the production build, mock data. Paste (or say) exactly this;
 | 0–5s | People → Add someone (Joan) → the chat → paste. | "Care homes write life stories, then never use them." |
 | 5–10s | Here's what I heard → All right. Steer clear of brother Tom → Never. Language → English. Find things for Joan. | "Front Room starts with the family's own words." |
 | 10–16s | The look-up streams; Open Joan's gallery. Start here: Cilla Black (from the family), a new try, the Cavern Club (from their story). No war films. | "Qloo turns where and when they grew up into the songs, films, TV and places of their youth." |
-| 16–23s | Tap a song: the hook ("Out in 1963, when Joan was 17 and living in Liverpool"), the prompt, Sang along. A film shows "Play the song from it". | "Every card says what to say. One tap logs how it went." |
+| 16–23s | Tap a song: the hook ("Out in 1963, when Joan was 17 and living in Liverpool"), the prompt, **Why this** (what Qloo matched: "British artists of the 60s, popular around Liverpool"), Sang along. | "Every card says what to say, and why Qloo picked it. One tap logs how it went." |
 | 23–30s | The example Margaret: Before you start (For staff) → What works. | "And what works stays, for whoever's on next." |
 
 ## 1. A new person: the chat (about 60 s)
@@ -58,6 +65,9 @@ Fictional Joan, on the production build, mock data. Paste (or say) exactly this;
 ## 2. The gallery: what to play now (about 45 s)
 1. **Before you start**: the 30-second handover for whoever's on shift (what works, avoid, talk about, calm with, the comfort checks). It opens **For staff**; **For a visit** is one tap and is remembered on that device, so tap For staff before presenting if you tried it..
    The pitch: a new carer knows what works for Iris before they walk in.
+1. **How Qloo finds these** (open on Margaret, folded on others): story → places and years → Qloo per town and era →
+   filtered by steer clear. Each card's sheet has a plain **Why this** line, and each tile a short one ("Qloo · British
+   60s · Liverpool", "Named in their story").
 2. Shelves: New tries, Songs (checked on MusicBrainz), Films, On the telly, Places they knew. Each has a source line;
    the family's own picks come first.
 3. Tap a song → Spotify or YouTube (nothing hosted) → **Sang along**. Undo is there. **Tearful** is its own response
