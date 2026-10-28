@@ -73,3 +73,18 @@ test("a photo of a paper This is me is read into the chat box to check and send"
   await expect(page.getByText("Here's what I read from the page")).toBeVisible();
   await expect(page.getByLabel("Tell the Go-Between about Joan")).toHaveValue(/Where I grew up/);
 });
+
+test("a landing example goes through consent, waits with a send cue, and is the same person the second time", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: /^Joan/ }).click();
+  await expect(page).toHaveURL(/\/people\/new\?example=joan$/);
+  await expect(page.getByText("Consent")).toBeVisible();
+  await page.getByRole("button", { name: "Start Joan’s story" }).click();
+  await expect(page).toHaveURL(/\/p\/[A-Za-z0-9_-]{10}\/story\?example=joan$/);
+  const first = page.url().match(/\/p\/([^/]+)\//)![1];
+  await expect(page.getByText("Joan's story is in the box. Tap Send to read it.")).toBeVisible();
+
+  await page.goto("/people/new?example=joan");
+  await page.getByRole("button", { name: "Start Joan’s story" }).click();
+  await expect(page).toHaveURL(new RegExp(`/p/${first}/story\\?example=joan$`));
+});

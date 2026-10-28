@@ -177,16 +177,30 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   };
 
   /** Saves the story; returns the saved person (or the old one if it failed). */
+  // The latest person and the save in flight: Find things straight after All right waits for it (a fast tap saw
+  // the story before it was saved).
+  const latest = useRef(person);
+  const saving = useRef<Promise<Person> | null>(null);
   async function save(next: Person): Promise<Person> {
+    const run = saveNow(next);
+    saving.current = run;
+    return run.finally(() => {
+      if (saving.current === run) saving.current = null;
+    });
+  }
+  async function saveNow(next: Person): Promise<Person> {
     setPerson(next);
+    latest.current = next;
     try {
       const res = await fetch(`/api/people/${person.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(storyPatch(next)) });
       if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "That didn't save.");
       const saved = (await res.json()) as Person;
       setPerson(saved);
+      latest.current = saved;
       return saved;
     } catch (e) {
       setPerson(person);
+      latest.current = person;
       say(e instanceof Error ? e.message : "That didn't save. Try again.");
       return person;
     }
@@ -243,6 +257,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   }
 
   async function find() {
+    if (saving.current) await saving.current;
+    const person = latest.current;
     if (missingMinimum(person).length) {
       // What they told me may already cover it, waiting on a Yes.
       if (msgs.some((m) => "kind" in m && m.kind === "heard" && !resolved.has(m.id))) {
@@ -290,7 +306,9 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
       }
       if (failed) say(failed);
       else {
-        setPerson((await (await fetch(`/api/people/${person.id}`)).json()) as Person);
+        const fresh = (await (await fetch(`/api/people/${person.id}`)).json()) as Person;
+        latest.current = fresh;
+        setPerson(fresh);
         // The early "open it now" offer has done its job.
         setMsgs((ms) => ms.filter((m) => !("kind" in m && m.kind === "early")));
         push({ id: id(), from: "agent", kind: "found" });
