@@ -478,7 +478,7 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: st
                   </span>
                   <span className="line-clamp-2 font-medium">{g.title}</span>
                   <span className="line-clamp-1 text-sm text-muted-foreground">{[g.by, g.year].filter(Boolean).join(", ") || (g.type === "place" ? (g.parts.find((x) => !["place", "Qloo", "their story"].includes(x)) ?? "Place") : TYPE_WORD[g.type])}</span>
-                  {!grid && <span className="line-clamp-1 text-sm text-muted-foreground">{g.whyShort}</span>}
+                  {!grid && <span className="line-clamp-2 text-sm text-muted-foreground">{g.whyShort}</span>}
                 </button>
               </li>
             );
