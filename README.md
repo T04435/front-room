@@ -165,7 +165,8 @@ The e2e run starts a server in offline mode on its own port and refuses to run a
 
 Say "engagement and connection, logged by staff" and "personal music beats generic". Never say it "reduces
 agitation" or "reduces antipsychotics": the Cochrane review found little or no effect on agitation over time, and the
-Music & Memory trials found none. The problem Front Room works on is a stranger at 18:00 who doesn't know the person
+Music & Memory trial (METRIcAL) saw less non-aggressive agitation by direct observation but no change on staff-reported
+or administrative measures. The problem Front Room works on is a stranger at 18:00 who doesn't know the person
 (care-home staff turnover in England is about 25%, and handovers are short), and that no one else learns, shift by
 shift, what works. See `DEMO.md`.
 

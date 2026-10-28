@@ -118,8 +118,10 @@ Qloo only ever gets places, years and taste entities: never a name, never a stee
 - **The evidence changed our pitch.** The Cochrane review found little or no effect of music therapy on agitation
   over time ([van der Steen et al. 2018](https://pmc.ncbi.nlm.nih.gov/articles/PMC6513122); its
   [2025 update](https://www.cochrane.org/about-us/news/music-based-therapy-may-improve-depressive-symptoms-people-dementia)
-  agrees), and two large trials of personalised playlists found no effect on agitation
-  ([METRIcAL](https://clinicaltrials.gov/study/NCT03821844)). So we make no agitation claims. What Front Room offers is
+  agrees). The large trial of personalised playlists in care homes
+  ([METRIcAL](https://clinicaltrials.gov/study/NCT03821844)) reported less non-aggressive agitation by direct
+  observation, but no change on staff-reported or administrative measures. A mixed picture, so we make no agitation
+  claims. What Front Room offers is
   engagement and connection, logged by staff.
 - **Personal beats generic.** Music chosen for the individual did better than generic relaxing music
   ([Gerdner 2000](https://sgec.stanford.edu:443/content/dam/sm/sgec/documents/education/Evidence-Based%20Guidelines_Linda%20Gerdner.pdf)),
