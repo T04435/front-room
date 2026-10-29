@@ -55,7 +55,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "calm",
       "title": "You Don't Have to Say You Love Me",
-      "source": "A recording checked on MusicBrainz, by Dusty Springfield",
+      "source": "A recording by Dusty Springfield, checked on MusicBrainz",
       "addedBy": "family",
       "minutes": 3,
       "entityId": null
@@ -83,7 +83,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "calm",
       "title": "Yesterday",
-      "source": "A recording checked on MusicBrainz, by The Beatles",
+      "source": "A recording by The Beatles, checked on MusicBrainz",
       "minutes": 3,
       "entityId": null
     },
@@ -110,7 +110,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "familiar",
       "title": "Maggie May",
-      "source": "A recording checked on MusicBrainz, by Rod Stewart",
+      "source": "A recording by Rod Stewart, checked on MusicBrainz",
       "minutes": 3,
       "entityId": null
     },
@@ -137,7 +137,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "singalong",
       "title": "Lola",
-      "source": "A recording checked on MusicBrainz, by The Kinks",
+      "source": "A recording by The Kinks, checked on MusicBrainz",
       "minutes": 3,
       "entityId": null
     },
@@ -164,7 +164,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "singalong",
       "title": "Waterloo",
-      "source": "A recording checked on MusicBrainz, by ABBA",
+      "source": "A recording by ABBA, checked on MusicBrainz",
       "minutes": 3,
       "entityId": null
     },

@@ -15,7 +15,7 @@ async function tellStory(page: Page) {
   await expect(page.getByText("Here's what I heard")).toBeVisible();
   await expect(page.getByText("You said they moved to Blackpool. What did they do there?")).toBeVisible();
   await page.getByRole("button", { name: "Never" }).click();
-  await page.getByRole("button", { name: "All right" }).click();
+  await page.getByRole("button", { name: "That’s right" }).click();
 }
 
 test("a new person's page is a chat: it confirms what it heard, steers clear, then finds things and opens the gallery", async ({ page }) => {

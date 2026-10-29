@@ -120,9 +120,19 @@ export function whyFor(p: Pick<Person, "preferredName" | "places"> & Partial<Pic
       : age && age >= 5 && age <= 60
         ? `${item.type === "song" ? "Big" : "Out"}${where ? ` in ${where}` : ""} when ${name} was ${age}.`
         : `Popular${where ? ` around ${where}` : ""} in ${name}’s young years.`;
-  // "Qloo: British artists of the 60s, popular around Glasgow." → what Qloo matched, in brackets.
-  const said = item.source.replace(/^Qloo:\s*/, "").replace(/\.$/, "");
-  return `${human} Found by Qloo (${said})${checked}.`;
+  // What Qloo matched, never a provenance line in brackets (R2-2): Qloo's own words when the source is Qloo's, else
+  // from the card's parts ("60s", "Manchester") → "among Manchester artists of the 60s".
+  const said = /^Qloo:/.test(item.source) ? item.source.replace(/^Qloo:\s*/, "").replace(/\.$/, "") : null;
+  const [decade, at] = item.parts;
+  const among =
+    item.type === "place"
+      ? ""
+      : said && /^(\w+ )?(artists|films|TV)\b/.test(said)
+        ? ` among ${said}`
+        : item.type === "song" && decade && /^\d0s$/.test(decade)
+          ? ` among ${town ?? at} artists of the ${decade}`
+          : "";
+  return `${human} Found by Qloo${among}${checked}.`;
 }
 
 /** The same, in a few words for a tile (UX-3): "Manchester · 70s", "Like Lulu", "From the family". No "Qloo", no type. */

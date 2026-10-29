@@ -142,6 +142,11 @@ describe("Product's v2.3 rules (the example Margaret, who has 'Loud bangs' in st
     expect(titles(g.shelves.tv)).toContain("Fawlty Towers");
   });
 
+  it("R2-2: no Why line brackets a source or says 'AI pick'", () => {
+    const all = [...g.works, ...g.newTries, ...Object.values(g.shelves).flat()];
+    expect(all.filter((x) => /\(|AI pick|the model/.test(x.why)).map((x) => x.why)).toEqual([]);
+  });
+
   it("PR-2: every card has a hook tied to her and an open prompt, never 'remember'", () => {
     const all = [...g.works, ...g.newTries, ...Object.values(g.shelves).flat()];
     expect(all.every((x) => x.hook.length > 10 && x.prompt.ask.endsWith("?") && !/remember/i.test(x.prompt.ask + x.hook))).toBe(true);
@@ -182,7 +187,7 @@ describe("why each card is here (A6, A8)", () => {
   });
 
   it("says plainly what Qloo matched", () => {
-    expect(find("Shout").why).toBe("Big in Glasgow when Edie was 15. Found by Qloo (Scottish artists of the 60s, popular around Glasgow); a real recording, checked on MusicBrainz.");
+    expect(find("Shout").why).toBe("Big in Glasgow when Edie was 15. Found by Qloo among Scottish artists of the 60s, popular around Glasgow; a real recording, checked on MusicBrainz.");
     expect(find("Shout").whyShort).toBe("Glasgow · Scottish 60s");
     expect(find("Barrowland Ballroom").why).toContain("The family mentioned it");
   });

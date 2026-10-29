@@ -231,17 +231,17 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
             <h1 className="font-heading text-[34px] leading-[40px]">{name}</h1>
             <p className="text-muted-foreground">Things to play and talk about with {name}. Tap one to play it.</p>
           </div>
-          {/* One filled action: something calm now (UX-1). */}
-          <div className="flex flex-wrap gap-2">
+          {/* One filled action: something calm now (UX-1). On a phone: Something calm now on its own row, the other two side by side (R2-4). */}
+          <div className="flex flex-wrap gap-2 max-sm:grid max-sm:w-full max-sm:grid-cols-2">
             {calmNow && (
-              <Button className="max-sm:h-11" onClick={() => setOpen(calmNow, true)}>
+              <Button className="max-sm:col-span-2 max-sm:h-11" onClick={() => setOpen(calmNow, true)}>
                 <Waves aria-hidden /> Something calm now
               </Button>
             )}
             <Button asChild variant="outline" className="max-sm:h-11">
               <Link href={`/p/${person.id}/works`}>What works</Link>
             </Button>
-            <Button asChild variant="ghost" className="max-sm:h-11">
+            <Button asChild variant="ghost" className="max-sm:h-auto max-sm:min-h-11 max-sm:whitespace-normal">
               <Link href={`/p/${person.id}/story`}>
                 <MessageCircleHeart aria-hidden /> Get to know {name} better
               </Link>
@@ -385,7 +385,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
                 <span className="font-medium">Why this:</span> {open.why}
               </p>
 
-              <div className="grid gap-2">
+              {/* One shrinkable column: the Stop label can't set the sheet's width (R2-1). */}
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <span className="text-sm font-medium">How did {name} respond?</span>
                 <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2" role="group" aria-label="Log a response">
                   {/* Two by two (UX-2): "Sang along" for songs and the telly, "Talked" for the rest. Upset is Stop's job. */}
@@ -416,7 +417,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
                     ))}
                 </p>
                 {/* Always in reach: it sticks to the bottom of the sheet on a phone (QA-65). */}
-                <Button variant="destructive" className={cn("h-12", !ro && "sticky bottom-2 z-10 bg-[color-mix(in_oklch,var(--destructive)_12%,var(--popover))] shadow-[var(--shadow-card)]")} disabled={ro} onClick={() => void stop(open)}>
+                <Button variant="destructive" className={cn("h-auto min-h-12 whitespace-normal", !ro && "sticky bottom-2 z-10 bg-[color-mix(in_oklch,var(--destructive)_12%,var(--popover))] shadow-[var(--shadow-card)]")} disabled={ro} onClick={() => void stop(open)}>
                   <OctagonX aria-hidden /> Upset? Stop · something calm instead
                 </Button>
               </div>
@@ -495,7 +496,8 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: st
       </div>
       <ScrollArea className="w-full whitespace-nowrap">
         {/* Start here: all three in view on a phone, no sideways scroll (QA-44). */}
-        <ul className={grid ? "grid grid-cols-3 gap-2 p-1 pb-3" : "flex gap-3 p-1 pb-3"}>
+        {/* Start here's tiles stay about 260px on a wide screen (R2-5). */}
+        <ul className={grid ? "grid max-w-[50rem] grid-cols-3 gap-2 p-1 pb-3" : "flex gap-3 p-1 pb-3"}>
           {shown.map((g) => {
             const Icon = ICON[g.type];
             const tag = tagOf(g, true);
@@ -586,7 +588,7 @@ function LearnedSomething({ person, name, onSaved }: { person: Person; name: str
           </Button>
         </form>
       )}
-      {state === "failed" && <p className="text-sm text-destructive">That didn&apos;t save. Try again.</p>}
+      {state === "failed" && <p className="text-sm text-destructive">That didn&apos;t save. Check the connection and tap again.</p>}
     </div>
   );
 }

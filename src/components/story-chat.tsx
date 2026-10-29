@@ -204,7 +204,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   };
 
   /** Saves the story; returns the saved person (or the old one if it failed). */
-  // The latest person and the save in flight: Find things straight after All right waits for it (a fast tap saw
+  // The latest person and the save in flight: Find things straight after That's right waits for it (a fast tap saw
   // the story before it was saved).
   const latest = useRef(person);
   const saving = useRef<Promise<Person> | null>(null);
@@ -289,7 +289,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
     if (missingMinimum(person).length) {
       // What they told me may already cover it, waiting on a Yes.
       if (msgs.some((m) => "kind" in m && m.kind === "heard" && !resolved.has(m.id))) {
-        say("Tap Yes or All right on what I heard first, and then I'll look things up.");
+        say("Tap That’s right on what I heard first, and then I'll look things up.");
         return;
       }
       const ask = nextAsk(person);
@@ -696,13 +696,14 @@ function AgentBody(props: BodyProps) {
   }
 }
 
-/** "Here's what I heard": each fact with Yes, Edit or Remove, and All right for the lot. */
+/** "Here's what I heard": That's right for the lot, and a Change per fact (UX-5, R2-3). */
 function Heard({ facts, resolved, ro, onConfirm, onDrop }: { facts: Candidate[]; resolved: boolean; ro: boolean; onConfirm: (f: Candidate[]) => void; onDrop: () => void }) {
   // Kept unless changed (UX-5): one "That's right" for the lot, and a quiet Change per fact (Remove is inside it).
   const [list, setList] = useState(facts);
   const [editing, setEditing] = useState<string | null>(null);
   const [kept, setKept] = useState<Candidate[]>([]);
-  if (resolved) return <span>Got it: {kept.length ? kept.map(describeFact).join(" · ") : "nothing kept from that"}.</span>;
+  // A long story: the first six, and how many more (R2-7).
+  if (resolved) return <span>Got it: {kept.length ? `${kept.slice(0, 6).map(describeFact).join(" · ")}${kept.length > 6 ? ` · and ${kept.length - 6} more` : ""}` : "nothing kept from that"}.</span>;
   const finish = (k: Candidate[]) => {
     setKept(k);
     setList([]);
@@ -748,8 +749,6 @@ function Heard({ facts, resolved, ro, onConfirm, onDrop }: { facts: Candidate[];
           )}
         </span>
       ))}
-      {/* The same action at the bottom, for a long list. */}
-      {list.length > 1 && !ro && <span>{right("All right", "outline")}</span>}
     </span>
   );
 }
@@ -835,7 +834,7 @@ function LanguageAsk({ name, onSave }: { name: string; onSave: (lang: string) =>
           if (other.trim().length >= 2) onSave(other.trim().slice(0, 30));
         }}
       >
-        <Input aria-label="Another language" value={other} onChange={(e) => setOther(e.target.value)} placeholder="Another language" className="h-8 sm:w-56" maxLength={30} />
+        <Input aria-label="Another language" value={other} onChange={(e) => setOther(e.target.value)} placeholder="Another language" className="h-11 sm:w-56" maxLength={30} />
         <Button size="sm" type="submit" disabled={other.trim().length < 2}>
           Save
         </Button>
