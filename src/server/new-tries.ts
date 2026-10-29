@@ -12,11 +12,15 @@ import { pickSongs } from "@/server/songs";
 export const NEW_TRIES_KEY = "new-tries";
 const COUNT = 3;
 
-/** What new tries are seeded from: the proven songs (best first), else the family's loved artists and songs. */
+/**
+ * What new tries are seeded from: the proven songs (best first), else the family's loved artists and songs. Never
+ * something paused after an upset or a Stop, nor its artist (IM-1): more like it waits until the family answers.
+ */
 export function seedsOf(p: Person, stats: Map<string, ItemStat>): { name: string; like: string }[] {
+  const paused = new Set([...stats.values()].filter((s) => s.state === "paused").flatMap((s) => [nameKey(s.title), ...(s.by ? [nameKey(s.by)] : [])]));
   const proven = [...stats.values()].filter((s) => s.state === "proven" && s.type === "song" && s.by).sort((a, b) => b.sangSessions + b.engagedSessions - (a.sangSessions + a.engagedSessions));
   if (proven.length) return proven.slice(0, 2).map((s) => ({ name: s.by!, like: s.title }));
-  return p.loves.filter((l) => l.type === "artist" || (l.type === "song" && l.by)).slice(0, 2).map((l) => {
+  return p.loves.filter((l) => (l.type === "artist" || (l.type === "song" && l.by)) && !paused.has(nameKey(l.title)) && !(l.by && paused.has(nameKey(l.by)))).slice(0, 2).map((l) => {
     // "Cilla Black and danced at the Cavern" → "Cilla Black": the label stays short on a tile.
     const short = l.title.split(/ and |, /)[0].trim();
     return { name: l.by ?? short, like: short };

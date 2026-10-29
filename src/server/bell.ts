@@ -1,6 +1,7 @@
 import "server-only";
 import { describeEra, eraFor, pickDecadeTag } from "@/lib/era";
 import { harshKeywords, isInstitution, pickVenue } from "@/lib/card-words";
+import { STAND_INS_KEY } from "@/lib/gallery";
 import { birthYearOf, eraForPlace, researchInputs, researchKey, steersClear, talkingPoints, type Person, type Place, type Suggestion } from "@/lib/person";
 import { nameKey, parseInsights, parseSearch, parseTags, pickByName } from "@/lib/qloo-parse";
 import type { CallLog, QlooParams } from "@/lib/qloo-transport";
@@ -96,6 +97,8 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
     done.push({ key: STORY_KEY, place: null });
   });
 
+  // Loves Qloo's search doesn't know: each gets an honest stand-in from the same years and town (IM-5).
+  const misses: Miss[] = [];
   // Films, TV and books the family named: Qloo's year and picture for their tiles (A14).
   const loves = Promise.all(
     p.loves.map(async (l) => {
@@ -104,6 +107,7 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
       const match = await get("/search", { query: l.title, types, take: 3 }, onCall)
         .then((r) => pickByName(parseSearch(r.data), l.title) ?? null)
         .catch(() => null);
+      if (!match) misses.push({ title: l.title, type: l.type as "film" | "tv" | "book" });
       return match ? { ...l, year: l.year ?? match.year, ...(match.image && !l.image ? { image: match.image } : {}) } : l;
     }),
   );
@@ -160,6 +164,7 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
         const match = await get("/search", { query: l.title, types: "urn:entity:artist", take: 3 }, onCall)
           .then((r) => pickByName(parseSearch(r.data), l.title) ?? parseSearch(r.data)[0] ?? null)
           .catch(() => null);
+        if (!match) misses.push({ title: l.title, type: "artist" });
         return { placeId: "family", type: "artist" as const, title: l.title, year: l.year ?? null, eraFrom: by + 10, eraTo: by + 40, parts: ["the family", l.title], source: `The family said ${p.preferredName || "they"} loved ${l.title}.`, ...(match?.image ? { image: match.image } : {}) };
       }),
     );
@@ -204,10 +209,39 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
     });
   }
 
+  const home = towns[0];
+  const standIns = home ? standInsFor(misses, drafts.get(researchKey(home.place, by)) ?? [], home.place.name, p.preferredName) : [];
+  if (standIns.length) {
+    drafts.set(STAND_INS_KEY, standIns);
+    keys.push({ key: STAND_INS_KEY, place: null });
+    emit({ type: "step-start", id: "stand-ins", tool: "stand_ins", title: "Stand-ins", running: "Finding stand-ins for what Qloo didn't know" });
+    emit({ type: "step-end", id: "stand-ins", ok: true, summary: standIns.map((d) => `Couldn’t find ‘${d.standIn}’ on Qloo: ${d.title} from the same years and town instead, as a new try.`).join(" "), items: [], chips: standIns.map((d) => d.title), sources: ["Qloo"], sourceLine: "stand-ins · Qloo" });
+  }
   const final = withCards(p, keys, drafts, false);
   const { [SONGS_PENDING]: _pending, ...researched } = final.researched;
   void _pending;
   return { ...final, researched, loves: await loves };
+}
+
+type Miss = { title: string; type: "artist" | "film" | "tv" | "book" };
+
+/**
+ * One stand-in per love Qloo's search didn't know (IM-5): the top song for an artist, else the top film, show or book
+ * of the same type, moved from the home town's own look-up. Labelled, and a new try until a log proves it.
+ */
+export function standInsFor(misses: Miss[], found: Draft[], town: string, name: string): Draft[] {
+  const used = new Set<string>();
+  return misses.flatMap((m) => {
+    const want = m.type === "artist" ? "song" : m.type;
+    const pick = found.find((d) => d.type === want && !used.has(d.title) && nameKey(d.by ?? d.title) !== nameKey(m.title));
+    if (!pick) return [];
+    used.add(pick.title);
+    // Moved, not copied: one card, labelled as the stand-in.
+    found.splice(found.indexOf(pick), 1);
+    const { artist, ...card } = pick;
+    void artist;
+    return [{ ...card, standIn: m.title, like: undefined, source: `Stand-in: Qloo didn’t know ‘${m.title}’, so this is a top pick from ${name || "their"}’s years in ${town}.` } satisfies Draft];
+  });
 }
 
 /** Venues named in the story, found on Qloo. */
@@ -385,7 +419,7 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
     for (const e of hit.found.filter((x) => nameKey(x.name) !== nameKey(hit.match.name)).slice(0, 3)) add({ placeId: place.id, type: "book", title: e.name, year: e.year, parts: ["book", `like ${hit.match.name}`, "Qloo"], source: `Qloo: liked by readers of ${hit.match.name}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
   }
   for (const { kind, n, found } of screen) {
-    for (const e of found.filter((x, i, xs) => xs.findIndex((y) => y.id === x.id) === i).slice(0, n)) add({ placeId: place.id, type: kind, title: e.name, year: e.year, parts: [kind === "film" ? "film" : "TV", e.year ? String(e.year) : years, "Qloo"], source: `Qloo: ${kind === "film" ? "films" : "TV"} from ${years}, popular around ${name}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}), ...(e.genres.length || harshKeywords(e.keywords).length ? { genres: [...e.genres, ...harshKeywords(e.keywords)] } : {}) });
+    for (const e of found.filter((x, i, xs) => xs.findIndex((y) => y.id === x.id) === i).slice(0, n)) add({ placeId: place.id, type: kind, title: e.name, year: e.year, parts: [kind === "film" ? "film" : "TV", e.year ? String(e.year) : years, "Qloo"], source: `Qloo: ${kind === "film" ? "films" : "TV"} from ${years}, popular around ${name}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}), ...(e.genres.length || harshKeywords(e.keywords).length ? { genres: [...e.genres, ...harshKeywords(e.keywords)] } : {}), ...(e.popularity !== null ? { popularity: e.popularity } : {}), ...(kind === "tv" && e.finaleYear ? { runTo: e.finaleYear } : {}) });
   }
   for (const e of historic.filter((x) => !isInstitution(x.name)).slice(0, PER_PLACE.places)) add({ placeId: place.id, type: "place", title: e.name, year: null, parts: ["place", name, "Qloo"], source: `Qloo: a long-standing place in ${name}, still there today.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
 

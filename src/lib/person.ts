@@ -69,6 +69,12 @@ export type Suggestion = {
   answer?: "yes" | "unsure" | "upset";
   /** Named in their story (a venue the family mentioned), found on Qloo: the story's words. */
   fromStory?: string;
+  /** Films and TV: Qloo's popularity (0–1), so the familiar ones lead (IM-4). */
+  popularity?: number;
+  /** TV: the last year of its run, when Qloo has it (IM-3). */
+  runTo?: number;
+  /** A stand-in for a love Qloo couldn't find (IM-5): the family's title. */
+  standIn?: string;
 };
 
 export type Person = {

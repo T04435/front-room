@@ -10,6 +10,8 @@ const entity = z.object({
   properties: z
     .object({
       release_year: z.union([z.number(), z.string()]).nullable().optional(),
+      /** TV: the year it ended, when it has (Qloo's tv_show property, also its `filter.finale_year` filter). */
+      finale_year: z.union([z.number(), z.string()]).nullable().optional(),
       short_description: z.string().nullable().optional(),
       description: z.string().nullable().optional(),
       image: z.object({ url: z.string().optional() }).partial().nullable().optional(),
@@ -26,6 +28,8 @@ export type QlooEntity = {
   id: string;
   name: string;
   year: number | null;
+  /** TV: the year its run ended, if Qloo has it. */
+  finaleYear: number | null;
   description: string | null;
   disambiguation: string | null;
   popularity: number | null;
@@ -51,6 +55,7 @@ function toEntity(e: z.infer<typeof entity>): QlooEntity {
     id: e.entity_id,
     name: e.name,
     year: Number.isFinite(year) && year > 0 ? year : null,
+    finaleYear: Number(e.properties?.finale_year) > 0 ? Number(e.properties?.finale_year) : null,
     description: e.properties?.short_description ?? e.properties?.description ?? null,
     disambiguation: e.disambiguation ?? null,
     popularity: e.popularity ?? null,

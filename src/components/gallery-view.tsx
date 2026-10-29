@@ -75,6 +75,7 @@ const hm = (iso: string) => `${new Date(iso).toLocaleTimeString("en-GB", { hour:
 function tagOf(g: GalleryItem): string | null {
   if (g.askFamily) return "Ask family";
   if (g.stat?.state === "proven") return g.stat.sangSessions >= 2 ? "Sings along" : "Works";
+  if (g.standIn) return "New try · stand-in";
   if (g.origin === "new_try") return g.like ? `New try · like ${g.like}` : "New try";
   if (g.answer === "yes") return "Loved it";
   if (g.origin === "family") return "From the family";
@@ -295,7 +296,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
         />
       )}
       {/* What Start here already shows isn't repeated in New tries (FC-12). */}
-      {newTries.length > 0 && <Shelf title="New tries" hint={gallery.works.length ? "Like what works for them" : "Like what the family says they love"} items={newTries} onOpen={setOpen} />}
+      {newTries.length > 0 && <Shelf title="New tries" hint={newTries.find((g) => g.worked)?.like ? `Because ‘${newTries.find((g) => g.worked)!.like}’ worked for ${name}` : "Like what the family says they love"} items={newTries} onOpen={setOpen} />}
       {findingTries && gallery.newTries.length === 0 && <p className="text-sm text-muted-foreground">Finding new tries like what {gallery.works.length ? `works for ${name}` : `${name} loves`}…</p>}
       {(["song", "film", "tv", "book", "place"] as const).map((t) => (gallery.shelves[t].length ? <Shelf key={t} title={SHELF[t]} items={gallery.shelves[t]} onOpen={setOpen} /> : null))}
 
@@ -570,7 +571,7 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
   const visiting = mode === "visit";
   const p = person.practical;
   const works = gallery.works.slice(0, 3).map((g) => (g.by ? `${g.title} (${g.by})` : g.title));
-  const avoid = [...person.steers.filter((s) => s.level === "never").map((s) => s.label), ...gallery.paused.map((g) => `${g.title} (upset)`)];
+  const avoid = [...person.steers.filter((s) => s.level === "never").map((s) => s.label), ...gallery.paused.map((g) => `‘${g.title}’ (upset) and songs like it, until the family answers`)];
   // Never a moment that touches steer clear: no wedding when the husband is on it (A3).
   const moment = talkingPoints(person)[0];
   const home = person.places[0];

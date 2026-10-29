@@ -101,6 +101,10 @@ const GENRES: Record<string, string[]> = {
   "Only Fools and Horses": ["comedy"],
   EastEnders: ["soap opera", "drama"],
 };
+/** How familiar each is (Qloo's popularity), so the familiar films lead offline too (IM-4). */
+const POPULAR: Record<string, number> = { "The Sound of Music": 0.99, "Mary Poppins": 0.98, Grease: 0.97, "Star Wars": 0.99, "The Jungle Book": 0.96, "Oliver!": 0.9, "Breakfast at Tiffany's": 0.93, "Who's Afraid of Virginia Woolf?": 0.7, "Butch Cassidy and the Sundance Kid": 0.85 };
+/** When a show's run ended (IM-3). Coronation Street is still on: this year stands for that offline. */
+const FINALE: Record<string, number> = { "Coronation Street": new Date().getFullYear(), "Doctor Who": 1989, "Top of the Pops": 2006, "Fawlty Towers": 1979, "Dad's Army": 1977, "Hancock's Half Hour": 1961, "The Old Grey Whistle Test": 1987, "Only Fools and Horses": 2003, EastEnders: new Date().getFullYear() };
 const genreTags = (n: string) => ({ tags: (GENRES[n] ?? []).map((g) => ({ id: `urn:tag:genre:media:${g.replace(/\s+/g, "_")}`, name: g })) });
 
 /** Films or TV in the release years asked for (all of them if none fall there, as Qloo leans popular). */
@@ -118,6 +122,8 @@ function answer(path: string, p: QlooParams): unknown {
     const q = String(p.query ?? "");
     if (String(p.types).includes("locality")) return { results: /zzz/i.test(q) ? [] : [e(`loc-${q}`, q.replace(/,.*/, ""), { disambiguation: "England, United Kingdom" })] };
     // A venue the story names ("Barrowland Glasgow") is a music venue, as Qloo tags the real ones.
+    // A title Qloo doesn't know (IM-5's stand-ins): nothing found.
+    if (/\b(unknown|zzz)\b/i.test(q)) return { results: [] };
     if (String(p.types).includes("urn:entity:place")) return { results: [e(`p-${q}`, q, { tags: [{ id: "urn:tag:category:place:music_venue", name: "Music venue" }] })] };
     return { results: [e(`art-${q}`, q)] };
   }
@@ -131,9 +137,9 @@ function answer(path: string, p: QlooParams): unknown {
     const names = tags.includes("80s") ? ARTISTS_80S : tags.includes("70s") ? ARTISTS_70S : tags.includes("50s") ? ARTISTS_50S : ARTISTS_60S;
     return { results: { entities: names.map((n) => e(`a-${n}`, n)) } };
   }
-  if (type === "urn:entity:movie") return { results: { entities: inYears(FILMS, p).map(([n, y]) => e(`f-${n}`, n, { properties: { release_year: y }, ...genreTags(n) })) } };
+  if (type === "urn:entity:movie") return { results: { entities: inYears(FILMS, p).map(([n, y]) => e(`f-${n}`, n, { properties: { release_year: y }, ...genreTags(n), ...(POPULAR[n] ? { popularity: POPULAR[n] } : {}) })) } };
   if (type === "urn:entity:place") return { results: { entities: placesFor(String(p["filter.location.query"] ?? "Manchester")).map(([n, d]) => e(`p-${n}`, n, { properties: { description: d } })) } };
-  if (type === "urn:entity:tv_show") return { results: { entities: inYears(TV, p).map(([n, y]) => e(`t-${n}`, n, { properties: { release_year: y }, ...genreTags(n) })) } };
+  if (type === "urn:entity:tv_show") return { results: { entities: inYears(TV, p).map(([n, y]) => e(`t-${n}`, n, { properties: { release_year: y, ...(FINALE[n] ? { finale_year: FINALE[n] } : {}) }, ...genreTags(n) })) } };
   return { results: { entities: [] } };
 }
 

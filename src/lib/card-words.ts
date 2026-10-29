@@ -60,10 +60,15 @@ function placeName(title: string): string {
 export const promptFor = (type: keyof typeof PROMPTS, title: string): Prompt => PROMPTS[type](title);
 
 /** "Out in 1965, when Margaret was 15, in Manchester." Only what's known; null when nothing is. */
-export function hookFor(p: Pick<Person, "preferredName" | "birthYear" | "decade" | "places">, item: { type: string; year: number | null; placeId?: string; origin: string; like?: string }): string {
+export function hookFor(p: Pick<Person, "preferredName" | "birthYear" | "decade" | "places">, item: { type: string; title?: string; year: number | null; placeId?: string; origin: string; like?: string; runTo?: number; standIn?: string }): string {
   const name = p.preferredName || "they";
   if (item.origin === "family") return `The family says ${name} loved this.`;
+  // An honest stand-in for a love Qloo didn't know (IM-5).
+  if (item.standIn) return `Couldn’t find ‘${item.standIn}’ on Qloo. A stand-in from the same years and town: ${item.title ?? "this"}.`;
   const by = p.birthYear ?? (p.decade !== null ? p.decade + 5 : null);
+  // Telly that ran for years of their youth (IM-3): "On the telly all through Joan's twenties".
+  const run = item.type === "tv" && by ? youthRun(item.year, item.runTo, by) : null;
+  if (run && run.years >= 5) return run.twenties ? `On the telly all through ${name}’s twenties.` : run.teens ? `On the telly all through ${name}’s teens.` : `On the telly from ${run.from} to ${run.to}, when ${name} was ${run.from - by!} to ${run.to - by!}.`;
   const place = p.places.find((x) => x.id === item.placeId)?.name;
   // Where they were that year, from their own places (not where Qloo looked): the line a carer reads aloud (QA-40).
   const thenAt = item.year ? p.places.find((x) => x.fromYear !== null && x.fromYear <= item.year! && (x.toYear === null || item.year! < x.toYear))?.name : undefined;
@@ -78,11 +83,20 @@ export function hookFor(p: Pick<Person, "preferredName" | "birthYear" | "decade"
   return place ? `Popular in ${place} in ${name}'s young years.` : `From ${name}'s young years.`;
 }
 
+/** How many of their ages 10–30 a show's run covers, and whether that's all their teens or twenties (IM-3). */
+export function youthRun(from: number | null, to: number | undefined, by: number): { years: number; from: number; to: number; teens: boolean; twenties: boolean } | null {
+  if (!from) return null;
+  const a = Math.max(from, by + 10);
+  const b = Math.min(to ?? from, by + 30);
+  if (a > b) return null;
+  return { years: b - a + 1, from: a, to: b, teens: a <= by + 13 && b >= by + 19, twenties: a <= by + 20 && b >= by + 29 };
+}
+
 /**
  * Why a card is here, in a plain sentence a judge or a carer can read (A8): what Qloo matched (the era, the town, a
  * taste link) or that the family named it. Built from the card's own source line, so it never claims more than that.
  */
-export function whyFor(p: Pick<Person, "preferredName" | "places">, item: { type: string; title: string; by?: string; origin: string; like?: string; parts: string[]; source: string; placeId?: string; fromStory?: string; story?: string }): string {
+export function whyFor(p: Pick<Person, "preferredName" | "places">, item: { type: string; title: string; by?: string; origin: string; like?: string; parts: string[]; source: string; placeId?: string; fromStory?: string; story?: string; standIn?: string; worked?: boolean }): string {
   const name = p.preferredName || "them";
   const checked = item.parts.includes("MusicBrainz") ? " The song is one of theirs, checked on MusicBrainz." : "";
   // The badge says "From their story", so the reason does too (FC-4).
@@ -92,15 +106,24 @@ export function whyFor(p: Pick<Person, "preferredName" | "places">, item: { type
     return `The family mentioned it: “${named}”. Qloo found it${town ? ` in ${town}` : ""}.`;
   }
   if (item.origin === "family") return item.parts.length > 1 && item.by ? `The family named ${item.by}.${checked}` : "The family named it.";
-  if (item.origin === "new_try") return item.like ? `Qloo: people who like ${item.like} also like this. ${item.like} works for ${name}.` : `Qloo: like what ${name} loves.`;
+  if (item.standIn) return `${item.source.replace(/^Stand-in:\s*/i, "").replace(/\.$/, "")}. A stand-in: it stays a new try until a log shows it works.`;
+  if (item.origin === "new_try") {
+    // "Because ‘Waterloo’ worked for Margaret" once it's proven; before that, like the family's pick (IM-2).
+    const [decade, , town] = item.parts;
+    const where = [decade, town].filter((x) => x && !/^like /.test(x) && x !== "Qloo").join(", ");
+    if (item.like && item.worked) return `Because ‘${item.like}’ worked for ${name}, Qloo found more liked by the same people${where ? `, ${where}` : ""}.`;
+    return item.like ? `Qloo: people who like ${item.like} also like this. The family picked ${item.like}.` : `Qloo: like what ${name} loves.`;
+  }
   // "Qloo: Scottish artists of the 60s, popular around Glasgow." → as Qloo said it, plus the song check.
   const said = item.source.replace(/^Qloo:\s*/, "").replace(/\.$/, "");
   return `Qloo picked ${item.type === "song" ? "the artist" : "it"}: ${said}.${checked}`;
 }
 
 /** The same, in a few words for a tile: "Scottish · 60s", "Like Lulu", "Their story". */
-export function whyShort(p: Pick<Person, "places">, item: { type: string; origin: string; like?: string; parts: string[]; placeId?: string; fromStory?: string }): string {
+export function whyShort(p: Pick<Person, "places">, item: { type: string; origin: string; like?: string; parts: string[]; placeId?: string; fromStory?: string; standIn?: string; worked?: boolean }): string {
   if (item.fromStory) return "Named in their story";
+  if (item.standIn) return `Stand-in for ‘${item.standIn}’`;
+  if (item.worked && item.like) return `Because ‘${item.like}’ worked`;
   if (item.origin === "family") return "The family named it";
   if (item.origin === "new_try") return item.like ? `Qloo · like ${item.like}` : "Qloo · new try";
   const town = p.places.find((x) => x.id === item.placeId)?.name;
