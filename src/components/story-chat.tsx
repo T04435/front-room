@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Check, Lightbulb, Mic, MicOff, Paperclip, Pencil, Sparkles, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Check, Lightbulb, Mic, MicOff, Paperclip, Pencil, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { type CSSProperties, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AgentMark } from "@/components/front-room/agent";
@@ -698,6 +698,7 @@ function AgentBody(props: BodyProps) {
 
 /** "Here's what I heard": each fact with Yes, Edit or Remove, and All right for the lot. */
 function Heard({ facts, resolved, ro, onConfirm, onDrop }: { facts: Candidate[]; resolved: boolean; ro: boolean; onConfirm: (f: Candidate[]) => void; onDrop: () => void }) {
+  // Kept unless changed (UX-5): one "That's right" for the lot, and a quiet Change per fact (Remove is inside it).
   const [list, setList] = useState(facts);
   const [editing, setEditing] = useState<string | null>(null);
   const [kept, setKept] = useState<Candidate[]>([]);
@@ -708,72 +709,66 @@ function Heard({ facts, resolved, ro, onConfirm, onDrop }: { facts: Candidate[];
     if (k.length) onConfirm(k);
     else onDrop();
   };
+  const right = (label: string, variant: "default" | "outline" = "default") => (
+    <Button size="sm" variant={variant} className="max-sm:h-11" disabled={editing !== null} onClick={() => finish(list)}>
+      <Check aria-hidden /> {label}
+    </Button>
+  );
   return (
     <span className="grid gap-2">
-      <span className="font-medium">Here&apos;s what I heard:</span>
+      <span className="flex flex-wrap items-center justify-between gap-2 max-sm:sticky max-sm:top-2 max-sm:z-10 max-sm:rounded-md max-sm:bg-secondary max-sm:py-1">
+        <span className="font-medium">Here&apos;s what I heard:</span>
+        {!ro && right("That’s right")}
+      </span>
       {list.map((f) => (
         <span key={f.id} className="grid gap-1 rounded-md border bg-background p-2 text-foreground">
           {editing === f.id ? (
-            <EditFact fact={f} onDone={(n) => (setEditing(null), setList((xs) => xs.map((x) => (x.id === f.id ? { ...x, ...n } : x))))} />
+            <EditFact
+              fact={f}
+              onDone={(n) => (setEditing(null), setList((xs) => xs.map((x) => (x.id === f.id ? { ...x, ...n } : x))))}
+              onRemove={() => {
+                setEditing(null);
+                const rest = list.filter((x) => x.id !== f.id);
+                setList(rest);
+                if (!rest.length) finish([]);
+              }}
+            />
           ) : (
-            <span className="font-medium">{describeFact(f)}</span>
-          )}
-          {f.quote && <span className="text-xs text-muted-foreground">“{f.quote}”</span>}
-          {editing !== f.id && !ro && (
-            <span className="flex flex-wrap gap-1.5">
-              <Button
-                size="xs"
-                onClick={() => {
-                  const k = [...kept, f];
-                  const rest = list.filter((x) => x.id !== f.id);
-                  setKept(k);
-                  setList(rest);
-                  if (!rest.length) finish(k);
-                }}
-              >
-                <Check aria-hidden /> Yes
-              </Button>
-              <Button size="xs" variant="outline" onClick={() => setEditing(f.id)}>
-                <Pencil aria-hidden /> Edit
-              </Button>
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => {
-                  const rest = list.filter((x) => x.id !== f.id);
-                  setList(rest);
-                  if (!rest.length) finish(kept);
-                }}
-              >
-                <X aria-hidden /> Remove
-              </Button>
+            <span className="flex items-start justify-between gap-2">
+              <span className="grid gap-0.5">
+                <span className="font-medium">{describeFact(f)}</span>
+                {f.quote && <span className="text-xs text-muted-foreground">“{f.quote}”</span>}
+              </span>
+              {!ro && (
+                <Button size="sm" variant="ghost" className="min-h-11 shrink-0" aria-label={`Change: ${describeFact(f)}`} onClick={() => setEditing(f.id)}>
+                  <Pencil aria-hidden /> Change
+                </Button>
+              )}
             </span>
           )}
         </span>
       ))}
-      {list.length > 1 && !ro && (
-        <span>
-          <Button size="sm" onClick={() => finish([...kept, ...list])}>
-            <Check aria-hidden /> All right
-          </Button>
-        </span>
-      )}
+      {/* The same action at the bottom, for a long list. */}
+      {list.length > 1 && !ro && <span>{right("All right", "outline")}</span>}
     </span>
   );
 }
 
-function EditFact({ fact, onDone }: { fact: Candidate; onDone: (f: Partial<Fact>) => void }) {
+function EditFact({ fact, onDone, onRemove }: { fact: Candidate; onDone: (f: Partial<Fact>) => void; onRemove: () => void }) {
   const [value, setValue] = useState(fact.value);
   const [from, setFrom] = useState(fact.fromYear ? String(fact.fromYear) : "");
   const [to, setTo] = useState(fact.toYear ? String(fact.toYear) : "");
   const yr = (s: string) => (/^\d{4}$/.test(s) ? Number(s) : null);
   return (
     <span className="flex flex-wrap items-center gap-2">
-      <Input aria-label="What it is" value={value} onChange={(e) => setValue(e.target.value)} className="h-8 w-56" />
-      {["place", "moment", "birthYear", "love"].includes(fact.kind) && <Input aria-label="Year" inputMode="numeric" placeholder="year" value={from} onChange={(e) => setFrom(e.target.value.replace(/\D/g, "").slice(0, 4))} className="h-8 w-20" />}
-      {fact.kind === "place" && <Input aria-label="Until" inputMode="numeric" placeholder="until" value={to} onChange={(e) => setTo(e.target.value.replace(/\D/g, "").slice(0, 4))} className="h-8 w-20" />}
-      <Button size="xs" onClick={() => onDone({ value: value.trim() || fact.value, fromYear: yr(from), toYear: yr(to) })}>
+      <Input aria-label="What it is" value={value} onChange={(e) => setValue(e.target.value)} className="h-11 w-56" />
+      {["place", "moment", "birthYear", "love"].includes(fact.kind) && <Input aria-label="Year" inputMode="numeric" placeholder="year" value={from} onChange={(e) => setFrom(e.target.value.replace(/\D/g, "").slice(0, 4))} className="h-11 w-24" />}
+      {fact.kind === "place" && <Input aria-label="Until" inputMode="numeric" placeholder="until" value={to} onChange={(e) => setTo(e.target.value.replace(/\D/g, "").slice(0, 4))} className="h-11 w-24" />}
+      <Button className="h-11" onClick={() => onDone({ value: value.trim() || fact.value, fromYear: yr(from), toYear: yr(to) })}>
         Done
+      </Button>
+      <Button variant="ghost" className="h-11" onClick={onRemove}>
+        <X aria-hidden /> Remove
       </Button>
     </span>
   );
@@ -878,7 +873,9 @@ function HelpChips({ person, name, onHelp, ro, paused, provenCalm }: { person: P
       <span>What would help me most next for {name}:</span>
       <span className="flex flex-wrap gap-1.5">
         {helps.map((h) => (
-          <Button key={h.id} size="xs" variant={h.kind === "upset" ? "destructive" : "outline"} disabled={ro} onClick={() => onHelp(h)} className="h-auto min-h-8 max-w-full py-1 text-left whitespace-normal">
+          <Button key={h.id} size="xs" variant="outline" disabled={ro} onClick={() => onHelp(h)} className="h-auto min-h-8 max-w-full py-1 text-left whitespace-normal">
+            {/* An upset to ask about says so with an icon, not red (UX-6). */}
+            {h.kind === "upset" && <Ban aria-hidden />}
             {h.label}
           </Button>
         ))}

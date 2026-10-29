@@ -126,7 +126,7 @@ describe("one card per place (FC-4)", () => {
     const places = galleryOf(p, new Map()).shelves.place;
     expect(places.map((x) => x.title)).toEqual(["The Cavern Club"]);
     expect(places[0].story).toBe("Danced at the Cavern");
-    expect(places[0].why).toBe("The family mentioned it: “Danced at the Cavern”. Qloo found it in Liverpool.");
+    expect(places[0].why).toBe("The family mentioned it: “Danced at the Cavern”. Found by Qloo in Liverpool.");
   });
 });
 
@@ -182,8 +182,8 @@ describe("why each card is here (A6, A8)", () => {
   });
 
   it("says plainly what Qloo matched", () => {
-    expect(find("Shout").why).toBe("Qloo picked the artist: Scottish artists of the 60s, popular around Glasgow. The song is one of theirs, checked on MusicBrainz.");
-    expect(find("Shout").whyShort).toBe("Qloo · Scottish 60s · Glasgow");
+    expect(find("Shout").why).toBe("Big in Glasgow when Edie was 15. Found by Qloo (Scottish artists of the 60s, popular around Glasgow); a real recording, checked on MusicBrainz.");
+    expect(find("Shout").whyShort).toBe("Glasgow · Scottish 60s");
     expect(find("Barrowland Ballroom").why).toContain("The family mentioned it");
   });
 });

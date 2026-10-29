@@ -74,7 +74,7 @@ export function RunSteps({ items }: { items: StepItem[] }) {
                     )}
                   </ul>
                 )}
-                {item.sourceLine && <p className="font-mono text-xs text-muted-foreground">{item.sourceLine}</p>}
+                {item.sourceLine && <p className="font-sans text-xs text-muted-foreground">{item.sourceLine}</p>}
               </div>
             </TraceCollapsibleContent>
           </TraceCollapsible>

@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Check, Droplet, Plus, ExternalLink, Eye, Film, Heart, MapPin, MessageCircleHeart, Music, OctagonX, Play as PlayIcon, Sparkles, ThumbsDown, TriangleAlert, Tv, Undo2, Waves } from "lucide-react";
+import { Ban, BookOpen, Check, Droplet, Plus, ExternalLink, Eye, Film, Heart, MapPin, MessageCircle, MessageCircleHeart, Music, OctagonX, Play as PlayIcon, Sparkles, ThumbsDown, TriangleAlert, Tv, Undo2, Waves } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -14,7 +14,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { calmPick, TYPE_WORD, type Gallery, type GalleryItem, type GalleryType } from "@/lib/gallery";
-import { RESPONSE_LABELS, RESPONSES } from "@/lib/kit";
+import { RESPONSE_LABELS } from "@/lib/kit";
 import type { Play } from "@/lib/learning";
 import { HEARD_KINDS, type Person, type StaffHeard, talkingPoints } from "@/lib/person";
 import { cn } from "@/lib/utils";
@@ -29,7 +29,7 @@ const TILE: Record<GalleryType, string> = {
   place: "bg-secondary/70 text-primary",
 };
 const SHELF: Record<GalleryType, string> = { song: "Songs", film: "Films", tv: "On the telly", book: "Books", place: "Places they knew" };
-const LOG_ICON = { calm: Waves, engaged: Eye, sang: Music, tearful: Droplet, upset: TriangleAlert } as const;
+const LOG_ICON = { calm: Waves, engaged: Eye, sang: Music, talked: MessageCircle, tearful: Droplet, upset: TriangleAlert } as const;
 const HEARD_LABELS: Record<StaffHeard["kind"], string> = { name: "A name", place: "A place", job: "A job", song: "A song", dance: "A dance", other: "Something else" };
 const noop = () => () => {};
 /** After 17:00 on this device: calm first, as the brief's evening default. Off during server render. */
@@ -71,9 +71,10 @@ function useCardMode(): ["staff" | "visit", (m: "staff" | "visit") => void] {
 // Said so on screen, for anyone reading from elsewhere (A18).
 const hm = (iso: string) => `${new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })} UK time`;
 
-/** A small tag on a tile: why it's here, or how it's gone. */
-function tagOf(g: GalleryItem): string | null {
+/** A small tag: why it's here, or how it's gone. Tiles keep four (UX-4): Ask family, Works, New try, From the family. */
+function tagOf(g: GalleryItem, tile = false): string | null {
   if (g.askFamily) return "Ask family";
+  if (tile) return g.stat?.state === "proven" ? "Works" : g.origin === "new_try" ? "New try" : g.origin === "family" ? "From the family" : null;
   if (g.stat?.state === "proven") return g.stat.sangSessions >= 2 ? "Sings along" : "Works";
   if (g.standIn) return "New try · stand-in";
   if (g.origin === "new_try") return g.like ? `New try · like ${g.like}` : "New try";
@@ -113,7 +114,10 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
   const evening = useEvening();
   // Start here: what works (else the family's song), one new try, one thing to talk about (PR-6).
   // While new tries load (or when there are none), the third is another song, a film or a place (A14).
+  const calmNow = calmPick(gallery) ?? gallery.shelves.song.find((g) => g.origin === "family") ?? null;
   const startHere = [
+    // Evening: something proven calm first, when there is one (UX-8).
+    ...(evening && calmPick(gallery) ? [calmPick(gallery)!] : []),
     gallery.works[0] ?? gallery.shelves.song.find((g) => g.origin === "family") ?? gallery.shelves.song[0],
     gallery.newTries[0],
     gallery.shelves.place.find((g) => g.story) ?? gallery.shelves.film[0] ?? gallery.shelves.place[0],
@@ -123,6 +127,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
   ]
     .filter((g, i, xs): g is GalleryItem => Boolean(g) && xs.findIndex((x) => x?.key === g?.key) === i)
     .slice(0, 3);
+  // Shown once: Start here and Works aren't repeated on the shelves below (FC-12, UX-4).
+  const shown = new Set([...startHere, ...gallery.works].map((g) => g.key));
   const newTries = gallery.newTries.filter((g) => !startHere.some((x) => x.key === g.key));
   const isOpen = open !== null;
 
@@ -175,7 +181,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
   async function log(g: GalleryItem, response: Play["response"]) {
     if (ro) return;
     const res = await fetch(`/api/people/${person.id}/plays`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemKey: g.key, type: g.type, title: g.title, ...(g.by ? { by: g.by } : {}), response }) });
-    if (!res.ok) return setNotice(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "That didn't save.");
+    if (!res.ok) return setNotice(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "That didn't save. Check the connection and tap again.");
     const play = (await res.json()) as Play;
     setLogged((xs) => [...xs, play]);
     setNotice(null);
@@ -208,7 +214,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
     setBusy(g.key);
     const res = await fetch(`/api/people/${person.id}/answer`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ card: g.cardId, answer: g.answer === a ? null : a }) });
     setBusy(null);
-    if (!res.ok) return setNotice("That didn't save.");
+    if (!res.ok) return setNotice("That didn't save. Check the connection and tap again.");
     if (a === "upset") setOpen(null);
     router.refresh();
   }
@@ -222,32 +228,29 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="grid gap-1">
             <h1 className="font-heading text-[34px] leading-[40px]">{name}</h1>
-            <p className="text-muted-foreground">Things to play and talk about with {name}, from their life and places. Tap one to play it.</p>
+            <p className="text-muted-foreground">Things to play and talk about with {name}. Tap one to play it.</p>
           </div>
+          {/* One filled action: something calm now (UX-1). */}
           <div className="flex flex-wrap gap-2">
+            {calmNow && (
+              <Button className="max-sm:h-11" onClick={() => setOpen(calmNow, true)}>
+                <Waves aria-hidden /> Something calm now
+              </Button>
+            )}
             <Button asChild variant="outline" className="max-sm:h-11">
+              <Link href={`/p/${person.id}/works`}>What works</Link>
+            </Button>
+            <Button asChild variant="ghost" className="max-sm:h-11">
               <Link href={`/p/${person.id}/story`}>
                 <MessageCircleHeart aria-hidden /> Get to know {name} better
               </Link>
             </Button>
-            <Button asChild variant="ghost" className="max-sm:h-11">
-              <Link href={`/p/${person.id}/works`}>What works</Link>
-            </Button>
-            {calmPick(gallery) && (
-              <Button variant="secondary" className="max-sm:h-11" onClick={() => setOpen(calmPick(gallery), true)}>
-                <Waves aria-hidden /> Something calm now
-              </Button>
-            )}
           </div>
         </div>
-        {ro ? (
+        {ro && (
           <Alert>
             <AlertDescription>A fictional person with five days of play, so you can see what works rise to the top. Read-only: add your own person to play and log.</AlertDescription>
           </Alert>
-        ) : (
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <CopyLink path={`/p/${person.id}`} /> Anyone with this link can see and add to {name}&apos;s page.
-          </div>
         )}
         {stale && !ro && (
           <Alert>
@@ -282,8 +285,6 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
 
       <Handover person={person} gallery={gallery} />
 
-      <HowQloo name={name} places={person.places.map((x) => x.name)} open={ro} />
-
       {startHere.length > 1 && <Shelf title="Start here" hint="Three to begin with" items={startHere} onOpen={setOpen} limit={3} grid />}
 
       {gallery.works.length > 0 && (
@@ -298,13 +299,29 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
       {/* What Start here already shows isn't repeated in New tries (FC-12). */}
       {newTries.length > 0 && <Shelf title="New tries" hint={newTries.find((g) => g.worked)?.like ? `Because ‘${newTries.find((g) => g.worked)!.like}’ worked for ${name}` : "Like what the family says they love"} items={newTries} onOpen={setOpen} />}
       {findingTries && gallery.newTries.length === 0 && <p className="text-sm text-muted-foreground">Finding new tries like what {gallery.works.length ? `works for ${name}` : `${name} loves`}…</p>}
-      {(["song", "film", "tv", "book", "place"] as const).map((t) => (gallery.shelves[t].length ? <Shelf key={t} title={SHELF[t]} items={gallery.shelves[t]} onOpen={setOpen} /> : null))}
+      {(["song", "film", "tv", "book", "place"] as const).map((t) => {
+        const items = gallery.shelves[t].filter((g) => !shown.has(g.key));
+        return items.length ? <Shelf key={t} title={SHELF[t]} items={items} onOpen={setOpen} /> : null;
+      })}
 
+      <HowQloo name={name} places={person.places.map((x) => x.name)} />
+
+      {/* Sharing, quietly, after the shelves (UX-11). */}
+      {!ro && (
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <CopyLink path={`/p/${person.id}`} /> Anyone with this link can see and add to {name}&apos;s page.
+        </div>
+      )}
+
+      {/* Folded until wanted (UX-12). */}
       {(gallery.paused.length > 0 || gallery.resting.length > 0) && (
-        <section className="grid gap-1 text-sm text-muted-foreground">
-          {gallery.paused.length > 0 && <p>Paused after an upset: {gallery.paused.map((g) => `‘${g.title}’`).join(", ")}. The family is asked about it in Get to know them better.</p>}
-          {gallery.resting.length > 0 && <p>Resting for a month (no reaction three times): {gallery.resting.map((g) => `‘${g.title}’`).join(", ")}.</p>}
-        </section>
+        <details className="text-sm text-muted-foreground">
+          <summary className="cursor-pointer py-2">Paused and resting ({gallery.paused.length + gallery.resting.length})</summary>
+          <div className="grid gap-1">
+            {gallery.paused.length > 0 && <p>Paused after an upset: {gallery.paused.map((g) => `‘${g.title}’`).join(", ")}. The family is asked about it in Get to know them better.</p>}
+            {gallery.resting.length > 0 && <p>Resting for a month (no reaction three times): {gallery.resting.map((g) => `‘${g.title}’`).join(", ")}.</p>}
+          </div>
+        </details>
       )}
 
       <Sheet open={open !== null} onOpenChange={(o) => !o && (setOpen(null), setNotice(null))}>
@@ -369,13 +386,13 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
               <div className="grid gap-2">
                 <span className="text-sm font-medium">How did {name} respond?</span>
                 <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2" role="group" aria-label="Log a response">
-                  {/* "Sang along" fits songs and the telly (music shows), not a place or a book. */}
-                  {RESPONSES.filter((r) => r !== "sang" || open.type === "song" || open.type === "tv").map((r) => {
+                  {/* Two by two (UX-2): "Sang along" for songs and the telly, "Talked" for the rest. Upset is Stop's job. */}
+                  {(["calm", "engaged", open.type === "song" || open.type === "tv" ? "sang" : "talked", "tearful"] as const).map((r) => {
                     const Icon = LOG_ICON[r];
                     const on = mine.some((p) => p.response === r);
                     return (
                       <Button key={r} variant={on ? "default" : "outline"} className="h-12 min-w-0 justify-start text-base whitespace-normal" disabled={ro} aria-pressed={on} onClick={() => void log(open, r)}>
-                        {on ? <Check aria-hidden /> : <Icon aria-hidden className={r === "upset" ? "text-destructive" : undefined} />} {RESPONSE_LABELS[r]}
+                        {on ? <Check aria-hidden /> : <Icon aria-hidden />} {RESPONSE_LABELS[r]}
                       </Button>
                     );
                   })}
@@ -385,7 +402,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
                   {(settling && notice?.startsWith("Stopped") ? null : notice) ??
                     (mine.length ? (
                       <>
-                        Logged: {RESPONSE_LABELS[mine.at(-1)!.response]} · {hm(mine.at(-1)!.at)}
+                        Logged: {RESPONSE_LABELS[mine.at(-1)!.response]} · {hm(mine.at(-1)!.at)} · the next shift will see this
                         <Button size="sm" variant="ghost" className="max-sm:h-11" onClick={() => void undo(mine.at(-1)!)}>
                           <Undo2 aria-hidden /> Undo
                         </Button>
@@ -398,22 +415,29 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
                 </p>
                 {/* Always in reach: it sticks to the bottom of the sheet on a phone (QA-65). */}
                 <Button variant="destructive" className={cn("h-12", !ro && "sticky bottom-2 z-10 bg-[color-mix(in_oklch,var(--destructive)_12%,var(--popover))] shadow-[var(--shadow-card)]")} disabled={ro} onClick={() => void stop(open)}>
-                  <OctagonX aria-hidden /> Stop · something calm instead
+                  <OctagonX aria-hidden /> Upset? Stop · something calm instead
                 </Button>
               </div>
 
-              {!ro && <LearnedSomething key={open.key} person={person} name={name} onSaved={() => router.refresh()} />}
-
-              {open.cardId && !ro && open.origin !== "family" && (
-                <div className="flex flex-wrap items-center gap-2 border-t pt-3 text-sm">
-                  <span className="text-muted-foreground">From Qloo for their years.</span>
-                  <Button size="sm" variant={open.answer === "yes" ? "default" : "outline"} disabled={busy === open.key} onClick={() => void answer(open, "yes")}>
-                    <Heart aria-hidden /> Loved it
-                  </Button>
-                  <Button size="sm" variant="outline" disabled={busy === open.key} onClick={() => void answer(open, "upset")}>
-                    <ThumbsDown aria-hidden /> Not for them
-                  </Button>
-                </div>
+              {/* The rest folds away (UX-2). */}
+              {!ro && (
+                <details className="border-t pt-2">
+                  <summary className="cursor-pointer py-2 text-sm font-medium">More about this</summary>
+                  <div className="grid gap-3 pt-1">
+                    {open.cardId && open.origin !== "family" && (
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">From Qloo for their years.</span>
+                        <Button size="sm" variant={open.answer === "yes" ? "default" : "outline"} className="max-sm:h-11" disabled={busy === open.key} onClick={() => void answer(open, "yes")}>
+                          <Heart aria-hidden /> Loved it
+                        </Button>
+                        <Button size="sm" variant="outline" className="max-sm:h-11" disabled={busy === open.key} onClick={() => void answer(open, "upset")}>
+                          <ThumbsDown aria-hidden /> Not for them
+                        </Button>
+                      </div>
+                    )}
+                    <LearnedSomething key={open.key} person={person} name={name} onSaved={() => router.refresh()} />
+                  </div>
+                </details>
               )}
             </div>
           )}
@@ -425,9 +449,9 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
 
 /**
  * How Qloo finds these (A8): the story's places and years go to Qloo, one look-up per town and era, and everything is
- * filtered by steer clear. Open on the example, folded on everyone else's page.
+ * filtered by steer clear. Folded, below the shelves, for anyone who wants to know (UX-1).
  */
-function HowQloo({ name, places, open }: { name: string; places: string[]; open: boolean }) {
+function HowQloo({ name, places }: { name: string; places: string[] }) {
   const steps = [
     ["Their story", `The family tells the Go-Between about ${name}: where they lived and when, what they loved, what to steer clear of.`],
     ["Places and years", `Each place becomes a real town (${places.slice(0, 2).join(", ") || "where they lived"}) and the years ${name} was there, best between about 10 and 30.`],
@@ -435,7 +459,7 @@ function HowQloo({ name, places, open }: { name: string; places: string[]; open:
     ["Steer clear", "Anything that touches steer clear is left out, everywhere. The model only picks a song per artist, checked on MusicBrainz, and writes the prompts."],
   ];
   return (
-    <details open={open} className="group rounded-lg border bg-card p-4 text-sm">
+    <details className="group rounded-lg border bg-card p-4 text-sm">
       <summary className="cursor-pointer font-medium">How Qloo finds these</summary>
       <ol className="mt-3 grid gap-2 sm:grid-cols-4">
         {steps.map(([title, text], i) => (
@@ -472,7 +496,7 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: st
         <ul className={grid ? "grid grid-cols-3 gap-2 p-1 pb-3" : "flex gap-3 p-1 pb-3"}>
           {shown.map((g) => {
             const Icon = ICON[g.type];
-            const tag = tagOf(g);
+            const tag = tagOf(g, true);
             return (
               <li key={g.key} className={cn("shrink-0", grid ? "min-w-0" : big ? "w-52" : "w-44")}>
                 <button type="button" onClick={() => onOpen(g)} className="group grid w-full gap-2 rounded-lg text-left whitespace-normal focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none" aria-label={`${g.title}${g.by ? ` by ${g.by}` : ""}: ${g.type === "place" || g.type === "book" ? "open" : "play"}`}>
@@ -483,7 +507,11 @@ function Shelf({ title, hint, items, onOpen, big, limit = 4, grid }: { title: st
                       <PlayIcon className="size-5" aria-hidden />
                     </span>
                     {/* Small Start here tiles on a phone: no badge over the picture (QA-68); it's in the sheet. */}
-                    {tag && <Badge className={cn("absolute top-2 left-2 block max-w-[85%] justify-start truncate", grid && "max-sm:hidden")}>{tag}</Badge>}
+                    {tag && (
+                      <Badge className={cn("absolute top-2 left-2 inline-flex max-w-[85%] items-center", grid && "max-sm:hidden")}>
+                        <span className="min-w-0 truncate">{tag}</span>
+                      </Badge>
+                    )}
                   </span>
                   <span className="line-clamp-2 font-medium">{g.title}</span>
                   <span className="line-clamp-1 text-sm text-muted-foreground">{[g.by, g.year].filter(Boolean).join(", ") || (g.type === "place" ? (g.parts.find((x) => !["place", "Qloo", "their story"].includes(x)) ?? "Place") : TYPE_WORD[g.type])}</span>
@@ -568,12 +596,15 @@ function LearnedSomething({ person, name, onSaved }: { person: Person; name: str
 function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
   const name = person.preferredName;
   const [mode, setMode] = useCardMode();
+  const [more, setMore] = useState(false);
   const visiting = mode === "visit";
   const p = person.practical;
   const works = gallery.works.slice(0, 3).map((g) => (g.by ? `${g.title} (${g.by})` : g.title));
   const avoid = [...person.steers.filter((s) => s.level === "never").map((s) => s.label), ...gallery.paused.map((g) => `‘${g.title}’ (upset) and songs like it, until the family answers`)];
-  // Never a moment that touches steer clear: no wedding when the husband is on it (A3).
-  const moment = talkingPoints(person)[0];
+  // Never a moment that touches steer clear: no wedding when the husband is on it (A3). A joyful one first: dancing, work,
+  // a place they loved; the wedding only when there's nothing else (UX-10).
+  const points = talkingPoints(person);
+  const moment = points.find((m) => m.kind !== "wedding") ?? points[0];
   const home = person.places[0];
   const talk = moment ? (moment.kind === "wedding" ? `Their wedding${moment.year ? ` (${moment.year})` : ""}` : moment.label) : home ? `Growing up in ${home.name}` : null;
   const heard = person.staffHeard.filter((h) => h.confirmed).slice(-2).map((h) => h.text);
@@ -590,12 +621,16 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
     ["Calm with", settle],
     ["First", `Comfortable, no pain, been to the toilet, not too hot or cold · a quiet room · ${p.headphonesOk === true ? "headphones are fine" : p.headphonesOk === false ? "no headphones" : "headphones only if you know they're OK"}`],
     ...(heard.length ? [["Staff heard", heard.join(" · ")] as [string, string]] : []),
-    ...(p.hearing ? [["Hearing", `${p.hearing}${p.headphonesOk === false ? "; no headphones" : ""}`] as [string, string]] : []),
+    // "No headphones" is already in First (UX-9).
+    ...(p.hearing ? [["Hearing", p.hearing] as [string, string]] : []),
     ...(p.bestTime && !visiting ? [["Best time", p.bestTime] as [string, string]] : []),
     ...(visiting ? [["If words are hard", "Sit close, hum along, hold a hand if they like that."] as [string, string]] : []),
   ];
   // A family visit: the best time comes first.
   if (visiting && p.bestTime) rows.unshift(["Best time", p.bestTime]);
+  // On a phone, the four that matter most; the rest behind More (UX-1).
+  const core = new Set(["Call them", "Avoid", "Calm with", "First"]);
+  const extra = rows.filter(([k]) => !core.has(k)).length;
   return (
     <Card size="sm" aria-label={visiting ? "Before you visit" : "Before you start"}>
       <CardHeader>
@@ -611,17 +646,28 @@ function Handover({ person, gallery }: { person: Person; gallery: Gallery }) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-base">
           {rows.map(([k, v]) => (
-            <div key={k} className="contents">
+            <div key={k} className={cn("contents", !core.has(k) && !more && "max-sm:hidden")}>
               <dt className="text-muted-foreground">{k}</dt>
-              <dd className={k === "Avoid" && avoid.length ? "font-medium text-destructive" : undefined}>{v}</dd>
+              {/* Avoid is said by the word and an icon, not red (UX-6). */}
+              <dd className={k === "Avoid" && avoid.length ? "flex items-start gap-1.5 font-medium text-primary" : undefined}>
+                {k === "Avoid" && avoid.length > 0 && <Ban aria-hidden className="mt-1 size-4 shrink-0" />}
+                <span>{v}</span>
+              </dd>
             </div>
           ))}
         </dl>
-        <Link href={`/p/${person.id}/works`} className="mt-1 inline-block py-2 text-sm underline underline-offset-4">
-          The full handover card
-        </Link>
+        <div className="mt-1 flex flex-wrap items-center gap-x-4">
+          {extra > 0 && (
+            <button type="button" className="min-h-11 text-sm underline underline-offset-4 sm:hidden" aria-expanded={more} onClick={() => setMore((x) => !x)}>
+              {more ? "Less" : `More (${extra})`}
+            </button>
+          )}
+          <Link href={`/p/${person.id}/works`} className="inline-block py-2 text-sm underline underline-offset-4">
+            What works
+          </Link>
+        </div>
       </CardContent>
     </Card>
   );

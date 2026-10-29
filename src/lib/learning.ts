@@ -67,7 +67,7 @@ export function itemStats(kits: Kit[], logs: Logged[], resolvedUpsets: string[] 
       const last = entries.map((e) => e.at).sort().at(-1)!;
       s.plays++;
       if (tags.has("sang")) s.sangSessions++;
-      if (tags.has("engaged")) s.engagedSessions++;
+      if (tags.has("engaged") || tags.has("talked")) s.engagedSessions++;
       if (tags.has("calm")) s.calmSessions++;
       if (tags.has("upset")) {
         s.upsetSessions++;
@@ -143,7 +143,7 @@ export function playStats(plays: Play[], resolvedUpsets: string[] = [], now = ne
       const last = entries.map((e) => e.at).sort().at(-1)!;
       s.plays++;
       if (tags.has("sang")) s.sangSessions++;
-      if (tags.has("engaged")) s.engagedSessions++;
+      if (tags.has("engaged") || tags.has("talked")) s.engagedSessions++;
       if (tags.has("calm")) s.calmSessions++;
       if (tags.has("upset")) {
         s.upsetSessions++;

@@ -47,11 +47,15 @@ test("the gallery plays an item, logs and undoes a response, and Stop pauses it"
   await sheet.getByRole("button", { name: "Undo" }).click();
   await expect(sheet.getByRole("button", { name: "Undo" })).toHaveCount(0);
 
-  await sheet.getByRole("button", { name: /^Stop/ }).click();
-  await expect(page.getByText(`Paused after an upset: ${title}`)).toBeVisible();
+  // There's no Upset button: Stop logs the upset (UX-2).
+  await expect(sheet.getByRole("button", { name: "Upset" })).toHaveCount(0);
+  await sheet.getByRole("button", { name: /Stop · something calm instead/ }).click();
+  await page.keyboard.press("Escape");
+  await page.getByText(/^Paused and resting/).click();
+  await expect(page.getByText(`Paused after an upset: ‘${title}’`)).toBeVisible();
   await expect(songs.getByRole("button", { name: `${label}: play` })).toHaveCount(0);
 
-  await page.getByRole("link", { name: "What works" }).click();
+  await page.getByRole("link", { name: "What works" }).first().click();
   await expect(page.getByText(`${title}: paused`)).toBeVisible();
 });
 

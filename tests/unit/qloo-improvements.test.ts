@@ -48,13 +48,13 @@ describe("IM-2: Because X worked", () => {
   it("says which proven item seeded a new try (Margaret, for whom Waterloo works)", () => {
     const g = galleryOf(EXAMPLE_PERSON, playStats(EXAMPLE_PLAYS, [], NOW, "Europe/London"));
     const mamma = g.newTries.find((x) => x.title === "Mamma Mia");
-    expect(mamma?.why).toBe("Because ‘Waterloo’ worked for Margaret, Qloo found more liked by the same people, 70s, Manchester.");
+    expect(mamma?.why).toBe("Because ‘Waterloo’ worked, Qloo found more that the same people like.");
     expect(mamma?.whyShort).toBe("Because ‘Waterloo’ worked");
   });
 
   it("before anything's proven, keeps 'like the family's pick'", () => {
     const g = galleryOf(joan({ "new-tries": [card("n1", "song", "Walk On By", { by: "Dionne Warwick", like: "Cilla Black", parts: ["60s", "like Cilla Black", "Liverpool", "Qloo"] })] }), new Map());
-    expect(g.newTries[0].why).toBe("Qloo: people who like Cilla Black also like this. The family picked Cilla Black.");
+    expect(g.newTries[0].why).toBe("The family picked Cilla Black; Qloo found more that the same people like.");
   });
 });
 

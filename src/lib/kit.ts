@@ -54,7 +54,7 @@ export const PHASE_LABELS: Record<Phase, string> = { calm: "Settle in", familiar
 
 /**
  * One item. `ref` (S1, A2, F3, P1, K1) is how prompts and songs cite it. `source` says where it came from in words
- * ("Qloo: 60s music, popular around Manchester", "AI pick: a recording by A3"); `via` which way a Qloo call went
+ * ("Qloo: 60s music, popular around Manchester", "A recording by A3"); `via` which way a Qloo call went
  * (NotOnQ's drop-in API, or Qloo directly), null for AI picks and the family. `why`: the curator's line for staff on
  * an item the kit features (every song; the films, TV and places it picks); null for research only.
  */
@@ -140,10 +140,11 @@ export type Kit = {
 };
 
 // Tearful is its own response: personal music can bring sadness without distress (research, 26 Oct).
-export const RESPONSES = ["calm", "engaged", "sang", "tearful", "upset"] as const;
+/** "talked": the sheet's third button for films, TV, books and places (UX-2); it counts as engaged. */
+export const RESPONSES = ["calm", "engaged", "sang", "talked", "tearful", "upset"] as const;
 /** "none": shown in a session with no reaction (session mode logs it on moving on); never a button. */
 export type Response = (typeof RESPONSES)[number] | "none";
-export const RESPONSE_LABELS: Record<Response, string> = { calm: "Calm", engaged: "Engaged", sang: "Sang along", tearful: "Tearful", upset: "Upset", none: "No reaction" };
+export const RESPONSE_LABELS: Record<Response, string> = { calm: "Calm", engaged: "Engaged", sang: "Sang along", talked: "Talked", tearful: "Tearful", upset: "Upset", none: "No reaction" };
 /** One tap; `itemRef` is what was on (a song playing, a film being talked about), if anything. */
 export type LogEntry = { id: number; response: Response; itemRef: string | null; at: string };
 
@@ -190,7 +191,7 @@ export function checkCurated(curated: Curated, research: KitItem[]): { items: Ki
       year: s.year,
       parts: artist.parts,
       ...(artist.addedBy ? { addedBy: artist.addedBy } : {}),
-      source: `AI pick: a recording by ${artist.title}`,
+      source: `A recording by ${artist.title}`,
       why: s.why.trim() || null,
       via: null,
       entityId: null,

@@ -96,47 +96,54 @@ export function youthRun(from: number | null, to: number | undefined, by: number
  * Why a card is here, in a plain sentence a judge or a carer can read (A8): what Qloo matched (the era, the town, a
  * taste link) or that the family named it. Built from the card's own source line, so it never claims more than that.
  */
-export function whyFor(p: Pick<Person, "preferredName" | "places">, item: { type: string; title: string; by?: string; origin: string; like?: string; parts: string[]; source: string; placeId?: string; fromStory?: string; story?: string; standIn?: string; worked?: boolean }): string {
+export function whyFor(p: Pick<Person, "preferredName" | "places"> & Partial<Pick<Person, "birthYear" | "decade">>, item: { type: string; title: string; by?: string; year?: number | null; origin: string; like?: string; parts: string[]; source: string; placeId?: string; fromStory?: string; story?: string; standIn?: string; worked?: boolean }): string {
   const name = p.preferredName || "them";
-  const checked = item.parts.includes("MusicBrainz") ? " The song is one of theirs, checked on MusicBrainz." : "";
+  const town = p.places.find((x) => x.id === item.placeId)?.name;
+  // Human first, then who found it (UX-3): never "AI pick" or "the model".
+  const checked = item.parts.includes("MusicBrainz") ? "; a real recording, checked on MusicBrainz" : "";
   // The badge says "From their story", so the reason does too (FC-4).
   const named = item.fromStory ?? (item.type === "place" ? item.story : undefined);
-  if (named) {
-    const town = p.places.find((x) => x.id === item.placeId)?.name;
-    return `The family mentioned it: “${named}”. Qloo found it${town ? ` in ${town}` : ""}.`;
-  }
-  if (item.origin === "family") return item.parts.length > 1 && item.by ? `The family named ${item.by}.${checked}` : "The family named it.";
+  if (named) return `The family mentioned it: “${named}”. Found by Qloo${town ? ` in ${town}` : ""}.`;
+  if (item.origin === "family") return item.parts.length > 1 && item.by ? `The family named ${item.by}${checked ? `. A real recording, checked on MusicBrainz` : ""}.` : "The family named it.";
   if (item.standIn) return `${item.source.replace(/^Stand-in:\s*/i, "").replace(/\.$/, "")}. A stand-in: it stays a new try until a log shows it works.`;
   if (item.origin === "new_try") {
-    // "Because ‘Waterloo’ worked for Margaret" once it's proven; before that, like the family's pick (IM-2).
-    const [decade, , town] = item.parts;
-    const where = [decade, town].filter((x) => x && !/^like /.test(x) && x !== "Qloo").join(", ");
-    if (item.like && item.worked) return `Because ‘${item.like}’ worked for ${name}, Qloo found more liked by the same people${where ? `, ${where}` : ""}.`;
-    return item.like ? `Qloo: people who like ${item.like} also like this. The family picked ${item.like}.` : `Qloo: like what ${name} loves.`;
+    // "Because ‘Waterloo’ worked" once it's proven; before that, the family's pick (IM-2).
+    if (item.like && item.worked) return `Because ‘${item.like}’ worked, Qloo found more that the same people like.`;
+    return item.like ? `The family picked ${item.like}; Qloo found more that the same people like.` : `Like what ${name} loves, found by Qloo.`;
   }
-  // "Qloo: Scottish artists of the 60s, popular around Glasgow." → as Qloo said it, plus the song check.
+  const by = p.birthYear ?? (p.decade != null ? p.decade + 5 : null);
+  const age = item.year && by ? item.year - by : null;
+  const where = town ?? item.parts[1];
+  const human =
+    item.type === "place"
+      ? `A long-standing place in ${where}, still there today.`
+      : age && age >= 5 && age <= 60
+        ? `${item.type === "song" ? "Big" : "Out"}${where ? ` in ${where}` : ""} when ${name} was ${age}.`
+        : `Popular${where ? ` around ${where}` : ""} in ${name}’s young years.`;
+  // "Qloo: British artists of the 60s, popular around Glasgow." → what Qloo matched, in brackets.
   const said = item.source.replace(/^Qloo:\s*/, "").replace(/\.$/, "");
-  return `Qloo picked ${item.type === "song" ? "the artist" : "it"}: ${said}.${checked}`;
+  return `${human} Found by Qloo (${said})${checked}.`;
 }
 
-/** The same, in a few words for a tile: "Scottish · 60s", "Like Lulu", "Their story". */
-export function whyShort(p: Pick<Person, "places">, item: { type: string; origin: string; like?: string; parts: string[]; placeId?: string; fromStory?: string; standIn?: string; worked?: boolean }): string {
-  if (item.fromStory) return "Named in their story";
+/** The same, in a few words for a tile (UX-3): "Manchester · 70s", "Like Lulu", "From the family". No "Qloo", no type. */
+export function whyShort(p: Pick<Person, "places">, item: { type: string; origin: string; like?: string; parts: string[]; placeId?: string; fromStory?: string; standIn?: string; worked?: boolean; year?: number | null }): string {
+  if (item.fromStory) return "From their story";
   if (item.standIn) return `Stand-in for ‘${item.standIn}’`;
   if (item.worked && item.like) return `Because ‘${item.like}’ worked`;
-  if (item.origin === "family") return "The family named it";
-  if (item.origin === "new_try") return item.like ? `Qloo · like ${item.like}` : "Qloo · new try";
+  if (item.origin === "family") return "From the family";
+  if (item.origin === "new_try") return item.like ? `Like ${item.like}` : "New try";
   const town = p.places.find((x) => x.id === item.placeId)?.name;
   const like = item.parts.find((x) => x.startsWith("like "));
-  if (like) return `Qloo · ${like}`;
-  // Songs: ["60s", "Glasgow", "British", "Qloo", …] → "Qloo · British 60s · Glasgow".
+  if (like) return `L${like.slice(1)}`;
+  // Songs: ["60s", "Glasgow", "British", "Qloo", …] → "Glasgow · British 60s".
   if (item.type === "song") {
     const [decade, at, word] = item.parts;
     const local = word && !["Qloo", "MusicBrainz", "via NotOnQ", "example"].includes(word) ? `${word} ` : "";
-    return `Qloo · ${local}${decade} · ${town ?? at}`;
+    return `${town ?? at} · ${local}${decade}`;
   }
-  if (item.type === "place") return `Qloo · long-standing in ${town ?? item.parts[1]}`;
-  return town ? `Qloo · popular around ${town}` : "Qloo · popular then";
+  if (item.type === "place") return `${town ?? item.parts[1]} · long-standing`;
+  const when = item.year ? String(item.year) : item.parts[1];
+  return [town, when].filter(Boolean).join(" · ") || "Popular then";
 }
 
 /** War, crime, horror and the like: not for reminiscence when steer clear points that way, and never first. */

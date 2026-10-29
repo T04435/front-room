@@ -1,4 +1,4 @@
-import { Check, ClipboardList, X } from "lucide-react";
+import { Ban, Check, ClipboardList } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -104,7 +104,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
           {person.steers.length === 0 && paused.length === 0 && <p className="text-sm text-muted-foreground">{person.steerAsked ? "Nothing flagged by the family." : "Not asked yet: ask the family in the story chat."}</p>}
           {person.steers.map((s) => (
             <p key={s.id} className="flex gap-2">
-              <X className="mt-1 size-4 shrink-0 text-destructive" aria-hidden />
+              <Ban className="mt-1 size-4 shrink-0 text-primary" aria-hidden />
               <span>
                 {s.label} ({s.level === "never" ? "never" : "sad but OK"}) <span className="text-xs text-muted-foreground">· {s.source === "logged" ? "after a session" : "the family"}, {day(s.at)}</span>
               </span>
@@ -112,7 +112,7 @@ export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) 
           ))}
           {paused.map((s) => (
             <p key={s.key} className="flex gap-2">
-              <X className="mt-1 size-4 shrink-0 text-destructive" aria-hidden />
+              <Ban className="mt-1 size-4 shrink-0 text-primary" aria-hidden />
               <span>
                 {s.title}: paused <span className="text-xs text-muted-foreground">· upset on {day(s.lastUpsetAt)}; the family is asked in the story chat</span>
               </span>
