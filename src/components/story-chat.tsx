@@ -849,17 +849,23 @@ function SteerTopic({ person, name, onSave }: { person: Person; name: string; on
   return (
     <span className="grid gap-2">
       <span>Is there anything I should steer clear of for {name}? A person, a topic, a sound. Just a short label; no reason needed.</span>
-      <span className="flex flex-wrap gap-2">
-        <Input aria-label="Something to steer clear of" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. The war, loud bangs" className="h-8 sm:w-64" maxLength={60} />
-        <Button size="xs" disabled={label.trim().length < 2} onClick={() => onSave(addSteer(person, label, "never"), `Steer clear of ${label.trim()}`)}>
-          Never
-        </Button>
-        <Button size="xs" variant="outline" disabled={label.trim().length < 2} onClick={() => onSave(addSteer(person, label, "sad_ok"), `${label.trim()}: sad but OK`)}>
-          Sad but OK
-        </Button>
-        <Button size="xs" variant="ghost" onClick={() => onSave({ ...person, steerAsked: true }, "Nothing to steer clear of")}>
-          Nothing
-        </Button>
+      {/* One clear "nothing"; Never and Sad but OK only once there's a label to answer for (FC-14). */}
+      <span className="flex flex-wrap items-center gap-2">
+        <Input aria-label="Something to steer clear of" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. The war, loud bangs" className="h-11 min-w-0 basis-full sm:basis-72" maxLength={60} />
+        {label.trim().length >= 2 ? (
+          <>
+            <Button className="h-11" onClick={() => onSave(addSteer(person, label, "never"), `Steer clear of ${label.trim()}`)}>
+              Never
+            </Button>
+            <Button variant="outline" className="h-11" onClick={() => onSave(addSteer(person, label, "sad_ok"), `${label.trim()}: sad but OK`)}>
+              Sad but OK
+            </Button>
+          </>
+        ) : (
+          <Button variant="outline" className="h-11" onClick={() => onSave({ ...person, steerAsked: true }, "Nothing to steer clear of")}>
+            Nothing to steer clear of
+          </Button>
+        )}
       </span>
     </span>
   );

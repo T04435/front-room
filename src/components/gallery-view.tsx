@@ -327,7 +327,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
       <Sheet open={open !== null} onOpenChange={(o) => !o && (setOpen(null), setNotice(null))}>
         <SheetContent
           side="bottom"
-          className="max-h-[92vh] w-full max-w-[100vw] overflow-x-hidden overflow-y-auto sm:mx-auto sm:max-w-xl sm:rounded-t-xl"
+          className="max-h-[92vh] w-full max-w-[100vw] touch-pan-y overflow-x-hidden overflow-y-auto overscroll-x-none sm:mx-auto sm:max-w-xl sm:rounded-t-xl"
           onCloseAutoFocus={(e) => {
             if (!opener.current?.isConnected) return;
             e.preventDefault();
@@ -335,7 +335,8 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
           }}
         >
           {open && (
-            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 px-4 pb-4">
+            // Clipped, not scrolled: nothing inside can widen the sheet, even by a shadow (FC-1b).
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 overflow-x-clip px-4 pb-4">
               {settling && (
                 <Alert className="mt-8 max-sm:mt-12">
                   <Waves />
