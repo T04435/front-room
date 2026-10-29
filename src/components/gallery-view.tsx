@@ -238,12 +238,14 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
                 <Waves aria-hidden /> Something calm now
               </Button>
             )}
-            <Button asChild variant="outline" className="max-sm:h-11">
+            <Button asChild variant="outline" className="max-sm:min-h-11">
               <Link href={`/p/${person.id}/works`}>What works</Link>
             </Button>
-            <Button asChild variant="ghost" className="max-sm:h-auto max-sm:min-h-11 max-sm:whitespace-normal">
-              <Link href={`/p/${person.id}/story`}>
-                <MessageCircleHeart aria-hidden /> Get to know {name} better
+            {/* On a phone: two equal outline buttons, one line each; the full name stays the accessible one. */}
+            <Button asChild variant="ghost" className="max-sm:min-h-11 max-sm:border-2 max-sm:border-input max-sm:bg-card">
+              <Link href={`/p/${person.id}/story`} aria-label={`Get to know ${name} better`}>
+                <MessageCircleHeart aria-hidden /> <span className="sm:hidden">Their story</span>
+                <span className="max-sm:hidden">Get to know {name} better</span>
               </Link>
             </Button>
           </div>
