@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { calmPick, TYPE_WORD, type Gallery, type GalleryItem, type GalleryType } from "@/lib/gallery";
+import { calmPick, settlePick, TYPE_WORD, type Gallery, type GalleryItem, type GalleryType } from "@/lib/gallery";
 import { RESPONSE_LABELS } from "@/lib/kit";
 import type { Play } from "@/lib/learning";
 import { HEARD_KINDS, type Person, type StaffHeard, talkingPoints } from "@/lib/person";
@@ -198,11 +198,12 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
   /** Stop: logs the upset, and opens something that settles them (what's proven calm, else what works, else the family's). */
   async function stop(g: GalleryItem) {
     await log(g, "upset");
-    const calm = calmPick(gallery, g.key);
-    // Nothing logged calm yet: what the family said calms them, and a song the family named (FC-5).
-    const family = calm ? null : gallery.shelves.song.find((x) => x.origin === "family" && x.key !== g.key) ?? null;
+    // Something logged calm, else a song the family named (FC-5); never the song just stopped.
+    const pick = settlePick(gallery, person, g);
+    const calm = pick?.logged ? pick.item : null;
+    const family = pick && !pick.logged ? pick.item : null;
     const calms = person.practical.calms?.trim();
-    setOpen(calm ?? family, true);
+    setOpen(pick?.item ?? null, true);
     if (calm) setNotice(`Stopped and logged as upset. Something that has calmed ${name}: ${calm.title}.`);
     else if (family) setNotice(`Stopped and logged as upset. A song the family chose for ${name}: ${family.title}.${calms ? ` The family says ${name} is calmed by: ${calms}.` : ""}`);
     else if (calms) setStopped(`Stopped and logged as upset. The family says ${name} is calmed by: ${calms}. First check the basics (pain, hungry or thirsty, the toilet, too hot or cold).`);

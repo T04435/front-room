@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hookFor } from "@/lib/card-words";
 import { EXAMPLE_PERSON, EXAMPLE_PLAYS } from "@/lib/example-person";
-import { galleryOf } from "@/lib/gallery";
+import { galleryOf, settlePick } from "@/lib/gallery";
 import { itemKey, playStats, type Play } from "@/lib/learning";
 import { emptyPerson, type Person, type Suggestion } from "@/lib/person";
 import { standInsFor } from "@/server/bell";
@@ -101,5 +101,29 @@ describe("IM-5: honest stand-ins", () => {
     const g = galleryOf(joan({ "stand-ins": [card("x1", "song", "Anyone Who Had a Heart", { by: "Cilla Black", year: 1964, standIn: "The Zzz Singers", source: "Stand-in: Qloo didn’t know ‘The Zzz Singers’, so this is a top pick from Joan’s years in Liverpool." })] }), new Map());
     expect(g.newTries[0].hook).toBe("Couldn’t find ‘The Zzz Singers’ on Qloo. A stand-in from the same years and town: Anyone Who Had a Heart.");
     expect(g.newTries[0].why).toBe("Qloo didn’t know ‘The Zzz Singers’, so this is a top pick from Joan’s years in Liverpool. A stand-in: it stays a new try until a log shows it works.");
+  });
+});
+
+describe("Stop's something calm (FC-5)", () => {
+  it("never offers the song just stopped, even when the family's copy has another key", () => {
+    const p = joan(
+      {
+        family: [card("f1", "song", "I Only Want to Be With You", { by: "Dusty Springfield" })],
+        pl: [card("q1", "song", "I Only Want to Be With You", { by: "Dusty" })],
+      },
+      { loves: [] },
+    );
+    const g = galleryOf(p, new Map());
+    const stopped = g.shelves.song.find((x) => x.by === "Dusty")!;
+    expect(settlePick(g, p, stopped)).toBeNull();
+  });
+
+  it("offers another family song, but nothing on steer clear", () => {
+    const p = joan({ family: [card("f1", "song", "Anyone Who Had a Heart", { by: "Cilla Black" }), card("f2", "song", "Alfie", { by: "Cilla Black" })] });
+    const g = galleryOf(p, new Map());
+    const stopped = g.shelves.song.find((x) => x.title === "Anyone Who Had a Heart")!;
+    expect(settlePick(g, p, stopped)?.item.title).toBe("Alfie");
+    const steered = { ...p, steers: [{ id: "s", kind: "item" as const, label: "Alfie", level: "never" as const, source: "family" as const, at: NOW.toISOString() }] };
+    expect(settlePick(galleryOf(steered, new Map()), steered, stopped)).toBeNull();
   });
 });

@@ -178,8 +178,24 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
  * Something to settle them now (Stop, or "Something calm now"): only a song staff have logged Calm with, most calm
  * days first. No evidence, no pick: the card says it's not known yet rather than guess. Never the item just stopped.
  */
-export function calmPick(g: Gallery, except?: string): GalleryItem | null {
+export function calmPick(g: Gallery, except?: string | GalleryItem): GalleryItem | null {
   const all = [...g.works, ...Object.values(g.shelves).flat(), ...g.newTries];
-  const calm = all.filter((x) => x.type === "song" && x.key !== except && (x.stat?.calmSessions ?? 0) > 0);
+  const calm = all.filter((x) => x.type === "song" && !isSame(x, except) && (x.stat?.calmSessions ?? 0) > 0);
   return calm.sort((a, b) => (b.stat?.calmSessions ?? 0) - (a.stat?.calmSessions ?? 0))[0] ?? null;
+}
+
+/** The item just stopped, by key or by title: the family's "I Only Want to Be With You" and Qloo's are one song. */
+const isSame = (x: GalleryItem, except?: string | GalleryItem) => (typeof except === "string" ? x.key === except : except ? x.key === except.key || nameKey(x.title) === nameKey(except.title) : false);
+
+/**
+ * What Stop offers instead (FC-5): something logged calm, else a song the family chose. Never the item just stopped
+ * (nor the same song under another key), anything paused, or anything on steer clear. Nothing qualifies: null, and
+ * the basics are offered alone.
+ */
+export function settlePick(g: Gallery, p: Pick<Person, "steers">, stopped: GalleryItem): { item: GalleryItem; logged: boolean } | null {
+  const ok = (x: GalleryItem) => !isSame(x, stopped) && x.stat?.state !== "paused" && !steersClear(p, x.title, x.by);
+  const calm = calmPick(g, stopped);
+  if (calm && ok(calm)) return { item: calm, logged: true };
+  const family = g.shelves.song.find((x) => x.origin === "family" && ok(x));
+  return family ? { item: family, logged: false } : null;
 }
