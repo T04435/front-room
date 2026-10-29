@@ -55,7 +55,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "calm",
       "title": "You Don't Have to Say You Love Me",
-      "source": "AI pick, confirmed on MusicBrainz: a recording by Dusty Springfield (A9)",
+      "source": "AI pick, confirmed on MusicBrainz: a recording by Dusty Springfield",
       "addedBy": "family",
       "minutes": 3,
       "entityId": null
@@ -83,7 +83,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "calm",
       "title": "Yesterday",
-      "source": "AI pick, confirmed on MusicBrainz: a recording by The Beatles (A10)",
+      "source": "AI pick, confirmed on MusicBrainz: a recording by The Beatles",
       "minutes": 3,
       "entityId": null
     },
@@ -110,7 +110,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "familiar",
       "title": "Maggie May",
-      "source": "AI pick, confirmed on MusicBrainz: a recording by Rod Stewart (A5)",
+      "source": "AI pick, confirmed on MusicBrainz: a recording by Rod Stewart",
       "minutes": 3,
       "entityId": null
     },
@@ -137,7 +137,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "singalong",
       "title": "Lola",
-      "source": "AI pick, confirmed on MusicBrainz: a recording by The Kinks (A12)",
+      "source": "AI pick, confirmed on MusicBrainz: a recording by The Kinks",
       "minutes": 3,
       "entityId": null
     },
@@ -164,7 +164,7 @@ export const EXAMPLE_KIT: Kit = {
       ],
       "phase": "singalong",
       "title": "Waterloo",
-      "source": "AI pick, confirmed on MusicBrainz: a recording by ABBA (A2)",
+      "source": "AI pick, confirmed on MusicBrainz: a recording by ABBA",
       "minutes": 3,
       "entityId": null
     },

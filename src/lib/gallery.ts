@@ -2,6 +2,7 @@ import { filmSong, historicName, hookFor, inStory, isGentle, isHarsh, isInstitut
 import { searchLinks } from "./kit";
 import { itemKey, type ItemStat } from "./learning";
 import { steersClear, type Person, type Suggestion } from "./person";
+import { nameKey } from "./qloo-parse";
 
 export type GalleryType = "song" | "film" | "tv" | "book" | "place";
 
@@ -83,7 +84,28 @@ export type Gallery = {
 export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   const items = new Map<string, GalleryItem>();
   const noHarsh = steerRulesOutHarsh(p);
-  const put = (g: Omit<GalleryItem, "key" | "links" | "stat" | "hook" | "prompt" | "why" | "whyShort">) => {
+  const towns = p.places.map((x) => nameKey(x.name)).filter(Boolean);
+  // One card per place (FC-4): "the Cavern Liverpool" and "The Cavern Club" are the same place.
+  const placeKey = (title: string) => {
+    let k = ` ${nameKey(title)} `.replace(/^ the /, " ");
+    for (const t of towns) k = k.replace(new RegExp(` ${t} $`), " ");
+    return k;
+  };
+  const samePlace = (a: string, b: string) => {
+    const [x, y] = [placeKey(a), placeKey(b)];
+    return x.trim().length > 0 && y.trim().length > 0 && (x.startsWith(y) || y.startsWith(x));
+  };
+  const put = (input: Omit<GalleryItem, "key" | "links" | "stat" | "hook" | "prompt" | "why" | "whyShort">) => {
+    let g = input.type === "place" ? { ...input, title: input.title.replace(/^the /, "The ") } : input;
+    if (g.type === "place") {
+      const twin = [...items.values()].find((x) => x.type === "place" && samePlace(x.title, g.title));
+      if (twin) {
+        // Keep the fuller name ("The Cavern Club"), and the story's words from either.
+        const [keep, drop] = placeKey(twin.title).length >= placeKey(g.title).length ? [twin, g] : [g, twin];
+        items.delete(twin.key);
+        g = { ...keep, origin: twin.origin === "family" || g.origin === "family" ? "family" : keep.origin, fromStory: keep.fromStory ?? drop.fromStory };
+      }
+    }
     const key = itemKey({ type: g.type, title: g.title, by: g.by });
     // A steer-clear can name a genre or keyword too ("Boxing" against Rocky's).
     if (items.has(key) || steersClear(p, g.title, g.by, ...(g.origin === "family" ? [] : (g.genres ?? [])))) return;
@@ -96,7 +118,7 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
     const story = g.fromStory ?? (g.type === "place" ? (inStory(p, g.title) ?? undefined) : undefined);
     const st = stats.get(key);
     const askFamily = Boolean(st && st.tearfulSessions > 0 && st.state !== "paused" && !p.resolvedUpsets.includes(key));
-    items.set(key, { ...g, key, story, askFamily, links: linksFor(g.type, g.title, g.by, g.year), stat: stats.get(key), hook: story ? `From ${p.preferredName || "their"}’s story: ${story}.` : hookFor(p, g), prompt: promptFor(g.type, g.title), why: whyFor(p, g), whyShort: whyShort(p, g) });
+    items.set(key, { ...g, key, story, askFamily, links: linksFor(g.type, g.title, g.by, g.year), stat: stats.get(key), hook: story ? `From ${p.preferredName || "their"}’s story: ${story}.` : hookFor(p, g), prompt: promptFor(g.type, g.title), why: whyFor(p, { ...g, story }), whyShort: whyShort(p, { ...g, fromStory: g.fromStory ?? story }) });
   };
   // The family's own loves first.
   for (const l of p.loves) {

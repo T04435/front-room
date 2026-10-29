@@ -8,6 +8,11 @@ const yearIn = (f: Fact) => f.fromYear ?? (/^\d{4}$/.test(f.value.trim()) ? Numb
 const append = (a: string | undefined, b: string) => (a && !a.toLowerCase().includes(b.toLowerCase()) ? `${a}; ${b}` : a || b);
 
 /** How a candidate fact reads on a "here's what I heard" card. */
+/** "1968–1975", "from 1968", "until 1975": never a "?" or a dangling dash (FC-10). */
+export const yearsText = (from: number | null, to: number | null) => (from && to ? `${from}–${to}` : from ? `from ${from}` : to ? `until ${to}` : "");
+/** What a love is, in words: "the film", not "· film" (FC-10). Artists, places and the rest need none. */
+const LOVE_WORD: Record<string, string> = { song: "the song ", film: "the film ", book: "the book " };
+
 export function describeFact(f: Fact): string {
   switch (f.kind) {
     case "preferredName":
@@ -17,11 +22,11 @@ export function describeFact(f: Fact): string {
     case "decade":
       return `Born in the ${yearIn(f) ?? f.value}s`;
     case "place":
-      return `${f.value}${f.fromYear || f.toYear ? `, ${f.fromYear ?? "?"}–${f.toYear ?? "?"}` : ""}${f.detail ? ` (${f.detail})` : ""}`;
+      return `${f.value}${f.fromYear || f.toYear ? `, ${yearsText(f.fromYear, f.toYear)}` : ""}${f.detail && !/^lived$/i.test(f.detail) ? ` (${f.detail})` : ""}`;
     case "moment":
       return `${f.value}${f.fromYear ? `, ${f.fromYear}` : ""}`;
     case "love":
-      return `Loves ${f.value}${f.extra ? ` (${f.extra})` : ""}${f.detail ? ` · ${f.detail}` : ""}`;
+      return `Loves ${LOVE_WORD[f.detail?.toLowerCase() ?? ""] ?? ""}${f.value}${f.extra ? ` (${f.extra})` : ""}${f.detail?.toLowerCase() === "tv" ? " on the telly" : ""}`;
     case "painful":
       return f.value;
     case "calms":
@@ -139,7 +144,7 @@ export function wouldHelpNext(p: Person, paused: { key: string; title: string; l
   const steered = new Set(p.steers.map((s) => nameKey(s.label)));
   for (const u of paused) {
     if (p.resolvedUpsets.includes(u.key) || steered.has(nameKey(u.title))) continue;
-    out.push({ id: `up-${u.key}`, kind: "upset", label: u.tearful ? `${p.preferredName || "They"} was tearful during ${u.title}: keep it (sad but OK) or steer clear?` : u.lastUpsetAt ? `Upset during ${u.title} on ${day(u.lastUpsetAt)}: steer clear?` : `Tearful with ${u.title}: steer clear?`, itemKey: u.key, itemTitle: u.title, ...(u.tearful ? { tearful: true } : {}) });
+    out.push({ id: `up-${u.key}`, kind: "upset", label: u.tearful ? `${p.preferredName || "They"} was tearful during ‘${u.title}’: keep it, or steer clear?` : u.lastUpsetAt ? `Upset during ‘${u.title}’ on ${day(u.lastUpsetAt)}: steer clear?` : `Tearful with ‘${u.title}’: steer clear?`, itemKey: u.key, itemTitle: u.title, ...(u.tearful ? { tearful: true } : {}) });
   }
   if (!p.steerAsked && !p.steers.length) out.push({ id: "steer", kind: "steer", label: "Anything to steer clear of?" });
   const last = p.places.at(-1);
@@ -148,7 +153,7 @@ export function wouldHelpNext(p: Person, paused: { key: string; title: string; l
   if (!p.moments.some((m) => m.kind === "wedding" || m.kind === "dance")) out.push({ id: "moment", kind: "moment", label: momentSteered(p, { kind: "wedding", label: "wedding" }) ? "Dancing, or a big day out?" : "A wedding, or dancing?" });
   if (provenCalm < 3 && !p.practical.calms) out.push({ id: "calms", kind: "calms", label: `What calms ${name}?` });
   if (!p.practical.work) out.push({ id: "work", kind: "work", label: "Their work" });
-  if (!p.practical.faith) out.push({ id: "faith", kind: "faith", label: "Faith, or keep it out?" });
+  if (!p.practical.faith) out.push({ id: "faith", kind: "faith", label: "Their faith: include it, or leave it out?" });
   if (!p.practical.hearing && p.practical.headphonesOk === undefined) out.push({ id: "hearing", kind: "hearing", label: "Hearing and headphones" });
   for (const h of p.staffHeard.filter((x) => !x.confirmed)) out.push({ id: `h-${h.id}`, kind: "heard", label: `Staff heard: “${h.text}”`, heardId: h.id });
   return out;

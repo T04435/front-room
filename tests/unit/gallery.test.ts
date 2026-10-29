@@ -112,6 +112,24 @@ describe("a venue named in the story (Joan's Cavern)", () => {
   });
 });
 
+describe("one card per place (FC-4)", () => {
+  it("merges 'the Cavern Liverpool' into 'The Cavern Club', with the story's badge and reason", () => {
+    const p: Person = {
+      ...emptyPerson("abcdefghij", "Joan", null),
+      places: [{ id: "pl", name: "Liverpool", fromYear: 1946, toYear: 1968 }],
+      moments: [{ id: "m1", kind: "dance", year: null, label: "Danced at the Cavern", venue: "the Cavern" }],
+      suggestions: {
+        story: [{ id: "s1", placeId: "pl", type: "place", title: "the Cavern Liverpool", year: null, parts: ["their story", "Liverpool", "Qloo"], source: "Named in Joan’s story.", fromStory: "Danced at the Cavern" }],
+        "pl:1956-1968": [{ id: "q1", placeId: "pl", type: "place", title: "The Cavern Club", year: null, parts: ["place", "Liverpool", "Qloo"], source: "Qloo: a long-standing place in Liverpool, still there today." }],
+      },
+    };
+    const places = galleryOf(p, new Map()).shelves.place;
+    expect(places.map((x) => x.title)).toEqual(["The Cavern Club"]);
+    expect(places[0].story).toBe("Danced at the Cavern");
+    expect(places[0].why).toBe("The family mentioned it: “Danced at the Cavern”. Qloo found it in Liverpool.");
+  });
+});
+
 describe("Product's v2.3 rules (the example Margaret, who has 'Loud bangs' in steer clear)", () => {
   const g = galleryOf(EXAMPLE_PERSON, playStats(EXAMPLE_PLAYS, [], NOW, "Europe/London"));
   const titles = (xs: { title: string }[]) => xs.map((x) => x.title);
@@ -166,6 +184,6 @@ describe("why each card is here (A6, A8)", () => {
   it("says plainly what Qloo matched", () => {
     expect(find("Shout").why).toBe("Qloo picked the artist: Scottish artists of the 60s, popular around Glasgow. The song is one of theirs, checked on MusicBrainz.");
     expect(find("Shout").whyShort).toBe("Qloo · Scottish 60s · Glasgow");
-    expect(find("Barrowland Ballroom").why).toContain("Edie’s story names it");
+    expect(find("Barrowland Ballroom").why).toContain("The family mentioned it");
   });
 });

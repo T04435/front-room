@@ -82,12 +82,14 @@ export function hookFor(p: Pick<Person, "preferredName" | "birthYear" | "decade"
  * Why a card is here, in a plain sentence a judge or a carer can read (A8): what Qloo matched (the era, the town, a
  * taste link) or that the family named it. Built from the card's own source line, so it never claims more than that.
  */
-export function whyFor(p: Pick<Person, "preferredName" | "places">, item: { type: string; title: string; by?: string; origin: string; like?: string; parts: string[]; source: string; placeId?: string; fromStory?: string }): string {
+export function whyFor(p: Pick<Person, "preferredName" | "places">, item: { type: string; title: string; by?: string; origin: string; like?: string; parts: string[]; source: string; placeId?: string; fromStory?: string; story?: string }): string {
   const name = p.preferredName || "them";
   const checked = item.parts.includes("MusicBrainz") ? " The song is one of theirs, checked on MusicBrainz." : "";
-  if (item.fromStory) {
+  // The badge says "From their story", so the reason does too (FC-4).
+  const named = item.fromStory ?? (item.type === "place" ? item.story : undefined);
+  if (named) {
     const town = p.places.find((x) => x.id === item.placeId)?.name;
-    return `${name}’s story names it (“${item.fromStory}”), and Qloo found the place${town ? ` in ${town}` : ""}.`;
+    return `The family mentioned it: “${named}”. Qloo found it${town ? ` in ${town}` : ""}.`;
   }
   if (item.origin === "family") return item.parts.length > 1 && item.by ? `The family named ${item.by}.${checked}` : "The family named it.";
   if (item.origin === "new_try") return item.like ? `Qloo: people who like ${item.like} also like this. ${item.like} works for ${name}.` : `Qloo: like what ${name} loves.`;
@@ -107,7 +109,7 @@ export function whyShort(p: Pick<Person, "places">, item: { type: string; origin
   // Songs: ["60s", "Glasgow", "British", "Qloo", …] → "Qloo · British 60s · Glasgow".
   if (item.type === "song") {
     const [decade, at, word] = item.parts;
-    const local = word && !["Qloo", "MusicBrainz", "via NotOnQ"].includes(word) ? `${word} ` : "";
+    const local = word && !["Qloo", "MusicBrainz", "via NotOnQ", "example"].includes(word) ? `${word} ` : "";
     return `Qloo · ${local}${decade} · ${town ?? at}`;
   }
   if (item.type === "place") return `Qloo · long-standing in ${town ?? item.parts[1]}`;

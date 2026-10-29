@@ -2,7 +2,7 @@
 
 import { ArrowDown, ArrowUp, Check, Lightbulb, Mic, MicOff, Paperclip, Pencil, Sparkles, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { type CSSProperties, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AgentMark } from "@/components/front-room/agent";
 import { applyStepEvent, RunSteps, type StepItem } from "@/components/run-steps";
 import { PlaceSearch, SteerQuestion, TextInput, YearInput } from "@/components/story-inputs";
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { birthYearOf, missingMinimum, researchInputs, researchKey, type Fact, type Person } from "@/lib/person";
 import type { FamilyQuestion } from "@/lib/learning";
 import type { RunEvent } from "@/lib/run-events";
-import { addPlace, addSteer, applyFact, describeFact, storyPatch, uid, wouldHelpNext, type Help } from "@/lib/story";
+import { addPlace, addSteer, applyFact, describeFact, storyPatch, uid, wouldHelpNext, yearsText, type Help } from "@/lib/story";
 
 type Candidate = Fact & { id: string };
 type Paused = FamilyQuestion;
@@ -71,6 +71,19 @@ function nextAsk(p: Person): Ask | null {
 }
 
 /** Whether an ask is still open for this person (it may have been answered in a story told since). */
+/** What a later message already said for an ask (FC-8): "1938" for "Roughly when was Iris born?", before it's confirmed. */
+function toldSince(ask: Ask, msgs: Msg[], from: number): string | null {
+  const kinds: Partial<Record<Ask["kind"], Fact["kind"][]>> = { name: ["preferredName"], born: ["birthYear", "decade"], place: ["place"], language: ["language"] };
+  const want = kinds[ask.kind];
+  if (!want) return null;
+  for (const m of msgs.slice(from + 1)) {
+    if (!("kind" in m) || m.kind !== "heard") continue;
+    const f = m.facts.find((x) => want.includes(x.kind));
+    if (f) return f.kind === "decade" ? `The ${f.fromYear ?? f.value}s` : f.kind === "birthYear" ? String(f.fromYear ?? f.value) : f.value;
+  }
+  return null;
+}
+
 function stillNeeded(ask: Ask, p: Person): boolean {
   if (ask.kind === "name") return !p.preferredName.trim();
   if (ask.kind === "born") return birthYearOf(p) === null;
@@ -100,6 +113,16 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   const endRef = useRef<HTMLDivElement>(null);
   const composer = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  // The sticky composer's height: what scrolls into view stops above it, never under it (FC-2).
+  const composerBox = useRef<HTMLDivElement>(null);
+  const [composerH, setComposerH] = useState(160);
+  useEffect(() => {
+    const el = composerBox.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setComposerH(Math.ceil(el.getBoundingClientRect().height)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   /** A photo or PDF of a paper "This is me": the model writes out what it says, into the box to check and send. */
   async function readFile(file: File | undefined) {
@@ -143,7 +166,11 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
     if (!fresh.length) return;
     const first = fresh.find((m) => m.from === "agent");
     const el = first && fresh.at(-1)?.from === "agent" ? document.querySelector<HTMLElement>(`[data-msg="${first.id}"]`) : null;
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    // The gallery's button: all of it in view, above the composer (FC-2).
+    const opens = [...fresh].reverse().find((m) => "kind" in m && (m.kind === "found" || m.kind === "early"));
+    const button = opens ? document.querySelector<HTMLElement>(`[data-msg="${opens.id}"]`) : null;
+    if (button) button.scrollIntoView({ behavior: "smooth", block: "end" });
+    else if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     else endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [msgs]);
   // Look-up steps: keep the latest in view.
@@ -335,7 +362,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   }
 
   return (
-    <div className="mx-auto grid max-w-2xl gap-4">
+    <div className="mx-auto grid max-w-2xl gap-4" style={{ "--composer-h": `${composerH + 16}px` } as CSSProperties}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-heading text-[30px] leading-[36px]">{hasGallery ? `Get to know ${name} better` : `${person.preferredName ? `${person.preferredName}’s` : "Their"} story`}</h1>
         <div className="flex gap-2">
@@ -345,7 +372,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
             </Button>
           )}
           {/* Always there ("that's enough, go for it"): pressed early, it asks only for what's missing. */}
-          {!ro && (stale || !hasGallery) && (
+          {/* Only once there's enough to look up (FC-7): before that, the story comes first. */}
+          {!ro && (stale || !hasGallery) && missingMinimum(person).length === 0 && (
             <Button size="sm" onClick={() => void find()} disabled={busy}>
               <Sparkles aria-hidden /> Find things for {name}
             </Button>
@@ -363,7 +391,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
               </Bubble>
             </Message>
           ) : (
-            <Message key={m.id} data-msg={m.id} className="scroll-mt-20">
+            <Message key={m.id} data-msg={m.id} className="scroll-mt-20 scroll-mb-(--composer-h)">
               <MessageContent className="grid w-full gap-1">
                 <span className="flex items-center gap-1.5 text-[15px] font-medium text-muted-foreground">
                   <AgentMark size={20} decorative state={busy && m.id === msgs.at(-1)?.id ? "working" : "rest"} /> Go-Between
@@ -376,8 +404,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
                       name={name}
                       ro={ro}
                       busy={busy}
-                      resolved={resolved.has(m.id)}
-                      answer={answers[m.id]}
+                      resolved={resolved.has(m.id) || ("kind" in m && m.kind === "ask" && toldSince(m.ask, msgs, msgs.indexOf(m)) !== null)}
+                      answer={answers[m.id] ?? ("kind" in m && m.kind === "ask" ? (toldSince(m.ask, msgs, msgs.indexOf(m)) ?? undefined) : undefined)}
                       steps={steps}
                       onHint={(starter) => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${starter}`)}
                       onConfirm={(facts) => void confirmFacts(m.id, facts)}
@@ -411,11 +439,11 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
             <Spinner /> The Go-Between is reading that…
           </p>
         )}
-        <div ref={endRef} className="scroll-mb-40" />
+        <div ref={endRef} className="scroll-mb-(--composer-h)" />
       </div>
 
       {!ro && (
-        <div className="sticky bottom-0 grid gap-2 border-t bg-background pt-3 pb-4">
+        <div ref={composerBox} className="sticky bottom-0 grid gap-2 border-t bg-background pt-3 pb-4">
           {/* On a phone, once you've started, the ideas sit behind one button (A10). */}
           {talked && (
             <Button size="sm" variant="ghost" className="justify-self-start sm:hidden" aria-expanded={ideas} onClick={() => setIdeas((x) => !x)}>
@@ -423,7 +451,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
             </Button>
           )}
           {/* One scrolling row, so the chat keeps the screen; a thin scrollbar (A17). */}
-          <div className={cn("-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]", talked && !ideas && "max-sm:hidden")} aria-label="What helps">
+          {/* A fade on the right says the row scrolls (FC-13). */}
+          <div className={cn("-mx-1 flex gap-1.5 overflow-x-auto px-1 pr-8 pb-1 [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] [scrollbar-width:thin]", talked && !ideas && "max-sm:hidden")} aria-label="What helps">
             {HINTS.map((h) => (
               <Button key={h.label} size="sm" variant="secondary" className="shrink-0" onClick={() => {
                   setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`);
@@ -539,7 +568,7 @@ function opening(p: Person, paused: Paused[]): Msg[] {
     ];
   }
   const by = p.birthYear ? `born ${p.birthYear}` : p.decade ? `born in the ${p.decade}s` : null;
-  const places = p.places.map((x) => `${x.name}${x.fromYear ? ` ${x.fromYear}–${x.toYear ?? ""}` : ""}`).join(", ");
+  const places = p.places.map((x) => `${x.name}${x.fromYear || x.toYear ? ` ${yearsText(x.fromYear, x.toYear)}` : ""}`).join(", ");
   return [
     { id: "known", from: "agent", text: `Here's what I know about ${name}: ${[by, places, p.moments.length ? `${p.moments.length} big ${p.moments.length === 1 ? "moment" : "moments"}` : null, p.loves.length ? `${p.loves.length} ${p.loves.length === 1 ? "thing" : "things"} they love` : null, p.steers.length ? `${p.steers.length} ${p.steers.length === 1 ? "thing" : "things"} to steer clear of` : null, p.languages.length ? `grew up speaking ${p.languages.join(", ")}` : null].filter(Boolean).join(" · ")}.` },
     ...(wouldHelpNext(p, paused, 0).length ? [{ id: "helps", from: "agent" as const, kind: "helps" as const }] : []),
@@ -867,20 +896,18 @@ function HelpInput({ help, person, onSave }: { help: Help; person: Person; onSav
       return (
         <span className="grid gap-2">
           <span>
-            {help.tearful ? `${name} was tearful during ${help.itemTitle}. Tears can be part of a good moment: keep it, or steer clear?` : `${name} was upset during ${help.itemTitle}. Shall I steer clear of it?`}
+            {help.tearful ? `${name} was tearful during ‘${help.itemTitle}’. Tears can be part of a good moment: keep it, or steer clear?` : `${name} was upset during ‘${help.itemTitle}’. Shall I steer clear of it?`}
           </span>
+          {/* Buttons that answer the question asked, all alike: none is the "right" answer (FC-6). */}
           <span className="flex flex-wrap gap-2">
-            <Button size="xs" onClick={() => onSave(addSteer(person, help.itemTitle, "never", "item", "logged"), "Never")}>
-              Never
-            </Button>
-            <Button size="xs" variant="outline" onClick={() => onSave({ ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] }, "Sad but OK")}>
-              Sad but OK
-            </Button>
-            {!help.tearful && (
-              <Button size="xs" variant="outline" onClick={() => onSave({ ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] }, "A one-off")}>
-                A one-off
+            {(help.tearful
+              ? ([["Keep it", false], ["Steer clear", true]] as const)
+              : ([["Steer clear", true], ["Sad but OK", false], ["A one-off", false]] as const)
+            ).map(([label, steer]) => (
+              <Button key={label} size="sm" variant="outline" className="max-sm:h-11" onClick={() => onSave(steer ? addSteer(person, help.itemTitle, "never", "item", "logged") : { ...person, resolvedUpsets: [...person.resolvedUpsets, help.itemKey] }, label)}>
+                {label}
               </Button>
-            )}
+            ))}
           </span>
         </span>
       );

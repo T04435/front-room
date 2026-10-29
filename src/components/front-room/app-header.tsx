@@ -15,7 +15,8 @@ export function AppHeader() {
         <Link href="/" aria-label="Front Room, home" className="rounded-md">
           <Logo size="sm" />
         </Link>
-        <nav aria-label="Main" className="flex gap-1">
+        {/* Remounted per page, so a tapped link doesn't stay lit by focus on the next page (FC-13). */}
+        <nav key={path} aria-label="Main" className="flex gap-1">
           <Button asChild variant="ghost" size="sm" className="aria-[current=page]:bg-secondary">
             <Link href="/people" aria-current={current === "people" ? "page" : undefined}>
               People

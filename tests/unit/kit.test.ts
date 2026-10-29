@@ -39,7 +39,7 @@ describe("checkCurated", () => {
       ["S2", "familiar", "Dusty Springfield", "Son of a Preacher Man"],
       ["S3", "singalong", "Slade", "Cum On Feel the Noize"],
     ]);
-    expect(songsOf(out.items)[0]).toMatchObject({ type: "song", via: null, source: "AI pick: a recording by The Kinks (A1)", parts: ["60s", "Manchester", "Qloo"] });
+    expect(songsOf(out.items)[0]).toMatchObject({ type: "song", via: null, source: "AI pick: a recording by The Kinks", parts: ["60s", "Manchester", "Qloo"] });
   });
 
   it("drops a second song by one artist, a non-artist ref, an unknown ref and a bad pick, and says why", () => {

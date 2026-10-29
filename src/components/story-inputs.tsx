@@ -34,7 +34,7 @@ export function YearInput({
     <div className="grid gap-2">
       <Label htmlFor={id}>{label}</Label>
       <div className="flex flex-wrap items-center gap-2">
-        <Input id={id} inputMode="numeric" className="w-28" placeholder="e.g. 1950" value={text} onChange={(e) => setText(e.target.value.replace(/\D/g, "").slice(0, 4))} />
+        <Input id={id} inputMode="numeric" className="w-32" placeholder="e.g. 1950" value={text} onChange={(e) => setText(e.target.value.replace(/\D/g, "").slice(0, 4))} />
         <Button type="button" size="sm" disabled={!ok} onClick={() => onSave(n)}>
           Save
         </Button>

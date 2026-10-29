@@ -190,7 +190,7 @@ export function checkCurated(curated: Curated, research: KitItem[]): { items: Ki
       year: s.year,
       parts: artist.parts,
       ...(artist.addedBy ? { addedBy: artist.addedBy } : {}),
-      source: `AI pick: a recording by ${artist.title} (${artist.ref})`,
+      source: `AI pick: a recording by ${artist.title}`,
       why: s.why.trim() || null,
       via: null,
       entityId: null,

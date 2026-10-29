@@ -99,10 +99,36 @@ function offlineExtractor(text: string, person: Person): LanguageModel {
   if (sang) f("love", sang[1].trim().replace(/^["“]|["”]$/g, ""), sang[0], { detail: "song", extra: sang[2]?.trim() ?? null });
   const worked = text.match(/worked (?:in|at|as) ([^.,]+)/i);
   if (worked) f("work", worked[1].trim(), worked[0]);
-  const loved = text.match(/loved ([A-Z][\w ]+?)(?: and |[.,]|$)/);
-  if (loved) f("love", loved[1].trim(), loved[0], { detail: "artist" });
-  return mockReply({ facts, followUps: offlineFollowUps(moved?.[1], loved?.[1]?.trim(), grew !== null || person.places.length > 0) });
+  // "loved Cilla Black", or "loved Cilla Black and Dusty": two loves, never a dangling "and" (FC-11).
+  const loved = text.match(/loved ([A-Z][\w ]+?)(?: and ([A-Z][\w ]+?))?(?: and [a-z]|[.,\n]|$)/);
+  if (loved) for (const l of [loved[1], loved[2]].filter(Boolean)) f("love", l.trim(), loved[0], { detail: "artist" });
+  // The "This is me" sections, as the form puts them (FC-11).
+  const section = (head: string) => text.match(new RegExp(`${head}:?\\s*([^\\n]+)`, "i"));
+  const worry = section("Things that may worry or upset me");
+  if (worry) for (const w of worry[1].replace(/\.$/, "").split(/,\s*(?:and\s+)?|\s+and\s+/)) if (w.trim()) f("painful", cap(w.trim()), worry[0]);
+  const better = section("What makes me feel better");
+  if (better) f("calms", better[1].trim().replace(/\.$/, ""), better[0]);
+  const ear = text.match(/hears? better on (?:my|her|his|their) (left|right) side/i);
+  if (ear) f("hearing", `Hears better on the ${ear[1].toLowerCase()} side`, ear[0]);
+  const faith = section("Faith");
+  if (faith) f("faith", faith[1].split(".")[0].trim(), faith[0]);
+  const routine = section("My routines");
+  const early = text.match(/up early[^.\n]*/i);
+  if (early || routine) f("bestTime", early ? "Mornings: likes to be up early" : routine![1].split(".")[0].trim(), (early ?? routine)![0]);
+  const friends = text.match(/(?:old )?friends call (?:me|her|him|them) ([A-Z][a-z]+)/i);
+  const called = text.match(/like to be called:?\s*([A-Z][a-z]+)/i)?.[1] ?? person.preferredName;
+  if (friends) f("greeting", `${called ? `${called}; ` : ""}old friends say ${friends[1]}`, friends[0]);
+  for (const m of text.matchAll(/(?:don'?t mention|never talks about) (?!him\b|her\b|it\b|them\b)([^.,\n]+)/gi)) f("painful", cap(m[1].trim()), m[0]);
+  const birthplace = text.match(/born in (19\d\d) in ([A-Z][a-z]+)/);
+  if (birthplace && birthplace[2] !== grew?.[1]) f("place", birthplace[2], birthplace[0], { fromYear: Number(birthplace[1]), detail: "born" });
+  const important = section("What is important to me");
+  for (const show of important ? TV_SHOWS.filter((t) => important[1].toLowerCase().includes(t.toLowerCase())) : []) f("love", show, important![0], { detail: "tv" });
+  return mockReply({ facts, followUps: offlineFollowUps(moved?.[1], loved?.[1]?.trim(), grew !== null || person.places.length > 0, worked !== null || Boolean(person.practical.work)) });
 }
+
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+/** Long-running British telly a "This is me" names among what's important. */
+const TV_SHOWS = ["Coronation Street", "EastEnders", "Emmerdale", "Doctor Who", "Top of the Pops", "Dad's Army", "Songs of Praise", "Blue Peter", "Strictly Come Dancing", "Countdown"];
 
 function mockReply(output: { facts: Fact[]; followUps: string[] }): LanguageModel {
   return new MockLanguageModelV4({
@@ -155,8 +181,8 @@ function offlineSpanish(text: string, person: Person): { facts: Fact[]; followUp
 }
 
 /** The offline stand-in for the model's follow-up: dig into what was said, else ask what's missing, else what calms them. */
-function offlineFollowUps(movedTo: string | undefined, loved: string | undefined, placeKnown: boolean): string[] {
-  if (movedTo) return [`You said they moved to ${movedTo}. What did they do there?`];
+function offlineFollowUps(movedTo: string | undefined, loved: string | undefined, placeKnown: boolean, workKnown = false): string[] {
+  if (movedTo && !workKnown) return [`You said they moved to ${movedTo}. What did they do there?`];
   if (loved) return [`You said they loved ${loved}. Was there a song of theirs they always sang?`];
   if (!placeKnown) return ["Where did they grow up?"];
   return ["What calms them when they're unsettled?"];

@@ -66,7 +66,7 @@ export default function Home() {
         </div>
         <div className="grid grid-cols-3 gap-3 pb-6" aria-hidden>
           {WALL.map((src, i) => (
-            <span key={src} className={i % 2 ? "translate-y-6" : ""}>
+            <span key={src} className={i % 3 === 1 ? "translate-y-6" : ""}>
               {/* eslint-disable-next-line @next/next/no-img-element -- remote art from Qloo's CDN. */}
               <img src={src} alt="" loading={i < 3 ? "eager" : "lazy"} className="aspect-square w-full rounded-[var(--radius)] object-cover shadow-[var(--shadow-card)]" />
             </span>

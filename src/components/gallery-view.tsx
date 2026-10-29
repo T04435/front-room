@@ -122,6 +122,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
   ]
     .filter((g, i, xs): g is GalleryItem => Boolean(g) && xs.findIndex((x) => x?.key === g?.key) === i)
     .slice(0, 3);
+  const newTries = gallery.newTries.filter((g) => !startHere.some((x) => x.key === g.key));
   const isOpen = open !== null;
 
   // Cards from before pictures were kept: fetch theirs once, quietly, then show them.
@@ -191,8 +192,13 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
   async function stop(g: GalleryItem) {
     await log(g, "upset");
     const calm = calmPick(gallery, g.key);
-    setOpen(calm ?? null, true);
+    // Nothing logged calm yet: what the family said calms them, and a song the family named (FC-5).
+    const family = calm ? null : gallery.shelves.song.find((x) => x.origin === "family" && x.key !== g.key) ?? null;
+    const calms = person.practical.calms?.trim();
+    setOpen(calm ?? family, true);
     if (calm) setNotice(`Stopped and logged as upset. Something that has calmed ${name}: ${calm.title}.`);
+    else if (family) setNotice(`Stopped and logged as upset. A song the family chose for ${name}: ${family.title}.${calms ? ` The family says ${name} is calmed by: ${calms}.` : ""}`);
+    else if (calms) setStopped(`Stopped and logged as upset. The family says ${name} is calmed by: ${calms}. First check the basics (pain, hungry or thirsty, the toilet, too hot or cold).`);
     else setStopped(`Stopped and logged as upset. Nothing has been logged calm for ${name} yet: take a break, and first check the basics (pain, hungry or thirsty, the toilet, too hot or cold). Sit with them quietly.`);
   }
 
@@ -256,10 +262,10 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
       </div>
 
       {stopped && (
-        <Alert role="status" className="fixed inset-x-4 bottom-4 z-50 shadow-lg sm:mx-auto sm:max-w-xl">
+        <Alert role="status" className="fixed inset-x-4 bottom-4 z-50 max-w-[calc(100vw-2rem)] shadow-lg sm:mx-auto sm:max-w-xl">
           <Waves />
           <AlertDescription className="flex flex-wrap items-start justify-between gap-2">
-            <span>{stopped}</span>
+            <span className="min-w-0 break-words">{stopped}</span>
             <Button size="sm" variant="ghost" onClick={() => setStopped(null)}>
               OK
             </Button>
@@ -288,21 +294,22 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
           big
         />
       )}
-      {gallery.newTries.length > 0 && <Shelf title="New tries" hint={gallery.works.length ? "Like what works for them" : "Like what the family says they love"} items={gallery.newTries} onOpen={setOpen} />}
+      {/* What Start here already shows isn't repeated in New tries (FC-12). */}
+      {newTries.length > 0 && <Shelf title="New tries" hint={gallery.works.length ? "Like what works for them" : "Like what the family says they love"} items={newTries} onOpen={setOpen} />}
       {findingTries && gallery.newTries.length === 0 && <p className="text-sm text-muted-foreground">Finding new tries like what {gallery.works.length ? `works for ${name}` : `${name} loves`}…</p>}
       {(["song", "film", "tv", "book", "place"] as const).map((t) => (gallery.shelves[t].length ? <Shelf key={t} title={SHELF[t]} items={gallery.shelves[t]} onOpen={setOpen} /> : null))}
 
       {(gallery.paused.length > 0 || gallery.resting.length > 0) && (
         <section className="grid gap-1 text-sm text-muted-foreground">
-          {gallery.paused.length > 0 && <p>Paused after an upset: {gallery.paused.map((g) => g.title).join(", ")}. The family is asked about it in Get to know them better.</p>}
-          {gallery.resting.length > 0 && <p>Resting for a month (no reaction three times): {gallery.resting.map((g) => g.title).join(", ")}.</p>}
+          {gallery.paused.length > 0 && <p>Paused after an upset: {gallery.paused.map((g) => `‘${g.title}’`).join(", ")}. The family is asked about it in Get to know them better.</p>}
+          {gallery.resting.length > 0 && <p>Resting for a month (no reaction three times): {gallery.resting.map((g) => `‘${g.title}’`).join(", ")}.</p>}
         </section>
       )}
 
       <Sheet open={open !== null} onOpenChange={(o) => !o && (setOpen(null), setNotice(null))}>
         <SheetContent
           side="bottom"
-          className="max-h-[92vh] overflow-y-auto sm:mx-auto sm:max-w-xl sm:rounded-t-xl"
+          className="max-h-[92vh] w-full max-w-[100vw] overflow-x-hidden overflow-y-auto sm:mx-auto sm:max-w-xl sm:rounded-t-xl"
           onCloseAutoFocus={(e) => {
             if (!opener.current?.isConnected) return;
             e.preventDefault();
@@ -310,7 +317,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
           }}
         >
           {open && (
-            <div className="grid gap-3 px-4 pb-4">
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 px-4 pb-4">
               {settling && (
                 <Alert className="mt-8 max-sm:mt-12">
                   <Waves />
@@ -360,19 +367,20 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
 
               <div className="grid gap-2">
                 <span className="text-sm font-medium">How did {name} respond?</span>
-                <div className="grid grid-cols-2 gap-2" role="group" aria-label="Log a response">
+                <div className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-2" role="group" aria-label="Log a response">
                   {/* "Sang along" fits songs and the telly (music shows), not a place or a book. */}
                   {RESPONSES.filter((r) => r !== "sang" || open.type === "song" || open.type === "tv").map((r) => {
                     const Icon = LOG_ICON[r];
                     const on = mine.some((p) => p.response === r);
                     return (
-                      <Button key={r} variant={on ? "default" : "outline"} className="h-12 justify-start text-base" disabled={ro} aria-pressed={on} onClick={() => void log(open, r)}>
+                      <Button key={r} variant={on ? "default" : "outline"} className="h-12 min-w-0 justify-start text-base whitespace-normal" disabled={ro} aria-pressed={on} onClick={() => void log(open, r)}>
                         {on ? <Check aria-hidden /> : <Icon aria-hidden className={r === "upset" ? "text-destructive" : undefined} />} {RESPONSE_LABELS[r]}
                       </Button>
                     );
                   })}
                 </div>
-                <p aria-live="polite" className="flex min-h-6 flex-wrap items-center gap-2 text-sm">
+                {/* One steady height before and after a tap, so the sheet doesn't jump (FC-9). */}
+                <p aria-live="polite" className="flex min-h-11 min-w-0 flex-wrap items-center gap-x-2 text-sm break-words">
                   {(settling && notice?.startsWith("Stopped") ? null : notice) ??
                     (mine.length ? (
                       <>
@@ -393,7 +401,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
                 </Button>
               </div>
 
-              {mine.length > 0 && !ro && <LearnedSomething key={open.key} person={person} name={name} onSaved={() => router.refresh()} />}
+              {!ro && <LearnedSomething key={open.key} person={person} name={name} onSaved={() => router.refresh()} />}
 
               {open.cardId && !ro && open.origin !== "family" && (
                 <div className="flex flex-wrap items-center gap-2 border-t pt-3 text-sm">
