@@ -424,7 +424,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
 
               {/* The rest folds away (UX-2). */}
               {!ro && (
-                <details className="border-t pt-2">
+                <details className="min-w-0 border-t pt-2">
                   <summary className="cursor-pointer py-2 text-sm font-medium">More about this</summary>
                   <div className="grid gap-3 pt-1">
                     {open.cardId && open.origin !== "family" && (
@@ -558,8 +558,9 @@ function LearnedSomething({ person, name, onSaved }: { person: Person; name: str
   if (state === "saved") return <p className="border-t pt-3 text-sm">Noted for {name}&apos;s family to confirm in Get to know them better.</p>;
   if (!unfolded)
     return (
-      <div className="border-t pt-2">
-        <Button variant="ghost" className="max-sm:h-11 -ml-2" onClick={() => setUnfolded(true)}>
+      // Never wider than the sheet: it wraps on a phone (R2, last).
+      <div className="min-w-0 border-t pt-2">
+        <Button variant="ghost" className="-ml-2 h-auto min-h-9 w-full max-w-full justify-start text-left whitespace-normal max-sm:min-h-11" onClick={() => setUnfolded(true)}>
           <Plus aria-hidden /> Learned something new about {name}?
         </Button>
       </div>
