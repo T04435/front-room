@@ -34,10 +34,16 @@ export type QlooEntity = {
   image: string | null;
   /** Genre tag names, lower case ("musical", "crime"): to keep films and TV gentle. */
   genres: string[];
+  /** Place categories, lower case ("live music venue", "hotel"): to tell a venue from a hotel near it. */
+  categories: string[];
+  /** Films and TV: keyword tag names, lower case ("boxing"). Kept in memory only, to check against steer clear. */
+  keywords: string[];
   /** Localities and places: where it is. */
   lat: number | null;
   lon: number | null;
 };
+
+const tagNames = (e: z.infer<typeof entity>, kind: string) => (e.tags ?? []).filter((t) => (t.id ?? t.tag_id ?? "").includes(kind) && t.name).map((t) => t.name!.toLowerCase());
 
 function toEntity(e: z.infer<typeof entity>): QlooEntity {
   const year = Number(e.properties?.release_year);
@@ -52,7 +58,9 @@ function toEntity(e: z.infer<typeof entity>): QlooEntity {
     image: e.properties?.image?.url?.startsWith("https://") ? e.properties.image.url : null,
     lat: e.location?.lat ?? null,
     lon: e.location?.lon ?? null,
-    genres: (e.tags ?? []).filter((t) => (t.id ?? t.tag_id ?? "").includes(":genre:") && t.name).map((t) => t.name!.toLowerCase()),
+    genres: tagNames(e, ":genre:"),
+    categories: tagNames(e, ":category:"),
+    keywords: tagNames(e, ":keyword:"),
   };
 }
 

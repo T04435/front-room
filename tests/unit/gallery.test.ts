@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EXAMPLE_PERSON, EXAMPLE_PLAYS } from "@/lib/example-person";
+import { harshKeywords, pickVenue } from "@/lib/card-words";
 import { calmPick, galleryOf } from "@/lib/gallery";
 import { playStats } from "@/lib/learning";
 import { emptyPerson, type Person } from "@/lib/person";
@@ -74,6 +75,40 @@ describe("steer clear", () => {
     };
     const g = galleryOf(p, new Map());
     expect(g.shelves.song.map((x) => x.title)).toEqual(["Bus Stop"]);
+  });
+
+  it("covers films and TV by genre and keyword: no Rocky (boxing) when steer clear says loud bangs", () => {
+    // Rocky's only Qloo genre is drama; its keywords say boxing (kept with the genres at research time).
+    const genres = ["drama", ...harshKeywords(["young couple", "boxing", "persistence"])];
+    const film = (id: string, title: string, gs: string[]) => ({ id, placeId: "pl", type: "film" as const, title, year: 1976, parts: [], source: "Qloo", genres: gs });
+    const base: Person = {
+      ...emptyPerson("abcdefghij", "Joan", null),
+      suggestions: { "pl:1": [film("f1", "Rocky", genres), film("f2", "Grease", ["musical", "romance"])] },
+    };
+    const steer = (label: string) => ({ ...base, steers: [{ id: "s1", kind: "sound" as const, label, level: "never" as const, source: "family" as const, at: NOW.toISOString() }] });
+    expect(galleryOf(steer("Loud bangs"), new Map()).shelves.film.map((x) => x.title)).toEqual(["Grease"]);
+    expect(galleryOf(steer("Boxing"), new Map()).shelves.film.map((x) => x.title)).toEqual(["Grease"]);
+    expect(galleryOf(base, new Map()).shelves.film.map((x) => x.title)).toContain("Rocky");
+  });
+});
+
+describe("a venue named in the story (Joan's Cavern)", () => {
+  // Qloo's search for "Cavern Liverpool", in its order (29 Oct): a hotel in the Cavern Quarter comes first.
+  const results = [
+    { name: "ibis Styles Liverpool Centre Dale Street - Cavern Quarter", categories: ["hotel"] },
+    { name: "The Cavern Club", categories: ["tourist attraction", "restaurant", "live music venue", "bar"] },
+    { name: "Revolution Cavern Quarter", categories: ["cocktail bar", "restaurant"] },
+    { name: "Cavern Walks - Shopping Centre", categories: ["shopping mall"] },
+  ];
+
+  it("takes the real venue, never the hotel nearby", () => {
+    expect(pickVenue("the Cavern", results)?.name).toBe("The Cavern Club");
+  });
+
+  it("drops the place when no hit is a sure match", () => {
+    expect(pickVenue("the Cavern", [results[0], results[2], results[3]])).toBeNull();
+    expect(pickVenue("Cavern", [{ name: "ibis Cavern Hotel", categories: [] }])).toBeNull();
+    expect(pickVenue("Barrowland", [{ name: "Barrowland Ballroom", categories: ["music venue"] }])?.name).toBe("Barrowland Ballroom");
   });
 });
 

@@ -85,7 +85,8 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
   const noHarsh = steerRulesOutHarsh(p);
   const put = (g: Omit<GalleryItem, "key" | "links" | "stat" | "hook" | "prompt" | "why" | "whyShort">) => {
     const key = itemKey({ type: g.type, title: g.title, by: g.by });
-    if (items.has(key) || steersClear(p, g.title, g.by)) return;
+    // A steer-clear can name a genre or keyword too ("Boxing" against Rocky's).
+    if (items.has(key) || steersClear(p, g.title, g.by, ...(g.origin === "family" ? [] : (g.genres ?? [])))) return;
     const family = g.origin === "family";
     // War, crime and the like go when steer clear points that way (the family's own picks stay); so do institutions.
     if (!family && (g.type === "film" || g.type === "tv") && noHarsh && isHarsh(g.genres)) return;

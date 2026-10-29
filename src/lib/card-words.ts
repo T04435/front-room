@@ -1,4 +1,5 @@
 import { momentSteered, type Person } from "./person";
+import { nameKey } from "./qloo-parse";
 
 /**
  * What a card says to the carer: a hook tied to the person, and one open prompt (never testing, never the word
@@ -114,16 +115,46 @@ export function whyShort(p: Pick<Person, "places">, item: { type: string; origin
 }
 
 /** War, crime, horror and the like: not for reminiscence when steer clear points that way, and never first. */
-const HARSH = /\b(war|horror|crime|thriller|gangster|prison|slasher|military|disaster|mystery)\b/;
+const HARSH = /\b(war|horror|crime|thriller|gangster|prison|slasher|military|disaster|mystery|action|boxing|boxer|martial arts|fight\w*|violen\w*|gun\w*|shoot\w*|explosions?|bomb\w*|battle|combat|murder|western|kidnapp\w*)\b/;
 export const isHarsh = (genres: string[] | undefined) => (genres ?? []).some((g) => HARSH.test(g));
+/** A film's or show's keywords that make it harsh ("boxing" for Rocky, whose only genre is drama): kept with its genres. */
+export const harshKeywords = (keywords: string[]) => keywords.filter((k) => HARSH.test(k)).slice(0, 3);
 const GENTLE = /\b(musical|comedy|family|romance|variety|music|animation|soap opera)\b/;
 export const isGentle = (genres: string[] | undefined) => (genres ?? []).some((g) => GENTLE.test(g));
 
 /** Steer clear that rules out harsh films and TV altogether: the war, loud bangs, guns, violence, hospitals. */
-export const steerRulesOutHarsh = (p: Pick<Person, "steers">) => p.steers.some((s) => /war|loud|bang|gun|shoot|violen|fight|hospital|blood|police|army|bomb/i.test(s.label));
+export const steerRulesOutHarsh = (p: Pick<Person, "steers">) => p.steers.some((s) => /war|loud|bang|gun|shoot|violen|fight|box|hospital|blood|police|army|bomb|explo/i.test(s.label));
 
 /** Places a carer can talk about: not universities, research libraries, offices or hotels (unless the family named them). */
-export const isInstitution = (title: string) => /universit|research|institute|college|library|offices?\b|hotel|hospital|headquarters/i.test(title);
+export const isInstitution = (title: string) => /universit|research|institute|college|library|offices?\b|hotel|hostel|hospital|headquarters|\b(ibis|premier inn|travelodge|holiday inn|hilton|marriott|novotel|radisson|mercure|jurys inn)\b/i.test(title);
+
+/** Places to stay or work, by Qloo's category: never the venue the family meant. */
+const NOT_A_VENUE = /hotel|hostel|motel|lodging|apartment|bed and breakfast|guest house|office|coworking/;
+/** Where people went out, by Qloo's category. */
+const VENUE = /music venue|concert|night ?club|ballroom|danc|theat|cinema|movie|stadium|arena|attraction|landmark|historic|museum|pier|park|church|pub|bar|club|hall/;
+const SCENE = /music venue|concert|night ?club|ballroom|danc|theat|cinema|stadium|landmark/;
+
+/**
+ * The Qloo place the story means ("the Cavern" → The Cavern Club), or nothing when no hit is a sure match: the venue's
+ * words must be in the name itself (not after a " - Cavern Quarter" suffix), and a hotel or office never counts. Of the
+ * rest, it takes two of: the name starts with the venue's words (or is just them), it's a place people went out, it's a
+ * dance hall, music venue or theatre. A bar or a shopping centre that merely shares a word isn't enough.
+ */
+export function pickVenue<T extends { name: string; categories?: string[] }>(venue: string, results: T[]): T | null {
+  const words = nameKey(venue)
+    .split(" ")
+    .filter((w) => w.length >= 3 && w !== "the");
+  if (!words.length) return null;
+  const scored = results.flatMap((e) => {
+    const core = ` ${nameKey(e.name.split(/\s+[-–|]\s+/)[0]).replace(/^the /, "")} `;
+    const cats = (e.categories ?? []).join(" ");
+    if (!words.every((w) => core.includes(` ${w} `)) || isInstitution(e.name) || NOT_A_VENUE.test(cats)) return [];
+    const lead = ` ${words.join(" ")} `;
+    const score = (core === lead ? 2 : core.startsWith(lead) ? 1 : 0) + (VENUE.test(cats) ? 1 : 0) + (SCENE.test(cats) ? 1 : 0);
+    return score >= 2 ? [{ e, score }] : [];
+  });
+  return scored.sort((a, b) => b.score - a.score)[0]?.e ?? null;
+}
 
 /** The moment in the story that mentions a place, film or song ("Danced at the Ritz" → "O2 Ritz Manchester"), if any. */
 export function inStory(p: Pick<Person, "moments" | "places" | "steers">, title: string): string | null {

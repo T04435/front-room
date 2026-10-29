@@ -117,6 +117,8 @@ function answer(path: string, p: QlooParams): unknown {
   if (path === "/search") {
     const q = String(p.query ?? "");
     if (String(p.types).includes("locality")) return { results: /zzz/i.test(q) ? [] : [e(`loc-${q}`, q.replace(/,.*/, ""), { disambiguation: "England, United Kingdom" })] };
+    // A venue the story names ("Barrowland Glasgow") is a music venue, as Qloo tags the real ones.
+    if (String(p.types).includes("urn:entity:place")) return { results: [e(`p-${q}`, q, { tags: [{ id: "urn:tag:category:place:music_venue", name: "Music venue" }] })] };
     return { results: [e(`art-${q}`, q)] };
   }
   if (path === "/v2/tags") {

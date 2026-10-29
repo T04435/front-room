@@ -1,6 +1,6 @@
 import "server-only";
 import { describeEra, eraFor, pickDecadeTag } from "@/lib/era";
-import { isInstitution } from "@/lib/card-words";
+import { harshKeywords, isInstitution, pickVenue } from "@/lib/card-words";
 import { birthYearOf, eraForPlace, researchInputs, researchKey, steersClear, talkingPoints, type Person, type Place, type Suggestion } from "@/lib/person";
 import { nameKey, parseInsights, parseSearch, parseTags, pickByName } from "@/lib/qloo-parse";
 import type { CallLog, QlooParams } from "@/lib/qloo-transport";
@@ -215,7 +215,7 @@ export const STORY_KEY = "story";
 
 /**
  * The venues the family named ("went dancing at the Barrowland"), searched on Qloo in the town where it happened (the
- * place they lived that year, else the first). Only a result whose name has the venue's words counts: never a guess.
+ * place they lived that year, else the first). Only a sure match counts (`pickVenue`): never a hotel nearby, never a guess.
  */
 async function storyVenues(p: Person, towns: Town[], onCall: OnCall): Promise<Draft[]> {
   const venueOf = (label: string, venue?: string) => venue?.trim() || /\bat (?:the )?([A-Z][\w'’]+(?: [A-Z][\w'’]+)*)/.exec(label)?.[1] || null;
@@ -230,8 +230,7 @@ async function storyVenues(p: Person, towns: Town[], onCall: OnCall): Promise<Dr
       const results = await get("/search", { query: `${venue} ${town.place.name}`, types: "urn:entity:place", take: 5 }, onCall)
         .then((r) => parseSearch(r.data))
         .catch(() => []);
-      const words = nameKey(venue).split(" ").filter((w) => w.length >= 4);
-      const hit = results.find((e) => words.length > 0 && words.every((w) => nameKey(e.name).includes(w)) && !isInstitution(e.name));
+      const hit = pickVenue(venue, results);
       if (!hit) return null;
       return { placeId: town.place.id, type: "place" as const, title: hit.name, year: m.year, parts: ["their story", town.place.name, "Qloo"], source: `Named in ${p.preferredName || "their"}’s story; Qloo found the place in ${town.place.name}.`, qlooId: hit.id, fromStory: m.label, ...(hit.image ? { image: hit.image } : {}) } satisfies Draft;
     }),
@@ -386,7 +385,7 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
     for (const e of hit.found.filter((x) => nameKey(x.name) !== nameKey(hit.match.name)).slice(0, 3)) add({ placeId: place.id, type: "book", title: e.name, year: e.year, parts: ["book", `like ${hit.match.name}`, "Qloo"], source: `Qloo: liked by readers of ${hit.match.name}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
   }
   for (const { kind, n, found } of screen) {
-    for (const e of found.filter((x, i, xs) => xs.findIndex((y) => y.id === x.id) === i).slice(0, n)) add({ placeId: place.id, type: kind, title: e.name, year: e.year, parts: [kind === "film" ? "film" : "TV", e.year ? String(e.year) : years, "Qloo"], source: `Qloo: ${kind === "film" ? "films" : "TV"} from ${years}, popular around ${name}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}), ...(e.genres.length ? { genres: e.genres } : {}) });
+    for (const e of found.filter((x, i, xs) => xs.findIndex((y) => y.id === x.id) === i).slice(0, n)) add({ placeId: place.id, type: kind, title: e.name, year: e.year, parts: [kind === "film" ? "film" : "TV", e.year ? String(e.year) : years, "Qloo"], source: `Qloo: ${kind === "film" ? "films" : "TV"} from ${years}, popular around ${name}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}), ...(e.genres.length || harshKeywords(e.keywords).length ? { genres: [...e.genres, ...harshKeywords(e.keywords)] } : {}) });
   }
   for (const e of historic.filter((x) => !isInstitution(x.name)).slice(0, PER_PLACE.places)) add({ placeId: place.id, type: "place", title: e.name, year: null, parts: ["place", name, "Qloo"], source: `Qloo: a long-standing place in ${name}, still there today.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
 
