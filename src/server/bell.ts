@@ -4,10 +4,10 @@ import { harshKeywords, isInstitution, pickVenue } from "@/lib/card-words";
 import { STAND_INS_KEY } from "@/lib/gallery";
 import { birthYearOf, eraForPlace, researchInputs, researchKey, steersClear, talkingPoints, type Person, type Place, type Suggestion } from "@/lib/person";
 import { nameKey, parseInsights, parseSearch, parseTags, pickByName } from "@/lib/qloo-parse";
-import type { CallLog, QlooParams } from "@/lib/qloo-transport";
+import type { CallLog, CallOptions, QlooParams } from "@/lib/qloo-transport";
 import type { RunEvent } from "@/lib/run-events";
 import { offline } from "@/server/env";
-import { kmBetween, type Locality, localTags, resolvePlaces, SAME_TOWN_KM } from "@/server/locality";
+import { countryName, globalIsLocal, kmBetween, type Locality, localTags, resolvePlaces, SAME_TOWN_KM } from "@/server/locality";
 import { checkSong } from "@/server/musicbrainz";
 import { NO_HORROR, QlooError, qlooGet } from "@/server/qloo";
 import { pickSongs } from "@/server/songs";
@@ -22,7 +22,7 @@ export const FAMILY_KEY = "family";
 /** Places researched per Go for it (a long story is researched over several). */
 const MAX_PLACES = 4;
 
-const get = (path: string, params: QlooParams, onCall: OnCall) => qlooGet<unknown>(path, params, onCall);
+const get = (path: string, params: QlooParams, onCall: OnCall, opts?: CallOptions) => qlooGet<unknown>(path, params, onCall, opts);
 
 /** The places whose research is missing or out of date (their place, years, loves or steer-clears changed). */
 export function placesToResearch(p: Person): Place[] {
@@ -126,7 +126,14 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
         if (log.status === 200) sources.add(log.servedBy === "notonq" ? "NotOnQ" : "Qloo");
       };
       try {
-        found.push(...(await researchPlace(p, place, loc, era, call)));
+        // A place that timed out gets one more go with longer budgets (F5: Madrid timed out in the live run).
+        found.push(
+          ...(await researchPlace(p, place, loc, era, call).catch((error) => {
+            if (!(error instanceof QlooError)) throw error;
+            console.error("bell research retry", place.name, error.message);
+            return researchPlace(p, place, loc, era, call, true);
+          })),
+        );
         emit({
           type: "step-end",
           id,
@@ -303,8 +310,13 @@ function withCards(p: Person, keys: { key: string; place: Place | null }[], draf
   return { ...p, suggestions, researched };
 }
 
-async function researchPlace(p: Person, place: Place, loc: Locality | null, era: ReturnType<typeof eraFor>, onCall: OnCall): Promise<Draft[]> {
+async function researchPlace(p: Person, place: Place, loc: Locality | null, era: ReturnType<typeof eraFor>, onCall: OnCall, slow = false): Promise<Draft[]> {
   const name = place.name;
+  // A retry after a timeout gets longer budgets (F5); the local-music call always gets NotOnQ time for its era fill (F2).
+  const budget: CallOptions = slow ? { qlooTimeoutMs: 40_000, notonqTimeoutMs: 10_000 } : {};
+  const get = (path: string, params: QlooParams, onCall: OnCall, extra?: CallOptions) => qlooGet<unknown>(path, params, onCall, { ...budget, ...extra });
+  const country = countryName(loc);
+  const ownMusicOnly = !globalIsLocal(loc);
   // Qloo is asked with the pinned town ("Glasgow, United Kingdom"), never a bare name it could put in Kentucky.
   const where = loc?.query ?? place.name;
   const years = describeEra(era);
@@ -332,13 +344,17 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
   const lead = [...tags].sort((a, b) => b.years - a.years)[0];
   const share = (t: { years: number }) => Math.max(2, Math.round((PER_PLACE.artists * t.years) / Math.max(1, era.to - era.from + 1)));
   const local = localTags(loc);
+  // Outside the English-speaking world the decade's global hits aren't theirs (F3): no top-up from them.
+  const skipGlobal = ownMusicOnly && local.length > 0;
 
   const [localArtists, eraArtists, likes, books, screen, historic] = await Promise.all([
     // The town's own music first (A5): the decade and the most local tag Qloo has for it (Scottish, then British).
     Promise.all(
       tags.map(async (t) => {
         for (const l of local) {
-          const r = await get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": `${t.id},${l.tag}`, "operator.filter.tags": "intersection", "signal.location.query": where, take: 8 }, onCall).catch(() => null);
+          // Through NotOnQ with time for its era fill: Qloo alone has one 60s Spanish artist; NotOnQ finds Mocedades,
+          // Paco de Lucía, Camarón… from MusicBrainz in about 8 s (live probe, 31 Oct).
+          const r = await get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": `${t.id},${l.tag}`, "operator.filter.tags": "intersection", "signal.location.query": where, take: 8 }, onCall, { notonqTimeoutMs: slow ? 25_000 : 15_000 }).catch(() => null);
           const found = r ? parseInsights(r.data) : [];
           if (found.length >= 2) return { t, l, r: r!, found };
         }
@@ -346,7 +362,7 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
       }),
     ),
     // Then the decade's artists around the town, for whatever the local ones leave.
-    Promise.all(tags.map(async (t) => ({ t, r: await get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": t.id, "signal.location.query": where, take: 10 }, onCall) }))),
+    Promise.all(tags.map(async (t) => ({ t, r: skipGlobal ? null : await get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": t.id, "signal.location.query": where, take: 10 }, onCall) }))),
     // Things like what they love, in that decade and town: a film seeds music, a dance hall its era's songs.
     Promise.all(
       p.loves
@@ -379,10 +395,15 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
     Promise.all(
       ([["film", "urn:entity:movie", PER_PLACE.films], ["tv", "urn:entity:tv_show", PER_PLACE.tv]] as const).map(async ([kind, type, n]) => {
         // No horror: it was in the live results (Halloween for Blackpool, 1972–80), and it isn't for a care home.
-        const base = { "filter.type": type, "filter.release_year.min": era.from, "filter.release_year.max": era.to, "filter.exclude.tags": NO_HORROR, take: 8 };
+        // Outside the English-speaking world, the country's own releases (F4): "Spain" (Qloo wants the name, not "ES").
+        const byCountry = ownMusicOnly && country ? { "filter.release_country": country } : {};
+        const base = { "filter.type": type, "filter.release_year.min": era.from, "filter.release_year.max": era.to, "filter.exclude.tags": NO_HORROR, ...byCountry, take: 8 };
         let found = parseInsights((await get("/v2/insights", { ...base, "signal.location.query": where }, onCall)).data);
-        // TV is thin by place (two shows for London in the probes): fall back to the era's TV anywhere.
-        if (found.length < n) found = [...found, ...parseInsights((await get("/v2/insights", base, onCall)).data)];
+        // TV is thin by place (two shows for London in the probes): fall back to the era's TV anywhere. Never for a
+        // country filter: fewer cards beat Hollywood fill-ins.
+        if (found.length < n && !byCountry["filter.release_country"]) found = [...found, ...parseInsights((await get("/v2/insights", base, onCall)).data)];
+        // Co-productions come back too (spaghetti westerns for Spain): the country's own first releases lead.
+        if (country && byCountry["filter.release_country"]) found = [...found.filter((e) => e.releaseCountry === country), ...found.filter((e) => e.releaseCountry !== country)];
         return { kind, n, found };
       }),
     ),
@@ -395,16 +416,18 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
     const mine = localArtists.find((x) => x?.t === t);
     const general = eraArtists.find((x) => x.t === t)!;
     let left = share(t);
+    // The town's own came back: no top-up from the decade's hits anywhere (F3).
+    const topUp = !mine?.found.length && general.r ? parseInsights(general.r.data) : [];
     for (const e of mine?.found ?? []) {
       if (left <= 0) break;
       const before = out.length;
       add({ placeId: place.id, type: "artist", title: e.name, year: decadeStart(t.short), eraFrom: era.from, eraTo: era.to, parts: [t.short, name, mine!.l.word, via(mine!.r)], source: `Qloo: ${mine!.l.word} artists of the ${t.short}, popular around ${name}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
       if (out.length > before) left--;
     }
-    for (const e of parseInsights(general.r.data)) {
+    for (const e of topUp) {
       if (left <= 0) break;
       const before = out.length;
-      add({ placeId: place.id, type: "artist", title: e.name, year: decadeStart(t.short), eraFrom: era.from, eraTo: era.to, parts: [t.short, name, via(general.r)], source: `Qloo: artists popular around ${name} in the ${t.short}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
+      add({ placeId: place.id, type: "artist", title: e.name, year: decadeStart(t.short), eraFrom: era.from, eraTo: era.to, parts: [t.short, name, via(general.r!)], source: `Qloo: artists popular around ${name} in the ${t.short}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
       if (out.length > before) left--;
     }
   }

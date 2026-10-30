@@ -132,7 +132,8 @@ export function whyFor(p: Pick<Person, "preferredName" | "places"> & Partial<Pic
         : item.type === "song" && decade && /^\d0s$/.test(decade)
           ? ` among ${town ?? at} artists of the ${decade}`
           : "";
-  return `${human} Found by Qloo${among}${checked}.`;
+  // NotOnQ served it (its era fill finds a country's artists Qloo is thin on): say so (F3).
+  return `${human} Found ${item.parts.includes("via NotOnQ") ? "via NotOnQ" : "by Qloo"}${among}${checked}.`;
 }
 
 /** The same, in a few words for a tile (UX-3): "Manchester · 70s", "Like Lulu", "From the family". No "Qloo", no type. */
@@ -165,7 +166,9 @@ const GENTLE = /\b(musical|comedy|family|romance|variety|music|animation|soap op
 export const isGentle = (genres: string[] | undefined) => (genres ?? []).some((g) => GENTLE.test(g));
 
 /** Steer clear that rules out harsh films and TV altogether: the war, loud bangs, guns, violence, hospitals. */
-export const steerRulesOutHarsh = (p: Pick<Person, "steers">) => p.steers.some((s) => /war|loud|bang|gun|shoot|violen|fight|box|hospital|blood|police|army|bomb|explo/i.test(s.label));
+// Steer clear is in the family's language (F4): "ruidos fuertes" rules out westerns and war films as "loud bangs" does.
+export const steerRulesOutHarsh = (p: Pick<Person, "steers">) =>
+  p.steers.some((s) => /war|loud|bang|gun|shoot|violen|fight|box|hospital|blood|police|army|bomb|explo|ruido|estruendo|petardo|guerra|tiro|disparo|pelea|sangre|polic[ií]a|ej[ée]rcito|bomba|cohete/i.test(s.label));
 
 /** Places a carer can talk about: not universities, research libraries, offices or hotels (unless the family named them). */
 export const isInstitution = (title: string) => /universit|research|institute|college|library|offices?\b|hotel|hostel|hospital|headquarters|\b(ibis|premier inn|travelodge|holiday inn|hilton|marriott|novotel|radisson|mercure|jurys inn)\b/i.test(title);

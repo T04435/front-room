@@ -69,6 +69,16 @@ export function kmBetween(a: Locality | null | undefined, b: Locality | null | u
   return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 
+/** The country in English, as Qloo's `filter.release_country` wants it ("Spain"; "ES" returns nothing). */
+const ENGLISH: Record<string, string> = { España: "Spain", Italia: "Italy", México: "Mexico", Deutschland: "Germany", Polska: "Poland", Éire: "Ireland", "Bhārat": "India" };
+export const countryName = (l: Locality | null | undefined) => (l?.country ? (ENGLISH[l.country] ?? l.country) : null);
+
+/**
+ * Where the era's global hits were the local ones too (F3): English-language countries. Anywhere else, a place's own
+ * music comes first and a thin answer means fewer cards, never Anglo hits to fill.
+ */
+export const globalIsLocal = (l: Locality | null | undefined) => !l?.country || ["United Kingdom", "Ireland", "United States", "Australia", "Canada", "New Zealand"].includes(countryName(l)!);
+
 /** Places this close are one town for research (Govan is in Glasgow): one look-up, not two. */
 export const SAME_TOWN_KM = 12;
 
@@ -93,7 +103,8 @@ export function localTags(l: Locality | null | undefined): { tag: string; word: 
       return [t("cuban", "Cuban"), t("latin", "Latin")];
     case "España":
     case "Spain":
-      return [t("spanish", "Spanish"), t("latin", "Latin")];
+      // All three are real Qloo tags (probed 31 Oct): copla and flamenco reach the 50s–70s that "spanish" alone misses.
+      return [t("spanish", "Spanish"), t("copla", "copla"), t("flamenco", "flamenco")];
     case "México":
     case "Mexico":
       return [t("mexican", "Mexican"), t("latin", "Latin")];

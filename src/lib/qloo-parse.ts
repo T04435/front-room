@@ -12,6 +12,8 @@ const entity = z.object({
       release_year: z.union([z.number(), z.string()]).nullable().optional(),
       /** TV: the year it ended, when it has (Qloo's tv_show property, also its `filter.finale_year` filter). */
       finale_year: z.union([z.number(), z.string()]).nullable().optional(),
+      /** Films and TV: where it was released, first country first (Qloo's `filter.release_country` takes these names). */
+      release_country: z.union([z.string(), z.array(z.string())]).nullable().optional(),
       short_description: z.string().nullable().optional(),
       description: z.string().nullable().optional(),
       image: z.object({ url: z.string().optional() }).partial().nullable().optional(),
@@ -30,6 +32,8 @@ export type QlooEntity = {
   year: number | null;
   /** TV: the year its run ended, if Qloo has it. */
   finaleYear: number | null;
+  /** Films and TV: the first release country ("Spain"), to put a country's own films first (F4). */
+  releaseCountry: string | null;
   description: string | null;
   disambiguation: string | null;
   popularity: number | null;
@@ -56,6 +60,7 @@ function toEntity(e: z.infer<typeof entity>): QlooEntity {
     name: e.name,
     year: Number.isFinite(year) && year > 0 ? year : null,
     finaleYear: Number(e.properties?.finale_year) > 0 ? Number(e.properties?.finale_year) : null,
+    releaseCountry: [e.properties?.release_country ?? []].flat()[0] ?? null,
     description: e.properties?.short_description ?? e.properties?.description ?? null,
     disambiguation: e.disambiguation ?? null,
     popularity: e.popularity ?? null,

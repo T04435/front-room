@@ -20,8 +20,7 @@ const schema = z.object({
   /**
    * NotOnQ's drop-in API: every Qloo call goes through it first, with our own QLOO_API_KEY (NotOnQ issues no keys),
    * and falls back to Qloo directly. The app names itself in the base URL, so NotOnQ's ledger shows the traffic
-   * apart: production's /q/app/front-room on Vercel, a local NotOnQ's /q/app/front-room-dev in development, unless
-   * NOTONQ_BASE_URL is set.
+   * apart: NotOnQ production's /q/app/front-room, locally too, unless NOTONQ_BASE_URL points at a NotOnQ dev server.
    */
   NOTONQ_BASE_URL: z.url().optional(),
   /** "1": skip NotOnQ and call Qloo directly. */

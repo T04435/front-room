@@ -11,6 +11,52 @@ const ARTISTS_50S = ["Elvis Presley", "Buddy Holly", "Lonnie Donegan", "Cliff Ri
 const ARTISTS_60S = ["The Beatles", "The Kinks", "The Who", "The Zombies", "Otis Redding", "The Hollies", "Herman's Hermits", "Dusty Springfield"];
 const ARTISTS_70S = ["David Bowie", "T. Rex", "Slade", "Roxy Music", "Elton John", "ABBA", "The Carpenters", "10cc"];
 const ARTISTS_80S = ["Madonna", "Duran Duran", "Whitney Houston", "Wham!", "Culture Club", "Michael Jackson", "Kate Bush", "Dire Straits"];
+// Outside the UK (F7): what NotOnQ's era fill and Qloo's release-country filter gave in the live probes of 31 Oct, so
+// the Rosa and Amrit examples show the same shape offline as live.
+const ARTISTS_SPANISH = ["Raphael", "Marisol", "Julio Iglesias", "Mocedades", "Paco de Lucía", "Camarón de la Isla", "Camilo Sesto", "Rocío Dúrcal"];
+const ARTISTS_PUNJABI = ["Mohammed Rafi", "Lata Mangeshkar", "Asha Bhosle", "Kishore Kumar", "Surinder Kaur", "Noor Jehan", "Mukesh", "Manna Dey"];
+const BY_COUNTRY: Record<string, { films: [string, number, string][]; tv: [string, number][] }> = {
+  Spain: {
+    films: [
+      ["Bienvenido, Mister Marshall", 1953, "Spain"],
+      ["Marcelino pan y vino", 1955, "Spain"],
+      ["Viridiana", 1961, "Spain"],
+      ["La gran familia", 1962, "Spain"],
+      ["El verdugo", 1963, "Spain"],
+      ["The Good, the Bad and the Ugly", 1966, "Italy"],
+    ],
+    tv: [
+      ["Mi hijo y yo", 1963],
+      ["Estudio 1", 1965],
+      ["La familia Colón", 1965],
+      ["Habitación 508", 1966],
+    ],
+  },
+  India: {
+    films: [
+      ["Pyaasa", 1957, "India"],
+      ["Mother India", 1957, "India"],
+      ["Mughal-e-Azam", 1960, "India"],
+      ["Sangam", 1964, "India"],
+      ["Guide", 1965, "India"],
+    ],
+    tv: [],
+  },
+};
+/** Where each town is, as Qloo's locality search labels it; else the country the query names; else England. */
+const TOWNS: Record<string, string> = {
+  sevilla: "Andalucía, España",
+  seville: "Andalucía, España",
+  madrid: "Comunidad de Madrid, España",
+  amritsar: "Punjab, India",
+  lahore: "Punjab, Pakistan",
+  bradford: "England, United Kingdom",
+  glasgow: "Scotland, United Kingdom",
+  govan: "Scotland, United Kingdom",
+  cardiff: "Wales, United Kingdom",
+};
+const localityLabel = (q: string) => TOWNS[q.replace(/,.*/, "").trim().toLowerCase()] ?? (q.includes(",") ? q.split(",").at(-1)!.trim() : "England, United Kingdom");
+
 const FILMS = [
   ["Singin' in the Rain", 1952],
   ["Rebel Without a Cause", 1955],
@@ -66,13 +112,33 @@ const PLACES: Record<string, [name: string, description: string][]> = {
     ["London Palladium", "West End variety theatre"],
     ["Kew Gardens", "Botanic gardens by the Thames"],
   ],
+  sevilla: [
+    ["La Giralda", "The cathedral's bell tower"],
+    ["Torre del Oro", "Thirteenth-century tower on the Guadalquivir"],
+    ["Plaza de España", "The 1929 exposition square in María Luisa Park"],
+  ],
+  madrid: [
+    ["Teatro Real", "The opera house facing the Royal Palace"],
+    ["Parque del Retiro", "The great park with its boating lake"],
+  ],
+  amritsar: [
+    ["Golden Temple", "Harmandir Sahib, the holiest gurdwara of Sikhism"],
+    ["Jallianwala Bagh", "Memorial garden near the Golden Temple"],
+  ],
+  bradford: [
+    ["Alhambra Theatre", "Edwardian theatre with its domed tower"],
+    ["Cartwright Hall", "Art gallery in Lister Park"],
+  ],
   glasgow: [
     ["Barrowland Ballroom", "East End dance hall and concert venue"],
     ["Kelvingrove Art Gallery and Museum", "Red sandstone museum in the West End"],
     ["The Barras", "Weekend street market in the East End"],
   ],
 };
-const placesFor = (town: string) => PLACES[town.toLowerCase().replace(/,.*/, "").trim()] ?? [[`${town} Town Hall`, `The town hall in ${town}`], [`${town} Market`, `The market in ${town}`]];
+const placesFor = (query: string) => {
+  const town = query.replace(/,.*/, "").trim();
+  return PLACES[town.toLowerCase()] ?? [[`${town} Town Hall`, `The town hall in ${town}`], [`${town} Market`, `The market in ${town}`]];
+};
 
 /** Genre tags as Qloo gives them, so the gentle-first rule shows offline. */
 const GENRES: Record<string, string[]> = {
@@ -120,7 +186,7 @@ function answer(path: string, p: QlooParams): unknown {
   if (/nowhere/i.test(place)) return { results: { entities: [] } };
   if (path === "/search") {
     const q = String(p.query ?? "");
-    if (String(p.types).includes("locality")) return { results: /zzz/i.test(q) ? [] : [e(`loc-${q}`, q.replace(/,.*/, ""), { disambiguation: "England, United Kingdom" })] };
+    if (String(p.types).includes("locality")) return { results: /zzz/i.test(q) ? [] : [e(`loc-${q}`, q.replace(/,.*/, ""), { disambiguation: localityLabel(q) })] };
     // A venue the story names ("Barrowland Glasgow") is a music venue, as Qloo tags the real ones.
     // A title Qloo doesn't know (IM-5's stand-ins): nothing found.
     if (/\b(unknown|zzz)\b/i.test(q)) return { results: [] };
@@ -132,8 +198,20 @@ function answer(path: string, p: QlooParams): unknown {
     return { results: { tags: [{ id: `urn:tag:genre:music:${q}_rock`, name: `${q} Rock` }, { id: `urn:tag:genre:music:${q}`, name: q }] } };
   }
   const type = String(p["filter.type"]);
+  // A country filter: that country's own films and TV, or nothing (never the Hollywood list).
+  const country = p["filter.release_country"] ? String(p["filter.release_country"]) : null;
+  if (country && (type === "urn:entity:movie" || type === "urn:entity:tv_show")) {
+    const set = BY_COUNTRY[country];
+    if (!set) return { results: { entities: [] } };
+    const list = type === "urn:entity:movie" ? set.films : set.tv.map(([n, y]) => [n, y, country] as [string, number, string]);
+    const min = Number(p["filter.release_year.min"] ?? 0);
+    const max = Number(p["filter.release_year.max"] ?? 9999);
+    return { results: { entities: list.filter(([, y]) => y >= min && y <= max).map(([n, y, c]) => e(`c-${n}`, n, { properties: { release_year: y, release_country: [c, country] }, ...(n.includes("Ugly") ? { tags: [{ id: "urn:tag:genre:media:western", name: "western" }] } : {}) })) } };
+  }
   if (type === "urn:entity:artist") {
     const tags = String(p["filter.tags"] ?? "");
+    if (/spanish|copla|flamenco/.test(tags)) return { results: { entities: ARTISTS_SPANISH.map((n) => e(`a-${n}`, n)) } };
+    if (/punjabi|bollywood|indian|pakistani/.test(tags)) return { results: { entities: ARTISTS_PUNJABI.map((n) => e(`a-${n}`, n)) } };
     const names = tags.includes("80s") ? ARTISTS_80S : tags.includes("70s") ? ARTISTS_70S : tags.includes("50s") ? ARTISTS_50S : ARTISTS_60S;
     return { results: { entities: names.map((n) => e(`a-${n}`, n)) } };
   }

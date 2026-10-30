@@ -52,8 +52,11 @@ export type TransportOptions = {
 
 export type Result<T> = { data: T; via: Via; servedBy: "qloo" | "notonq" };
 
+/** One call's own budgets: NotOnQ's era fill (MusicBrainz at 1 request a second) needs longer than 4 s (F2). */
+export type CallOptions = { notonqTimeoutMs?: number; qlooTimeoutMs?: number };
+
 export type Transport = {
-  get<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void): Promise<Result<T>>;
+  get<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void, opts?: CallOptions): Promise<Result<T>>;
 };
 
 export function queryString(params: QlooParams): string {
@@ -101,22 +104,22 @@ export function createTransport(options: TransportOptions): Transport {
     return { data: await response.json(), servedBy };
   }
 
-  async function direct(path: string, query: string, attempt = 0): Promise<{ data: unknown; servedBy: "qloo" | "notonq" }> {
+  async function direct(path: string, query: string, attempt = 0, timeoutMs = qlooTimeout): Promise<{ data: unknown; servedBy: "qloo" | "notonq" }> {
     if (!options.qloo) throw new QlooError("Qloo isn't configured (QLOO_API_KEY)", 0);
     await paced();
     try {
-      return await call(options.qloo, `${options.qloo.baseUrl}${path}?${query}`, qlooTimeout);
+      return await call(options.qloo, `${options.qloo.baseUrl}${path}?${query}`, timeoutMs);
     } catch (error) {
       const retryable = error instanceof QlooError && (error.status === 0 || error.status >= 500);
-      if (retryable && attempt === 0) return direct(path, query, 1);
+      if (retryable && attempt === 0) return direct(path, query, 1, timeoutMs);
       throw error instanceof QlooError ? new QlooError(`Qloo ${error.message}`, error.status) : error;
     }
   }
 
-  async function fetchOnce(path: string, query: string, log: Partial<CallLog>): Promise<Result<unknown>> {
+  async function fetchOnce(path: string, query: string, log: Partial<CallLog>, opts: CallOptions = {}): Promise<Result<unknown>> {
     if (options.notonq) {
       try {
-        const { data, servedBy } = await call(options.notonq, `${options.notonq.baseUrl}${path}?${query}`, notonqTimeout);
+        const { data, servedBy } = await call(options.notonq, `${options.notonq.baseUrl}${path}?${query}`, opts.notonqTimeoutMs ?? notonqTimeout);
         log.via = "notonq";
         log.servedBy = servedBy;
         return { data, via: "notonq", servedBy };
@@ -126,14 +129,14 @@ export function createTransport(options: TransportOptions): Transport {
         log.reason = `NotOnQ ${error instanceof Error ? error.message : "failed"}`;
       }
     }
-    const { data } = await direct(path, query);
+    const { data } = await direct(path, query, 0, opts.qlooTimeoutMs ?? qlooTimeout);
     log.via = "qloo";
     log.servedBy = "qloo";
     return { data, via: "qloo", servedBy: "qloo" };
   }
 
   return {
-    async get<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void): Promise<Result<T>> {
+    async get<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void, opts?: CallOptions): Promise<Result<T>> {
       const query = queryString(params);
       const key = `${path}?${query}`;
       const hit = cache.get(key);
@@ -144,7 +147,7 @@ export function createTransport(options: TransportOptions): Transport {
       }
       const started = now();
       const log: Partial<CallLog> = { fellBack: false };
-      const value = fetchOnce(path, query, log);
+      const value = fetchOnce(path, query, log, opts);
       cache.set(key, { at: started, value });
       try {
         const result = await value;

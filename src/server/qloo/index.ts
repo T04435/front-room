@@ -1,5 +1,5 @@
 import "server-only";
-import { createTransport, type CallLog, type QlooParams, type Result, type Transport } from "@/lib/qloo-transport";
+import { createTransport, type CallLog, type CallOptions, type QlooParams, type Result, type Transport } from "@/lib/qloo-transport";
 import { env, offline } from "@/server/env";
 import { fixtureTransport } from "./fixtures";
 
@@ -8,12 +8,12 @@ export { QlooError, type CallLog } from "@/lib/qloo-transport";
 let transport: Transport | null = null;
 
 /**
- * NotOnQ's base URL, naming this app in the path. On Vercel (previews and production): NotOnQ production. Locally: a
- * NotOnQ dev server on :3400, so development spends no Vercel function time (if it's down, the Qloo fallback answers).
+ * NotOnQ's base URL, naming this app in the path: NOTONQ_BASE_URL (a NotOnQ dev server, say), else NotOnQ production,
+ * locally too. A local NotOnQ that isn't running meant every call went straight to Qloo, and NotOnQ's era fill for
+ * places outside the UK never ran (F2).
  */
 export function notonqBase(): string {
-  if (env.NOTONQ_BASE_URL) return env.NOTONQ_BASE_URL;
-  return env.VERCEL_ENV ? "https://notonq.vercel.app/q/app/front-room" : "http://localhost:3400/q/app/front-room-dev";
+  return env.NOTONQ_BASE_URL || "https://notonq.vercel.app/q/app/front-room";
 }
 
 /** The app's one Qloo client: NotOnQ first, Qloo directly on any NotOnQ error or after 4 s (src/lib/qloo-transport.ts). */
@@ -26,8 +26,8 @@ function client(): Transport {
   return transport;
 }
 
-export function qlooGet<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void): Promise<Result<T>> {
-  return client().get<T>(path, params, onCall);
+export function qlooGet<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void, opts?: CallOptions): Promise<Result<T>> {
+  return client().get<T>(path, params, onCall, opts);
 }
 
 /** Films and TV leave out horror (Qloo's genre tag): not for a care home. */

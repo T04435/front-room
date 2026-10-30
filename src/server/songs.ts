@@ -54,6 +54,15 @@ const OFFLINE_SONGS: Record<string, { title: string; year: number }> = {
   "Michael Jackson": { title: "Billie Jean", year: 1982 },
   "Kate Bush": { title: "Wuthering Heights", year: 1978 },
   "Dire Straits": { title: "Sultans of Swing", year: 1978 },
+  // Spain and India (F7), for the Rosa and Amrit examples.
+  Raphael: { title: "Yo soy aquel", year: 1966 },
+  Marisol: { title: "Tómbola", year: 1962 },
+  "Julio Iglesias": { title: "La vida sigue igual", year: 1968 },
+  "Rocío Jurado": { title: "Como una ola", year: 1981 },
+  "Mohammed Rafi": { title: "Chaudhvin Ka Chand", year: 1960 },
+  "Lata Mangeshkar": { title: "Lag Jaa Gale", year: 1964 },
+  "Asha Bhosle": { title: "Aaiye Meherbaan", year: 1958 },
+  "Kishore Kumar": { title: "Mere Sapnon Ki Rani", year: 1969 },
 };
 
 /** "Cilla" → "Cilla Black": a first name or surname the family used, matched to one known artist. */
