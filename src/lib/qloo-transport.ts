@@ -53,7 +53,7 @@ export type TransportOptions = {
 export type Result<T> = { data: T; via: Via; servedBy: "qloo" | "notonq" };
 
 /** One call's own budgets: NotOnQ's era fill (MusicBrainz at 1 request a second) needs longer than 4 s (F2). */
-export type CallOptions = { notonqTimeoutMs?: number; qlooTimeoutMs?: number };
+export type CallOptions = { notonqTimeoutMs?: number; qlooTimeoutMs?: number; /** Ask again, past the cache. */ fresh?: boolean };
 
 export type Transport = {
   get<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void, opts?: CallOptions): Promise<Result<T>>;
@@ -139,7 +139,7 @@ export function createTransport(options: TransportOptions): Transport {
     async get<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void, opts?: CallOptions): Promise<Result<T>> {
       const query = queryString(params);
       const key = `${path}?${query}`;
-      const hit = cache.get(key);
+      const hit = opts?.fresh ? undefined : cache.get(key);
       if (hit && now() - hit.at < ttl) {
         const value = await hit.value;
         onCall?.({ path, params, ms: 0, cached: true, status: 200, via: value.via, fellBack: false, servedBy: value.servedBy });

@@ -35,6 +35,18 @@ describe("the Qloo transport", () => {
     expect(logs[0]).toMatchObject({ via: "notonq", fellBack: false, cached: false });
   });
 
+  it("gives one call its own NotOnQ budget, and `fresh` asks again past the cache (F2)", async () => {
+    let notonqUp = false;
+    const { fetch, seen } = fakeFetch({ "notonq.test": () => (notonqUp ? json({ from: "notonq" }) : json({ message: "slow" }, 504)), "qloo.test": () => json({ from: "qloo" }) });
+    const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep });
+    const params = { "filter.type": "urn:entity:artist" };
+    expect((await t.get("/v2/insights", params, undefined, { notonqTimeoutMs: 15_000 })).via).toBe("qloo");
+    notonqUp = true;
+    expect((await t.get("/v2/insights", params)).via).toBe("qloo");
+    expect((await t.get("/v2/insights", params, undefined, { notonqTimeoutMs: 25_000, fresh: true })).via).toBe("notonq");
+    expect(seen.filter((x) => x.url.startsWith("https://notonq.test")).length).toBe(2);
+  });
+
   it("falls back to Qloo with Qloo's key when NotOnQ errors", async () => {
     const { fetch, seen } = fakeFetch({ "notonq.test": () => json({ message: "down" }, 502), "qloo.test": () => json({ ok: true }) });
     const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep });

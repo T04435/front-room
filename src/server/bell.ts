@@ -3,10 +3,10 @@ import { describeEra, eraFor, pickDecadeTag } from "@/lib/era";
 import { harshKeywords, isInstitution, pickVenue } from "@/lib/card-words";
 import { STAND_INS_KEY } from "@/lib/gallery";
 import { birthYearOf, eraForPlace, researchInputs, researchKey, steersClear, talkingPoints, type Person, type Place, type Suggestion } from "@/lib/person";
-import { nameKey, parseInsights, parseSearch, parseTags, pickByName } from "@/lib/qloo-parse";
+import { nameKey, parseInsights, parseSearch, parseTags, pickByName, type QlooEntity } from "@/lib/qloo-parse";
 import type { CallLog, CallOptions, QlooParams } from "@/lib/qloo-transport";
 import type { RunEvent } from "@/lib/run-events";
-import { offline } from "@/server/env";
+import { env, offline } from "@/server/env";
 import { countryName, globalIsLocal, kmBetween, type Locality, localTags, resolvePlaces, SAME_TOWN_KM } from "@/server/locality";
 import { checkSong } from "@/server/musicbrainz";
 import { NO_HORROR, QlooError, qlooGet } from "@/server/qloo";
@@ -143,7 +143,8 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
           // A few of each kind, so the films, telly and places show as well as the music.
           chips: (["artist", "film", "tv", "place", "book"] as const).flatMap((t) => found.filter((d) => d.type === t).slice(0, t === "artist" ? 3 : 2)).map((d) => d.artist ?? d.title),
           sources: sources.size ? [...sources] : ["Qloo"],
-          sourceLine: `${era.decades.map((d) => d.short).join(" and ")} · ${loc?.label ?? place.name} · Qloo`,
+          // Which way the town's own music came (NotOnQ's era fill, or Qloo direct), to see it in the run.
+          sourceLine: `${era.decades.map((d) => d.short).join(" and ")} · ${loc?.label ?? place.name} · Qloo${localVia(found)}`,
         });
       } catch (error) {
         if (!(error instanceof QlooError)) throw error;
@@ -251,6 +252,13 @@ export function standInsFor(misses: Miss[], found: Draft[], town: string, name: 
   });
 }
 
+/** "· local music via NotOnQ" or "· local music: Qloo", from the parts of the town's own artists; nothing when none. */
+function localVia(found: Draft[]): string {
+  const local = found.filter((d) => d.type === "artist" && d.parts.length >= 4 && !d.parts[1]?.startsWith("like "));
+  if (!local.length) return "";
+  return local.some((d) => d.parts.includes("via NotOnQ")) ? " · local music via NotOnQ" : " · local music: Qloo";
+}
+
 /** Venues named in the story, found on Qloo. */
 export const STORY_KEY = "story";
 
@@ -351,14 +359,21 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
     // The town's own music first (A5): the decade and the most local tag Qloo has for it (Scottish, then British).
     Promise.all(
       tags.map(async (t) => {
+        let best: { t: typeof t; l: (typeof local)[number]; r: Awaited<ReturnType<typeof get>>; found: QlooEntity[] } | null = null;
         for (const l of local) {
           // Through NotOnQ with time for its era fill: Qloo alone has one 60s Spanish artist; NotOnQ finds Mocedades,
           // Paco de Lucía, Camarón… from MusicBrainz in about 8 s (live probe, 31 Oct).
-          const r = await get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": `${t.id},${l.tag}`, "operator.filter.tags": "intersection", "signal.location.query": where, take: 8 }, onCall, { notonqTimeoutMs: slow ? 25_000 : 15_000 }).catch(() => null);
+          const params = { "filter.type": "urn:entity:artist", "filter.tags": `${t.id},${l.tag}`, "operator.filter.tags": "intersection", "signal.location.query": where, take: 8 };
+          let r = await get("/v2/insights", params, onCall, { notonqTimeoutMs: slow ? 25_000 : 15_000 }).catch(() => null);
+          // Outside the English-speaking world, Qloo's own thin answer after NotOnQ ran out of time isn't enough: ask
+          // NotOnQ once more, with longer (Sevilla got Mocedades and an Italian from Qloo direct in the live run).
+          if (ownMusicOnly && env.NOTONQ_DISABLED !== "1" && r && r.via === "qloo" && parseInsights(r.data).length < 4) r = (await get("/v2/insights", params, onCall, { notonqTimeoutMs: 25_000, fresh: true }).catch(() => null)) ?? r;
           const found = r ? parseInsights(r.data) : [];
           if (found.length >= 2) return { t, l, r: r!, found };
+          // Elsewhere, what's there is shown, however little: never another country's music to fill.
+          if (ownMusicOnly && r && found.length > (best?.found.length ?? 0)) best = { t, l, r, found };
         }
-        return null;
+        return best;
       }),
     ),
     // Then the decade's artists around the town, for whatever the local ones leave.
@@ -396,9 +411,10 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
       ([["film", "urn:entity:movie", PER_PLACE.films], ["tv", "urn:entity:tv_show", PER_PLACE.tv]] as const).map(async ([kind, type, n]) => {
         // No horror: it was in the live results (Halloween for Blackpool, 1972–80), and it isn't for a care home.
         // Outside the English-speaking world, the country's own releases (F4): "Spain" (Qloo wants the name, not "ES").
+        // With the country filter the place signal goes: together they return nothing (live probe, 31 Oct).
         const byCountry = ownMusicOnly && country ? { "filter.release_country": country } : {};
         const base = { "filter.type": type, "filter.release_year.min": era.from, "filter.release_year.max": era.to, "filter.exclude.tags": NO_HORROR, ...byCountry, take: 8 };
-        let found = parseInsights((await get("/v2/insights", { ...base, "signal.location.query": where }, onCall)).data);
+        let found = parseInsights((await get("/v2/insights", byCountry["filter.release_country"] ? base : { ...base, "signal.location.query": where }, onCall)).data);
         // TV is thin by place (two shows for London in the probes): fall back to the era's TV anywhere. Never for a
         // country filter: fewer cards beat Hollywood fill-ins.
         if (found.length < n && !byCountry["filter.release_country"]) found = [...found, ...parseInsights((await get("/v2/insights", base, onCall)).data)];

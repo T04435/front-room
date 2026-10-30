@@ -24,6 +24,16 @@ describe("regional research (F2–F4, F7)", () => {
     expect(all.filter((s) => s.type === "tv").map((s) => s.title)).not.toContain("Coronation Street");
   });
 
+  it("asks for the country's films and TV without the place signal (together they return nothing, live)", async () => {
+    const calls: Record<string, unknown>[] = [];
+    await researchPerson(person("Rosa", 1948, [{ id: "sev", name: "Sevilla", fromYear: 1958, toYear: 1970 }]), () => {}, (log) => calls.push(log.params));
+    const byCountry = calls.filter((c) => c["filter.release_country"]);
+    expect(byCountry.length).toBe(2);
+    expect(byCountry.every((c) => c["filter.release_country"] === "Spain" && !("signal.location.query" in c))).toBe(true);
+    // And no decade-anywhere artist call: another country's music never fills in (F3).
+    expect(calls.filter((c) => c["filter.type"] === "urn:entity:artist" && !String(c["filter.tags"] ?? "").includes(",") && !c["signal.interests.entities"])).toEqual([]);
+  });
+
   it("steer clear in Spanish ('ruidos fuertes') hides the western", async () => {
     const steers: Person["steers"] = [{ id: "s", kind: "sound", label: "Ruidos fuertes", level: "never", source: "family", at: "2026-10-31T00:00:00Z" }];
     const { g } = await run(person("Rosa", 1948, [{ id: "sev", name: "Sevilla", fromYear: 1958, toYear: 1970 }], { steers }));
