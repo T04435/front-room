@@ -7,6 +7,8 @@ import type { CallLog } from "@/lib/qloo-transport";
 import { offline } from "@/server/env";
 import { checkSong } from "@/server/musicbrainz";
 import { QlooError, qlooGet } from "@/server/qloo";
+import { MUSIC_NOTONQ_MS } from "@/server/bell";
+import { resolvePlaces } from "@/server/locality";
 import { pickSongs } from "@/server/songs";
 
 export const NEW_TRIES_KEY = "new-tries";
@@ -45,6 +47,8 @@ export async function findNewTries(p: Person, stats: Map<string, ItemStat>, onCa
   const range = eraForPlace(home, by);
   const era = eraFor(by, [range.from, range.to]);
   const lead = era.decades[0];
+  // The home town as Qloo and NotOnQ know it, in English ("Sevilla, Spain"), never a bare name.
+  const where = (await resolvePlaces([home], onCall)).get(home.id)?.query ?? home.name;
   const known = new Set([...Object.values(p.suggestions).flat().map((s) => nameKey(s.by ?? s.title)), ...p.loves.map((l) => nameKey(l.by ?? l.title)), ...[...stats.values()].map((s) => nameKey(s.by ?? s.title))]);
   let tag: string | undefined;
   try {
@@ -57,7 +61,7 @@ export async function findNewTries(p: Person, stats: Map<string, ItemStat>, onCa
     try {
       const match = pickByName(parseSearch((await qlooGet("/search", { query: seed.name, types: "urn:entity:artist", take: 5 }, onCall)).data), seed.name);
       if (!match) continue;
-      const r = await qlooGet("/v2/insights", { "filter.type": "urn:entity:artist", "signal.interests.entities": match.id, "filter.tags": tag, "signal.location.query": home.name, take: 8 }, onCall);
+      const r = await qlooGet("/v2/insights", { "filter.type": "urn:entity:artist", "signal.interests.entities": match.id, "filter.tags": tag, "signal.location.query": where, take: 8 }, onCall, tag ? { notonqTimeoutMs: MUSIC_NOTONQ_MS, retryFill: true } : undefined);
       for (const e of parseInsights(r.data)) {
         if (known.has(nameKey(e.name)) || steersClear(p, e.name) || artists.some((a) => nameKey(a.name) === nameKey(e.name))) continue;
         artists.push({ name: e.name, like: seed.like, image: e.image });

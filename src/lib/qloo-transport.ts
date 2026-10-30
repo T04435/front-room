@@ -50,10 +50,18 @@ export type TransportOptions = {
   sleep?: (ms: number) => Promise<void>;
 };
 
-export type Result<T> = { data: T; via: Via; servedBy: "qloo" | "notonq" };
+/** `gap`: NotOnQ's gap kind for the answer (`notonq.gap.kind`: "G4" is its era fill), when it says. */
+export type Result<T> = { data: T; via: Via; servedBy: "qloo" | "notonq"; gap?: string };
 
 /** One call's own budgets: NotOnQ's era fill (MusicBrainz at 1 request a second) needs longer than 4 s (F2). */
-export type CallOptions = { notonqTimeoutMs?: number; qlooTimeoutMs?: number; /** Ask again, past the cache. */ fresh?: boolean };
+export type CallOptions = {
+  notonqTimeoutMs?: number;
+  qlooTimeoutMs?: number;
+  /** Ask again, past the cache. */
+  fresh?: boolean;
+  /** NotOnQ's era fill was still cold (served by Qloo, gap G4): ask NotOnQ once more a few seconds later. */
+  retryFill?: boolean;
+};
 
 export type Transport = {
   get<T>(path: string, params: QlooParams, onCall?: (log: CallLog) => void, opts?: CallOptions): Promise<Result<T>>;
@@ -66,6 +74,9 @@ export function queryString(params: QlooParams): string {
   }
   return query.toString();
 }
+
+/** How long to wait before asking NotOnQ again for a cold era fill. */
+export const FILL_RETRY_MS = 4_000;
 
 export function createTransport(options: TransportOptions): Transport {
   const doFetch = options.fetch ?? globalThis.fetch;
@@ -85,7 +96,7 @@ export function createTransport(options: TransportOptions): Transport {
     if (at > t) await sleep(at - t);
   }
 
-  async function call(endpoint: Endpoint, url: string, timeoutMs: number): Promise<{ data: unknown; servedBy: "qloo" | "notonq" }> {
+  async function call(endpoint: Endpoint, url: string, timeoutMs: number): Promise<{ data: unknown; servedBy: "qloo" | "notonq"; gap?: string }> {
     let response: Response;
     try {
       response = await doFetch(url, {
@@ -100,8 +111,12 @@ export function createTransport(options: TransportOptions): Transport {
       const body = await response.text().catch(() => "");
       throw new QlooError(`returned ${response.status}${body ? `: ${body.slice(0, 160)}` : ""}`, response.status);
     }
-    const servedBy = response.headers.get("x-notonq-served-by")?.toLowerCase() === "notonq" ? "notonq" : "qloo";
-    return { data: await response.json(), servedBy };
+    // NotOnQ says "qloo" when Qloo's answer went through as it was, and "fallback" or "mixed" when it added to it (its
+    // route's X-NotOnQ-Served-By). Checking for "notonq" labelled every filled answer as Qloo's.
+    const servedBy = ["notonq", "fallback", "mixed"].includes(response.headers.get("x-notonq-served-by")?.toLowerCase() ?? "") ? "notonq" : "qloo";
+    const data = (await response.json()) as { notonq?: { gap?: { kind?: string } } } | null;
+    const gap = data?.notonq?.gap?.kind;
+    return { data, servedBy, ...(gap ? { gap } : {}) };
   }
 
   async function direct(path: string, query: string, attempt = 0, timeoutMs = qlooTimeout): Promise<{ data: unknown; servedBy: "qloo" | "notonq" }> {
@@ -119,10 +134,16 @@ export function createTransport(options: TransportOptions): Transport {
   async function fetchOnce(path: string, query: string, log: Partial<CallLog>, opts: CallOptions = {}): Promise<Result<unknown>> {
     if (options.notonq) {
       try {
-        const { data, servedBy } = await call(options.notonq, `${options.notonq.baseUrl}${path}?${query}`, opts.notonqTimeoutMs ?? notonqTimeout);
+        const url = `${options.notonq.baseUrl}${path}?${query}`;
+        let got = await call(options.notonq, url, opts.notonqTimeoutMs ?? notonqTimeout);
+        // A cold era fill: Qloo's answer came first. Once more, a few seconds on, when the fill is likelier cached.
+        if (opts.retryFill && got.servedBy === "qloo" && got.gap === "G4") {
+          await sleep(FILL_RETRY_MS);
+          got = await call(options.notonq, url, opts.notonqTimeoutMs ?? notonqTimeout).catch(() => got);
+        }
         log.via = "notonq";
-        log.servedBy = servedBy;
-        return { data, via: "notonq", servedBy };
+        log.servedBy = got.servedBy;
+        return { data: got.data, via: "notonq", servedBy: got.servedBy, ...(got.gap ? { gap: got.gap } : {}) };
       } catch (error) {
         if (!options.qloo) throw error instanceof QlooError ? new QlooError(`NotOnQ ${error.message}`, error.status) : error;
         log.fellBack = true;

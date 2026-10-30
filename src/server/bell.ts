@@ -6,7 +6,7 @@ import { birthYearOf, eraForPlace, researchInputs, researchKey, steersClear, tal
 import { nameKey, parseInsights, parseSearch, parseTags, pickByName, type QlooEntity } from "@/lib/qloo-parse";
 import type { CallLog, CallOptions, QlooParams } from "@/lib/qloo-transport";
 import type { RunEvent } from "@/lib/run-events";
-import { env, offline } from "@/server/env";
+import { offline } from "@/server/env";
 import { countryName, globalIsLocal, kmBetween, type Locality, localTags, loveOrigin, type Origin, resolvePlaces, SAME_TOWN_KM } from "@/server/locality";
 import { checkSong } from "@/server/musicbrainz";
 import { NO_HORROR, QlooError, qlooGet } from "@/server/qloo";
@@ -17,6 +17,14 @@ type OnCall = (log: CallLog) => void;
 
 /** About 10 cards per place: songs, a couple of films, the telly, places, and things like what they love. */
 const PER_PLACE = { artists: 6, films: 2, tv: 2, places: 2, likes: 3 };
+/** NotOnQ's budget for an artist call with a music tag: its era fill takes 4–14 s cold. */
+export const MUSIC_NOTONQ_MS = 20_000;
+
+/** A call's budgets: an artist call with a music tag gets at least MUSIC_NOTONQ_MS for NotOnQ, and the cold-fill retry. */
+export function musicCallOptions(params: QlooParams, opts: CallOptions = {}): CallOptions {
+  const tagged = params["filter.type"] === "urn:entity:artist" && String(params["filter.tags"] ?? "").includes("urn:tag:genre:music:");
+  return tagged ? { ...opts, notonqTimeoutMs: Math.max(opts.notonqTimeoutMs ?? 0, MUSIC_NOTONQ_MS), retryFill: true } : opts;
+}
 /** Suggestions for the artists the family named (not tied to a place). */
 export const FAMILY_KEY = "family";
 /** Places researched per Go for it (a long story is researched over several). */
@@ -326,7 +334,9 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
   const name = place.name;
   // A retry after a timeout gets longer budgets (F5); the local-music call always gets NotOnQ time for its era fill (F2).
   const budget: CallOptions = slow ? { qlooTimeoutMs: 40_000, notonqTimeoutMs: 10_000 } : {};
-  const get = (path: string, params: QlooParams, onCall: OnCall, extra?: CallOptions) => qlooGet<unknown>(path, params, onCall, { ...budget, ...extra });
+  // Artist calls with a music tag can wake NotOnQ's era fill (MusicBrainz, 1 request a second; 4–14 s cold): at least
+  // 20 s, and once more a few seconds on if the fill was still cold (served by Qloo, gap G4).
+  const get = (path: string, params: QlooParams, onCall: OnCall, extra?: CallOptions) => qlooGet<unknown>(path, params, onCall, musicCallOptions(params, { ...budget, ...extra }));
   const country = countryName(loc);
   const ownMusicOnly = !globalIsLocal(loc);
   // Qloo is asked with the pinned town ("Glasgow, United Kingdom"), never a bare name it could put in Kentucky.
@@ -359,6 +369,10 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
   // Outside the English-speaking world the decade's global hits aren't theirs (F3): no top-up from them.
   const skipGlobal = ownMusicOnly && local.length > 0;
 
+  // Warm the place first (HQ's NotOnQ diagnosis): the decade and the place, no country tag, so NotOnQ resolves and
+  // caches the place before the country-tagged calls. One per place; in the UK it's the era call below, cached.
+  if (lead) await get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": lead.id, "signal.location.query": where, take: 10 }, onCall).catch(() => null);
+
   const [localArtists, eraArtists, likes, books, screen, historic] = await Promise.all([
     // The town's own music first (A5): the decade and the most local tag Qloo has for it (Scottish, then British).
     Promise.all(
@@ -368,10 +382,7 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
           // Through NotOnQ with time for its era fill: Qloo alone has one 60s Spanish artist; NotOnQ finds Mocedades,
           // Paco de Lucía, Camarón… from MusicBrainz in about 8 s (live probe, 31 Oct).
           const params = { "filter.type": "urn:entity:artist", "filter.tags": `${t.id},${l.tag}`, "operator.filter.tags": "intersection", "signal.location.query": where, take: 8 };
-          let r = await get("/v2/insights", params, onCall, { notonqTimeoutMs: slow ? 25_000 : 15_000 }).catch(() => null);
-          // Outside the English-speaking world, Qloo's own thin answer (direct, or passed on by NotOnQ without its fill)
-          // isn't enough: ask NotOnQ once more, with longer (Sevilla got Mocedades and an Italian in the live run).
-          if (ownMusicOnly && env.NOTONQ_DISABLED !== "1" && r && r.servedBy !== "notonq" && parseInsights(r.data).length < 4) r = (await get("/v2/insights", params, onCall, { notonqTimeoutMs: 25_000, fresh: true }).catch(() => null)) ?? r;
+          const r = await get("/v2/insights", params, onCall, slow ? { notonqTimeoutMs: 25_000 } : undefined).catch(() => null);
           const found = r ? parseInsights(r.data) : [];
           if (found.length >= 2) return { t, l, r: r!, found };
           // Elsewhere, what's there is shown, however little: never another country's music to fill.

@@ -75,7 +75,7 @@ export async function resolvePlaces(places: Place[], onCall: (log: CallLog) => v
     places.map(async (pl, i) => {
       const list = found[i];
       // "Glasgow" alone is six US towns: ask again with the country.
-      const hinted = needsHint(pl.name, list, hint) ? await search(`${pl.name}, ${hint}`, onCall) : [];
+      const hinted = needsHint(pl.name, list, hint) ? await search(`${pl.name}, ${ENGLISH[hint] ?? hint}`, onCall) : [];
       const pick = pickLocality(pl.name, list, hint, hinted);
       out.set(pl.id, pick ? toLocality(pl.name, pick) : null);
     }),

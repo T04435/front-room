@@ -30,8 +30,12 @@ describe("regional research (F2–F4, F7)", () => {
     const byCountry = calls.filter((c) => c["filter.release_country"]);
     expect(byCountry.length).toBe(2);
     expect(byCountry.every((c) => c["filter.release_country"] === "Spain" && !("signal.location.query" in c))).toBe(true);
-    // And no decade-anywhere artist call: another country's music never fills in (F3).
-    expect(calls.filter((c) => c["filter.type"] === "urn:entity:artist" && !String(c["filter.tags"] ?? "").includes(",") && !c["signal.interests.entities"])).toEqual([]);
+    // One untagged artist call, the warm-up, and it comes before the country-tagged ones (HQ's NotOnQ diagnosis); its
+    // answer never fills in (F3: only the warm-up, no decade-anywhere list).
+    const artist = calls.filter((c) => c["filter.type"] === "urn:entity:artist" && !c["signal.interests.entities"]);
+    const untagged = artist.filter((c) => !String(c["filter.tags"] ?? "").includes(","));
+    expect(untagged).toEqual([{ "filter.type": "urn:entity:artist", "filter.tags": "urn:tag:genre:music:60s", "signal.location.query": "Sevilla, Spain", take: 10 }]);
+    expect(artist.indexOf(untagged[0])).toBe(0);
   });
 
   it("steer clear in Spanish ('ruidos fuertes') hides the western", async () => {
@@ -174,5 +178,16 @@ describe("no memorials in Places (reminiscence, not grief)", () => {
     const titles = galleryOf(p, new Map()).shelves.place.map((x) => x.title);
     expect(titles).toEqual(expect.arrayContaining(["Sri Harmandir Sahib", "Ram Bagh", "Glasnevin Cemetery"]));
     expect(titles).not.toContain("Jallianwala Bagh");
+  });
+});
+
+describe("NotOnQ budgets for music calls", () => {
+  it("gives an artist call with a music tag at least 20 s and the cold-fill retry; other calls keep theirs", async () => {
+    const { musicCallOptions, MUSIC_NOTONQ_MS } = await import("@/server/bell");
+    expect(MUSIC_NOTONQ_MS).toBeGreaterThanOrEqual(20_000);
+    expect(musicCallOptions({ "filter.type": "urn:entity:artist", "filter.tags": "urn:tag:genre:music:60s,urn:tag:genre:music:spanish" })).toEqual({ notonqTimeoutMs: 20_000, retryFill: true });
+    expect(musicCallOptions({ "filter.type": "urn:entity:artist", "filter.tags": "urn:tag:genre:music:60s" }, { notonqTimeoutMs: 25_000 })).toEqual({ notonqTimeoutMs: 25_000, retryFill: true });
+    expect(musicCallOptions({ "filter.type": "urn:entity:movie" })).toEqual({});
+    expect(musicCallOptions({ "filter.type": "urn:entity:artist", "signal.interests.entities": "x" })).toEqual({});
   });
 });

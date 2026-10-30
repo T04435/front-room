@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createTransport, queryString, type CallLog } from "@/lib/qloo-transport";
+import { createTransport, FILL_RETRY_MS, queryString, type CallLog } from "@/lib/qloo-transport";
 
 const NOTONQ = { baseUrl: "https://notonq.test/q/app/front-room-dev", apiKey: "q-key" };
 const QLOO = { baseUrl: "https://qloo.test", apiKey: "q-key" };
@@ -55,6 +55,42 @@ describe("the Qloo transport", () => {
     expect(`${url.origin}${url.pathname}`).toBe("https://notonq.test/q/app/front-room-dev/v2/insights");
     expect(seen[0].key).toBe("q-key");
     expect(Object.fromEntries(url.searchParams)).toEqual({ "filter.tags": "urn:tag:genre:music:60s,urn:tag:genre:music:spanish", "filter.type": "urn:entity:artist", "operator.filter.tags": "intersection", "signal.location.query": "Sevilla, Spain", take: "8" });
+  });
+
+  it("dedupes identical calls in flight: two at once make one fetch", async () => {
+    const { fetch, seen } = fakeFetch({ "notonq.test": () => json({ results: { entities: [] } }) });
+    const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep });
+    const params = { "filter.type": "urn:entity:artist", "filter.tags": "urn:tag:genre:music:60s,urn:tag:genre:music:spanish" };
+    await Promise.all([t.get("/v2/insights", params), t.get("/v2/insights", { ...params })]);
+    expect(seen).toHaveLength(1);
+  });
+
+  it("reads NotOnQ's served-by ('fallback' or 'mixed' is NotOnQ's) and gap kind, and retries a cold era fill once", async () => {
+    const answers = [
+      { by: "qloo", gap: "G4" },
+      { by: "fallback", gap: "G4" },
+    ];
+    const notonq = () => {
+      const a = answers.shift() ?? { by: "qloo", gap: undefined };
+      return new Response(JSON.stringify({ results: { entities: [] }, ...(a.gap ? { notonq: { served_by: a.by, gap: { kind: a.gap } } } : {}) }), { headers: { "Content-Type": "application/json", "X-NotOnQ-Served-By": a.by } });
+    };
+    const slept: number[] = [];
+    const { fetch, seen } = fakeFetch({ "notonq.test": notonq });
+    const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: async (ms) => void slept.push(ms) });
+    const r = await t.get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": "urn:tag:genre:music:60s,urn:tag:genre:music:spanish" }, undefined, { retryFill: true });
+    expect(r).toMatchObject({ servedBy: "notonq", gap: "G4" });
+    expect(seen).toHaveLength(2);
+    expect(slept).toContain(FILL_RETRY_MS);
+  });
+
+  it("doesn't retry when NotOnQ filled it, when the gap isn't G4, or when the call didn't ask", async () => {
+    const reply = (by: string, gap?: string) => () => new Response(JSON.stringify({ results: { entities: [] }, ...(gap ? { notonq: { gap: { kind: gap } } } : {}) }), { headers: { "X-NotOnQ-Served-By": by } });
+    for (const [by, gap, retry] of [["fallback", "G4", true], ["qloo", "G1", true], ["qloo", "G4", false]] as const) {
+      const { fetch, seen } = fakeFetch({ "notonq.test": reply(by, gap) });
+      const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep });
+      await t.get("/v2/insights", { "filter.type": "urn:entity:artist" }, undefined, { retryFill: retry });
+      expect(seen).toHaveLength(1);
+    }
   });
 
   it("falls back to Qloo with Qloo's key when NotOnQ errors", async () => {
