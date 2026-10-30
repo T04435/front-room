@@ -1,5 +1,5 @@
 import "server-only";
-import type { Place } from "@/lib/person";
+import type { Person, Place } from "@/lib/person";
 import { nameKey, parseSearch, type QlooEntity } from "@/lib/qloo-parse";
 import type { CallLog } from "@/lib/qloo-transport";
 import { qlooGet } from "@/server/qloo";
@@ -35,15 +35,27 @@ function toLocality(name: string, e: QlooEntity): Locality {
   return { query: asked ? `${name}, ${asked}` : name, label: e.disambiguation ?? name, country, nation: nationOf(e), lat: e.lat, lon: e.lon };
 }
 
+/** A result named for the place: "Amritsar District" for Amritsar; never a bare country, region or county. */
+const named = (place: string, e: QlooEntity) => nameKey(e.name).startsWith(nameKey(place));
+
 /**
- * A place's own answer, when it isn't ambiguous: exactly one result with its name (Amritsar is in India, whatever the
- * homes' country). A name several places share (six Glasgows in the US and Costa Rica, Bradford in England and
- * Pennsylvania) is settled by the hint instead.
+ * Which of Qloo's localities a place is (live, 31 Oct: Amritsar went to the UK). In order:
+ * 1. one of its own results in the hint country, named for it;
+ * 2. a result of the search with the hint country ("Glasgow, United Kingdom"), named for it: never the country itself;
+ * 3. its own results, named for it first (Amritsar's six are all in Punjab, India; "Amritsar, United Kingdom" gives
+ *    the United Kingdom itself, Kent and Scotland, none named for it).
  */
-export function ownMatch(name: string, list: QlooEntity[]): QlooEntity | null {
-  const exact = list.filter((e) => nameKey(e.name) === nameKey(name));
-  return exact.length === 1 ? exact[0] : null;
+export function pickLocality(place: string, own: QlooEntity[], hint: string, hinted: QlooEntity[] = []): QlooEntity | null {
+  const first = own.find((e) => countryOf(e) === hint && named(place, e)) ?? hinted.find((e) => countryOf(e) === hint && named(place, e));
+  if (first) return first;
+  return own.find((e) => named(place, e)) ?? own[0] ?? null;
 }
+
+/**
+ * Whether the hint search is needed: none of the place's own results is in the hint country, named for it. Asked even
+ * when they all share one country: six Glasgows could all be American, and the Scottish one is found this way.
+ */
+const needsHint = (place: string, own: QlooEntity[], hint: string) => !own.some((e) => countryOf(e) === hint && named(place, e));
 
 const search = (query: string, onCall: (log: CallLog) => void) =>
   qlooGet<unknown>("/search", { query, types: "urn:entity:locality", take: 6 }, onCall)
@@ -62,15 +74,10 @@ export async function resolvePlaces(places: Place[], onCall: (log: CallLog) => v
   await Promise.all(
     places.map(async (pl, i) => {
       const list = found[i];
-      // One place by that name: it is where it is (Amritsar stayed in India with no majority country: live, 31 Oct).
-      const own = ownMatch(pl.name, list);
-      if (own) return out.set(pl.id, toLocality(pl.name, own));
-      const inHint = list.find((e) => countryOf(e) === hint);
-      if (inHint) return out.set(pl.id, toLocality(pl.name, inHint));
       // "Glasgow" alone is six US towns: ask again with the country.
-      const again = (await search(`${pl.name}, ${hint}`, onCall)).find((e) => countryOf(e) === hint);
-      if (again) return out.set(pl.id, toLocality(pl.name, again));
-      out.set(pl.id, list[0] ? toLocality(pl.name, list[0]) : null);
+      const hinted = needsHint(pl.name, list, hint) ? await search(`${pl.name}, ${hint}`, onCall) : [];
+      const pick = pickLocality(pl.name, list, hint, hinted);
+      out.set(pl.id, pick ? toLocality(pl.name, pick) : null);
     }),
   );
   return out;
@@ -93,6 +100,31 @@ export const countryName = (l: Locality | null | undefined) => (l?.country ? (EN
  * music comes first and a thin answer means fewer cards, never Anglo hits to fill.
  */
 export const globalIsLocal = (l: Locality | null | undefined) => !l?.country || ["United Kingdom", "Ireland", "United States", "Australia", "Canada", "New Zealand"].includes(countryName(l)!);
+
+/** The music and film country a language belongs to (Qloo tags, probed 31 Oct), for loves that came from it. */
+const LANGUAGE_ORIGIN: Record<string, { tags: [string, string][]; country: string }> = {
+  punjabi: { tags: [["punjabi", "Punjabi"], ["bollywood", "Bollywood"]], country: "India" },
+  hindi: { tags: [["bollywood", "Bollywood"]], country: "India" },
+  spanish: { tags: [["spanish", "Spanish"], ["copla", "copla"], ["flamenco", "flamenco"]], country: "Spain" },
+  español: { tags: [["spanish", "Spanish"], ["copla", "copla"], ["flamenco", "flamenco"]], country: "Spain" },
+  italian: { tags: [["italian", "Italian"]], country: "Italy" },
+};
+export type Origin = { tags: { tag: string; word: string }[]; country: string };
+
+/**
+ * Where their loves come from (Amrit's Mohammed Rafi and Raj Kapoor): the language they grew up speaking, else the
+ * earliest place they lived, when that's outside the English-speaking world. Not the town they live in now: Bradford
+ * found Dave Davies "like Mohammed Rafi" (live, 31 Oct). Null for someone who grew up where the global hits were theirs.
+ */
+export function loveOrigin(p: Pick<Person, "languages" | "places">, where: Map<string, Locality | null>): Origin | null {
+  for (const l of p.languages) {
+    const o = LANGUAGE_ORIGIN[l.toLowerCase().trim()];
+    if (o) return { tags: o.tags.map(([tag, word]) => ({ tag: `urn:tag:genre:music:${tag}`, word })), country: o.country };
+  }
+  const first = [...p.places].sort((a, b) => (a.fromYear ?? -Infinity) - (b.fromYear ?? -Infinity))[0];
+  const loc = first ? where.get(first.id) : null;
+  return loc && !globalIsLocal(loc) && localTags(loc).length ? { tags: localTags(loc), country: countryName(loc)! } : null;
+}
 
 /** Places this close are one town for research (Govan is in Glasgow): one look-up, not two. */
 export const SAME_TOWN_KM = 12;

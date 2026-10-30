@@ -106,7 +106,7 @@ describe("Rosa's live run, 31 Oct (the four bugs)", () => {
   });
 
   it("4. Amritsar stays in India with no majority country; an ambiguous name takes the hint", async () => {
-    const { ownMatch, resolvePlaces } = await import("@/server/locality");
+    const { pickLocality, resolvePlaces } = await import("@/server/locality");
     const where = await resolvePlaces(
       [
         { id: "lah", name: "Lahore", fromYear: 1944, toYear: 1947 },
@@ -118,8 +118,36 @@ describe("Rosa's live run, 31 Oct (the four bugs)", () => {
     expect(where.get("amr")?.country).toBe("India");
     expect(where.get("lah")?.country).toBe("Pakistan");
     expect(where.get("bfd")?.country).toBe("United Kingdom");
-    const loc = (name: string, d: string) => ({ id: d, name, year: null, finaleYear: null, releaseCountry: null, description: null, disambiguation: d, popularity: null, affinity: null, image: null, genres: [], categories: [], keywords: [], lat: null, lon: null });
-    expect(ownMatch("Amritsar", [loc("Amritsar", "Punjab, India")])?.disambiguation).toBe("Punjab, India");
-    expect(ownMatch("Glasgow", [loc("Glasgow", "Kentucky, United States"), loc("Glasgow", "Montana, United States"), loc("Glasgow", "Costa Rica")])).toBeNull();
+    const loc = (name: string, d: string | null) => ({ id: name, name, year: null, finaleYear: null, releaseCountry: null, description: null, disambiguation: d, popularity: null, affinity: null, image: null, genres: [], categories: [], keywords: [], lat: null, lon: null });
+    // Qloo's answers in the live probe (31 Oct): none of Amritsar's own is named just "Amritsar", all are in India.
+    const amritsar = [loc("Amritsar District", "Punjab, India"), loc("Amritsar I Tahsil", "Amritsar District, Punjab, India"), loc("Hussainpura", "Amritsar District, Punjab, India")];
+    const amritsarUK = [loc("United Kingdom", null), loc("Kent", "England, United Kingdom"), loc("Alba / Scotland", "United Kingdom")];
+    expect(pickLocality("Amritsar", amritsar, "United Kingdom", amritsarUK)?.name).toBe("Amritsar District");
+    // Glasgow: six US towns and one in Costa Rica on its own; the hint search finds the Scottish one.
+    const glasgow = [loc("Glasgow", "Barren County, Kentucky, United States"), loc("Glasgow", "Valley County, Montana, United States"), loc("Glasgow", "Costa Rica")];
+    expect(pickLocality("Glasgow", glasgow, "United Kingdom", [loc("Glasgow", "Glasgow City, Alba / Scotland, United Kingdom")])?.disambiguation).toMatch(/United Kingdom$/);
+    // A bare country or region is never a town's locality.
+    expect(pickLocality("Nowhereville", [], "United Kingdom", amritsarUK)).toBeNull();
+  });
+
+  it("5. Amrit's loves come from Punjab: 'like Mohammed Rafi' in Bradford asks for Punjabi music, and the stand-in for a film is Indian", async () => {
+    const calls: Record<string, unknown>[] = [];
+    const amrit = person(
+      "Amrit",
+      1944,
+      [
+        { id: "lah", name: "Lahore", fromYear: 1944, toYear: 1947 },
+        { id: "amr", name: "Amritsar", fromYear: 1947, toYear: 1965 },
+        { id: "bfd", name: "Bradford", fromYear: 1965, toYear: null },
+      ],
+      { languages: ["Punjabi"], loves: [{ id: "l1", type: "artist", title: "Mohammed Rafi", source: "family" }, { id: "l2", type: "film", title: "Films of Raj Kapoor zzz", source: "family" }] },
+    );
+    const done = await researchPerson(amrit, () => {}, (log) => calls.push(log.params));
+    const like = calls.filter((c) => c["signal.interests.entities"] && c["filter.type"] === "urn:entity:artist");
+    expect(like.length).toBeGreaterThan(0);
+    expect(like.every((c) => String(c["filter.tags"]).includes("urn:tag:genre:music:punjabi"))).toBe(true);
+    const standIn = (done.suggestions["stand-ins"] ?? []).find((s) => s.standIn === "Films of Raj Kapoor zzz");
+    expect(standIn?.placeId).toBe("amr");
+    expect(standIn?.title).not.toBe("The Sound of Music");
   });
 });

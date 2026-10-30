@@ -7,7 +7,7 @@ import { nameKey, parseInsights, parseSearch, parseTags, pickByName, type QlooEn
 import type { CallLog, CallOptions, QlooParams } from "@/lib/qloo-transport";
 import type { RunEvent } from "@/lib/run-events";
 import { env, offline } from "@/server/env";
-import { countryName, globalIsLocal, kmBetween, type Locality, localTags, resolvePlaces, SAME_TOWN_KM } from "@/server/locality";
+import { countryName, globalIsLocal, kmBetween, type Locality, localTags, loveOrigin, type Origin, resolvePlaces, SAME_TOWN_KM } from "@/server/locality";
 import { checkSong } from "@/server/musicbrainz";
 import { NO_HORROR, QlooError, qlooGet } from "@/server/qloo";
 import { pickSongs } from "@/server/songs";
@@ -78,6 +78,8 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
   const drafts = new Map<string, Draft[]>();
   const where = await resolvePlaces(places, onCall);
   const towns = townsOf(places, where, by);
+  // Where their loves come from, for "more like" picks and stand-ins: never the town they live in now.
+  const origin = loveOrigin(p, where);
   const done: { key: string; place: Place | null }[] = [];
   // Saves run one after another, each with every town finished so far.
   let saving = Promise.resolve();
@@ -128,10 +130,10 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
       try {
         // A place that timed out gets one more go with longer budgets (F5: Madrid timed out in the live run).
         found.push(
-          ...(await researchPlace(p, place, loc, era, call).catch((error) => {
+          ...(await researchPlace(p, place, loc, era, call, false, origin).catch((error) => {
             if (!(error instanceof QlooError)) throw error;
             console.error("bell research retry", place.name, error.message);
-            return researchPlace(p, place, loc, era, call, true);
+            return researchPlace(p, place, loc, era, call, true, origin);
           })),
         );
         emit({
@@ -217,7 +219,9 @@ export async function researchPerson(p: Person, emit: Emit, onCall: OnCall, abor
     });
   }
 
-  const home = towns[0];
+  // Stand-ins from where their loves come from (Raj Kapoor's films: an Indian film from Amritsar, never The Sound of
+  // Music from Bradford), else the first town. None from there: no stand-in.
+  const home = origin ? towns.find((t) => countryName(t.where) === origin.country) : towns[0];
   const standIns = home ? standInsFor(misses, drafts.get(researchKey(home.place, by)) ?? [], home.place.name, p.preferredName) : [];
   if (standIns.length) {
     drafts.set(STAND_INS_KEY, standIns);
@@ -318,7 +322,7 @@ function withCards(p: Person, keys: { key: string; place: Place | null }[], draf
   return { ...p, suggestions, researched };
 }
 
-async function researchPlace(p: Person, place: Place, loc: Locality | null, era: ReturnType<typeof eraFor>, onCall: OnCall, slow = false): Promise<Draft[]> {
+async function researchPlace(p: Person, place: Place, loc: Locality | null, era: ReturnType<typeof eraFor>, onCall: OnCall, slow = false, origin: Origin | null = null): Promise<Draft[]> {
   const name = place.name;
   // A retry after a timeout gets longer budgets (F5); the local-music call always gets NotOnQ time for its era fill (F2).
   const budget: CallOptions = slow ? { qlooTimeoutMs: 40_000, notonqTimeoutMs: 10_000 } : {};
@@ -389,9 +393,11 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
           const s = await get("/search", { query: q, types, take: 5 }, onCall);
           const match = pickByName(parseSearch(s.data), q);
           if (!match) return null;
-          // Outside the English-speaking world, only the country's own music (Morandi came "like Rocío Jurado" for
-          // Sevilla): the decade and the country's tag together, or nothing.
-          const own = ownMusicOnly && local[0] ? { "filter.tags": [lead?.id, local[0].tag].filter(Boolean).join(","), "operator.filter.tags": "intersection" } : { "filter.tags": lead?.id };
+          // Music from where the love comes from (Amrit's Rafi: Punjabi, even in Bradford), else, outside the
+          // English-speaking world, the town's own (Morandi came "like Rocío Jurado" for Sevilla): the decade and that
+          // tag together, or nothing.
+          const from = origin?.tags[0] ?? (ownMusicOnly ? local[0] : undefined);
+          const own = from ? { "filter.tags": [lead?.id, from.tag].filter(Boolean).join(","), "operator.filter.tags": "intersection" } : { "filter.tags": lead?.id };
           const r = await get("/v2/insights", { "filter.type": "urn:entity:artist", "signal.interests.entities": match.id, ...own, "signal.location.query": where, take: 4 }, onCall);
           return { match, found: parseInsights(r.data) };
         }),
