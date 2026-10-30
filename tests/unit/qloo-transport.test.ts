@@ -47,6 +47,16 @@ describe("the Qloo transport", () => {
     expect(seen.filter((x) => x.url.startsWith("https://notonq.test")).length).toBe(2);
   });
 
+  it("sends Rosa's Sevilla 60s call to NotOnQ as the working curl does (path, key header, tags, place)", async () => {
+    const { fetch, seen } = fakeFetch({ "notonq.test": () => json({ results: { entities: [] } }) });
+    const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep });
+    await t.get("/v2/insights", { "filter.type": "urn:entity:artist", "filter.tags": "urn:tag:genre:music:60s,urn:tag:genre:music:spanish", "operator.filter.tags": "intersection", "signal.location.query": "Sevilla, Spain", take: 8 }, undefined, { notonqTimeoutMs: 15_000 });
+    const url = new URL(seen[0].url);
+    expect(`${url.origin}${url.pathname}`).toBe("https://notonq.test/q/app/front-room-dev/v2/insights");
+    expect(seen[0].key).toBe("q-key");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ "filter.tags": "urn:tag:genre:music:60s,urn:tag:genre:music:spanish", "filter.type": "urn:entity:artist", "operator.filter.tags": "intersection", "signal.location.query": "Sevilla, Spain", take: "8" });
+  });
+
   it("falls back to Qloo with Qloo's key when NotOnQ errors", async () => {
     const { fetch, seen } = fakeFetch({ "notonq.test": () => json({ message: "down" }, 502), "qloo.test": () => json({ ok: true }) });
     const t = createTransport({ notonq: NOTONQ, qloo: QLOO, fetch, sleep: noSleep });

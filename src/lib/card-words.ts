@@ -157,11 +157,17 @@ export function whyShort(p: Pick<Person, "places">, item: { type: string; origin
   return [town, when].filter(Boolean).join(" · ") || "Popular then";
 }
 
-/** War, crime, horror and the like: not for reminiscence when steer clear points that way, and never first. */
-const HARSH = /\b(war|horror|crime|thriller|gangster|prison|slasher|military|disaster|mystery|action|boxing|boxer|martial arts|fight\w*|violen\w*|gun\w*|shoot\w*|explosions?|bomb\w*|battle|combat|murder|western|kidnapp\w*)\b/;
-export const isHarsh = (genres: string[] | undefined) => (genres ?? []).some((g) => HARSH.test(g));
+/**
+ * War, crime, horror and the like: not for reminiscence when steer clear points that way, and never first.
+ * Harsh by the whole name: a genre ("war", "crime", "spaghetti western", "war drama") or a strong keyword ("boxing",
+ * "shootout"). Never by a word inside a longer keyword: "spanish civil war", "murder" or "gun" alone hid every Spanish
+ * film of the 50s–70s from Rosa's gallery (live, 31 Oct).
+ */
+const HARSH_GENRE = /^(?:[a-z]+ )?(war|horror|crime|thriller|gangster|prison|slasher|military|disaster|mystery|action|western|martial arts|boxing)(?: (film|drama|movie))?$/;
+const HARSH_KEYWORD = /^(boxing|boxer|martial arts|gunfight|shootout|shoot-out|explosions?|bombing|battle|battlefield|combat|car chase|war|warfare)$/;
+export const isHarsh = (genres: string[] | undefined) => (genres ?? []).some((g) => HARSH_GENRE.test(g.trim()) || HARSH_KEYWORD.test(g.trim()));
 /** A film's or show's keywords that make it harsh ("boxing" for Rocky, whose only genre is drama): kept with its genres. */
-export const harshKeywords = (keywords: string[]) => keywords.filter((k) => HARSH.test(k)).slice(0, 3);
+export const harshKeywords = (keywords: string[]) => keywords.filter((k) => HARSH_KEYWORD.test(k.trim())).slice(0, 3);
 const GENTLE = /\b(musical|comedy|family|romance|variety|music|animation|soap opera)\b/;
 export const isGentle = (genres: string[] | undefined) => (genres ?? []).some((g) => GENTLE.test(g));
 

@@ -365,9 +365,9 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
           // Paco de Lucía, Camarón… from MusicBrainz in about 8 s (live probe, 31 Oct).
           const params = { "filter.type": "urn:entity:artist", "filter.tags": `${t.id},${l.tag}`, "operator.filter.tags": "intersection", "signal.location.query": where, take: 8 };
           let r = await get("/v2/insights", params, onCall, { notonqTimeoutMs: slow ? 25_000 : 15_000 }).catch(() => null);
-          // Outside the English-speaking world, Qloo's own thin answer after NotOnQ ran out of time isn't enough: ask
-          // NotOnQ once more, with longer (Sevilla got Mocedades and an Italian from Qloo direct in the live run).
-          if (ownMusicOnly && env.NOTONQ_DISABLED !== "1" && r && r.via === "qloo" && parseInsights(r.data).length < 4) r = (await get("/v2/insights", params, onCall, { notonqTimeoutMs: 25_000, fresh: true }).catch(() => null)) ?? r;
+          // Outside the English-speaking world, Qloo's own thin answer (direct, or passed on by NotOnQ without its fill)
+          // isn't enough: ask NotOnQ once more, with longer (Sevilla got Mocedades and an Italian in the live run).
+          if (ownMusicOnly && env.NOTONQ_DISABLED !== "1" && r && r.servedBy !== "notonq" && parseInsights(r.data).length < 4) r = (await get("/v2/insights", params, onCall, { notonqTimeoutMs: 25_000, fresh: true }).catch(() => null)) ?? r;
           const found = r ? parseInsights(r.data) : [];
           if (found.length >= 2) return { t, l, r: r!, found };
           // Elsewhere, what's there is shown, however little: never another country's music to fill.
@@ -389,7 +389,10 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
           const s = await get("/search", { query: q, types, take: 5 }, onCall);
           const match = pickByName(parseSearch(s.data), q);
           if (!match) return null;
-          const r = await get("/v2/insights", { "filter.type": "urn:entity:artist", "signal.interests.entities": match.id, "filter.tags": lead?.id, "signal.location.query": where, take: 4 }, onCall);
+          // Outside the English-speaking world, only the country's own music (Morandi came "like Rocío Jurado" for
+          // Sevilla): the decade and the country's tag together, or nothing.
+          const own = ownMusicOnly && local[0] ? { "filter.tags": [lead?.id, local[0].tag].filter(Boolean).join(","), "operator.filter.tags": "intersection" } : { "filter.tags": lead?.id };
+          const r = await get("/v2/insights", { "filter.type": "urn:entity:artist", "signal.interests.entities": match.id, ...own, "signal.location.query": where, take: 4 }, onCall);
           return { match, found: parseInsights(r.data) };
         }),
     ),

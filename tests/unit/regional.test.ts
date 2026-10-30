@@ -70,3 +70,56 @@ describe("the Why line names NotOnQ when it served the pick (F3)", () => {
     expect(why).toBe("Big in Sevilla when Rosa was 18. Found via NotOnQ among Spanish artists of the 60s, popular around Sevilla.");
   });
 });
+
+describe("Rosa's live run, 31 Oct (the four bugs)", () => {
+  const steers: Person["steers"] = ["Ruidos fuertes", "Quedarse sola por la noche", "Hermano Manuel"].map((label, i) => ({ id: `s${i}`, kind: "topic", label, level: "never", source: "family", at: "2026-10-31T00:00:00Z" }));
+  const film = (id: string, title: string, year: number, genres: string[], placeId = "sev") => ({ id, placeId, type: "film" as const, title, year, parts: ["film", String(year), "Qloo"], source: "Qloo: films from 1958–70, popular around Sevilla.", genres });
+
+  it("1. keeps the Spanish films: keyword noise ('spanish civil war', 'murder', 'gun') isn't harsh; a western and a war film are", () => {
+    const p = person("Rosa", 1948, [{ id: "sev", name: "Sevilla", fromYear: 1958, toYear: 1970 }, { id: "mad", name: "Madrid", fromYear: 1970, toYear: 1978 }], {
+      steers,
+      suggestions: {
+        "sev:1958-1970": [film("f1", "The Executioner", 1963, ["comedy", "drama", "murder"]), film("f2", "Chimes at Midnight", 1965, ["drama", "history", "war"])],
+        "mad:1970-1978": [film("f3", "The Spirit of the Beehive", 1973, ["drama", "fantasy", "spanish civil war", "gun"], "mad"), film("f4", "Cría Cuervos", 1976, ["drama"], "mad"), film("f5", "Once Upon a Time... Man", 1974, ["spaghetti western"], "mad")],
+      },
+    });
+    const titles = galleryOf(p, new Map()).shelves.film.map((x) => x.title);
+    expect(titles).toEqual(expect.arrayContaining(["The Executioner", "The Spirit of the Beehive", "Cría Cuervos"]));
+    expect(titles).not.toContain("Once Upon a Time... Man");
+    expect(titles).not.toContain("Chimes at Midnight");
+  });
+
+  it("2. 'like Rocío Jurado' asks for Spanish music only (decade ∩ spanish)", async () => {
+    const calls: Record<string, unknown>[] = [];
+    const loves: Person["loves"] = [{ id: "l1", type: "artist", title: "Rocío Jurado", source: "family" }];
+    await researchPerson(person("Rosa", 1948, [{ id: "sev", name: "Sevilla", fromYear: 1958, toYear: 1970 }], { loves }), () => {}, (log) => calls.push(log.params));
+    const like = calls.filter((c) => c["signal.interests.entities"] && c["filter.type"] === "urn:entity:artist");
+    expect(like.length).toBeGreaterThan(0);
+    expect(like.every((c) => String(c["filter.tags"]).includes("urn:tag:genre:music:spanish") && c["operator.filter.tags"] === "intersection")).toBe(true);
+  });
+
+  it("3. the local-music call asks for 'Sevilla, Spain' (in English, as NotOnQ's era fill wants it)", async () => {
+    const calls: Record<string, unknown>[] = [];
+    await researchPerson(person("Rosa", 1948, [{ id: "sev", name: "Sevilla", fromYear: 1958, toYear: 1970 }]), () => {}, (log) => calls.push(log.params));
+    const local = calls.find((c) => String(c["filter.tags"] ?? "").endsWith(",urn:tag:genre:music:spanish"));
+    expect(local).toMatchObject({ "filter.type": "urn:entity:artist", "operator.filter.tags": "intersection", "signal.location.query": "Sevilla, Spain", take: 8 });
+  });
+
+  it("4. Amritsar stays in India with no majority country; an ambiguous name takes the hint", async () => {
+    const { ownMatch, resolvePlaces } = await import("@/server/locality");
+    const where = await resolvePlaces(
+      [
+        { id: "lah", name: "Lahore", fromYear: 1944, toYear: 1947 },
+        { id: "amr", name: "Amritsar", fromYear: 1947, toYear: 1965 },
+        { id: "bfd", name: "Bradford", fromYear: 1965, toYear: null },
+      ],
+      () => {},
+    );
+    expect(where.get("amr")?.country).toBe("India");
+    expect(where.get("lah")?.country).toBe("Pakistan");
+    expect(where.get("bfd")?.country).toBe("United Kingdom");
+    const loc = (name: string, d: string) => ({ id: d, name, year: null, finaleYear: null, releaseCountry: null, description: null, disambiguation: d, popularity: null, affinity: null, image: null, genres: [], categories: [], keywords: [], lat: null, lon: null });
+    expect(ownMatch("Amritsar", [loc("Amritsar", "Punjab, India")])?.disambiguation).toBe("Punjab, India");
+    expect(ownMatch("Glasgow", [loc("Glasgow", "Kentucky, United States"), loc("Glasgow", "Montana, United States"), loc("Glasgow", "Costa Rica")])).toBeNull();
+  });
+});

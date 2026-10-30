@@ -1,6 +1,6 @@
 import "server-only";
 import type { Place } from "@/lib/person";
-import { parseSearch, type QlooEntity } from "@/lib/qloo-parse";
+import { nameKey, parseSearch, type QlooEntity } from "@/lib/qloo-parse";
 import type { CallLog } from "@/lib/qloo-transport";
 import { qlooGet } from "@/server/qloo";
 
@@ -30,7 +30,19 @@ const nationOf = (e: QlooEntity) => NATIONS.find((n) => e.disambiguation?.includ
 
 function toLocality(name: string, e: QlooEntity): Locality {
   const country = countryOf(e);
-  return { query: country ? `${name}, ${country}` : name, label: e.disambiguation ?? name, country, nation: nationOf(e), lat: e.lat, lon: e.lon };
+  // Asked in English ("Sevilla, Spain", not "Sevilla, España"): NotOnQ's era fill finds the country by its English name.
+  const asked = ENGLISH[country] ?? country;
+  return { query: asked ? `${name}, ${asked}` : name, label: e.disambiguation ?? name, country, nation: nationOf(e), lat: e.lat, lon: e.lon };
+}
+
+/**
+ * A place's own answer, when it isn't ambiguous: exactly one result with its name (Amritsar is in India, whatever the
+ * homes' country). A name several places share (six Glasgows in the US and Costa Rica, Bradford in England and
+ * Pennsylvania) is settled by the hint instead.
+ */
+export function ownMatch(name: string, list: QlooEntity[]): QlooEntity | null {
+  const exact = list.filter((e) => nameKey(e.name) === nameKey(name));
+  return exact.length === 1 ? exact[0] : null;
 }
 
 const search = (query: string, onCall: (log: CallLog) => void) =>
@@ -50,6 +62,9 @@ export async function resolvePlaces(places: Place[], onCall: (log: CallLog) => v
   await Promise.all(
     places.map(async (pl, i) => {
       const list = found[i];
+      // One place by that name: it is where it is (Amritsar stayed in India with no majority country: live, 31 Oct).
+      const own = ownMatch(pl.name, list);
+      if (own) return out.set(pl.id, toLocality(pl.name, own));
       const inHint = list.find((e) => countryOf(e) === hint);
       if (inHint) return out.set(pl.id, toLocality(pl.name, inHint));
       // "Glasgow" alone is six US towns: ask again with the country.
