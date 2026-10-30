@@ -179,6 +179,14 @@ export const steerRulesOutHarsh = (p: Pick<Person, "steers">) =>
 /** Places a carer can talk about: not universities, research libraries, offices or hotels (unless the family named them). */
 export const isInstitution = (title: string) => /universit|research|institute|college|library|offices?\b|hotel|hostel|hospital|headquarters|\b(ibis|premier inn|travelodge|holiday inn|hilton|marriott|novotel|radisson|mercure|jurys inn)\b/i.test(title);
 
+/**
+ * Places of grief, not reminiscence: memorials, massacre and atrocity sites, cemeteries, disaster sites (live: Amritsar
+ * gave "Jallianwala Bagh", the 1919 massacre memorial). Matched on the name and on Qloo's tags, categories and keywords.
+ * "Bagh" alone is a garden: only the known name goes. A place the family named isn't checked: their story is theirs.
+ */
+const MEMORIAL = /\b(memorials?|massacres?|cemeter(y|ies)|graveyards?|cenotaphs?|mausoleums?|genocide|holocaust|disasters?|concentration camps?|war graves?|atrocit(y|ies)|jallianwala bagh)\b/i;
+export const isMemorial = (title: string, ...tags: (string[] | undefined)[]) => MEMORIAL.test(title) || tags.some((list) => (list ?? []).some((t) => MEMORIAL.test(t)));
+
 /** Places to stay or work, by Qloo's category: never the venue the family meant. */
 const NOT_A_VENUE = /hotel|hostel|motel|lodging|apartment|bed and breakfast|guest house|office|coworking/;
 /** Where people went out, by Qloo's category. */

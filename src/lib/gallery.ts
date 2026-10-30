@@ -1,4 +1,4 @@
-import { filmSong, historicName, hookFor, inStory, isGentle, isHarsh, isInstitution, promptFor, steerRulesOutHarsh, whyFor, whyShort, youthRun, type Prompt } from "./card-words";
+import { filmSong, historicName, hookFor, inStory, isGentle, isHarsh, isInstitution, isMemorial, promptFor, steerRulesOutHarsh, whyFor, whyShort, youthRun, type Prompt } from "./card-words";
 import { searchLinks } from "./kit";
 import { itemKey, type ItemStat } from "./learning";
 import { steersClear, type Person, type Suggestion } from "./person";
@@ -126,6 +126,8 @@ export function galleryOf(p: Person, stats: Map<string, ItemStat>): Gallery {
     // War, crime and the like go when steer clear points that way (the family's own picks stay); so do institutions.
     if (!family && (g.type === "film" || g.type === "tv") && noHarsh && isHarsh(g.genres)) return;
     if (!family && g.type === "place" && isInstitution(g.title)) return;
+    // No memorials or massacre sites (saved before the research filter too); a place the story names stays.
+    if (!family && !g.fromStory && g.type === "place" && isMemorial(g.title)) return;
     // Sound-alikes follow an upset (IM-1): a new try found like something paused waits until the family answers.
     if (g.origin === "new_try" && g.like && paused.has(nameKey(g.like))) return;
     if (g.origin === "new_try" && g.like && proven.has(nameKey(g.like))) g = { ...g, worked: true };

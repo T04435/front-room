@@ -1,6 +1,6 @@
 import "server-only";
 import { describeEra, eraFor, pickDecadeTag } from "@/lib/era";
-import { harshKeywords, isInstitution, pickVenue } from "@/lib/card-words";
+import { harshKeywords, isInstitution, isMemorial, pickVenue } from "@/lib/card-words";
 import { STAND_INS_KEY } from "@/lib/gallery";
 import { birthYearOf, eraForPlace, researchInputs, researchKey, steersClear, talkingPoints, type Person, type Place, type Suggestion } from "@/lib/person";
 import { nameKey, parseInsights, parseSearch, parseTags, pickByName, type QlooEntity } from "@/lib/qloo-parse";
@@ -469,7 +469,7 @@ async function researchPlace(p: Person, place: Place, loc: Locality | null, era:
   for (const { kind, n, found } of screen) {
     for (const e of found.filter((x, i, xs) => xs.findIndex((y) => y.id === x.id) === i).slice(0, n)) add({ placeId: place.id, type: kind, title: e.name, year: e.year, parts: [kind === "film" ? "film" : "TV", e.year ? String(e.year) : years, "Qloo"], source: `Qloo: ${kind === "film" ? "films" : "TV"} from ${years}, popular around ${name}.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}), ...(e.genres.length || harshKeywords(e.keywords).length ? { genres: [...e.genres, ...harshKeywords(e.keywords)] } : {}), ...(e.popularity !== null ? { popularity: e.popularity } : {}), ...(kind === "tv" && e.finaleYear ? { runTo: e.finaleYear } : {}) });
   }
-  for (const e of historic.filter((x) => !isInstitution(x.name)).slice(0, PER_PLACE.places)) add({ placeId: place.id, type: "place", title: e.name, year: null, parts: ["place", name, "Qloo"], source: `Qloo: a long-standing place in ${name}, still there today.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
+  for (const e of historic.filter((x) => !isInstitution(x.name) && !isMemorial(x.name, x.categories, x.keywords, x.genres)).slice(0, PER_PLACE.places)) add({ placeId: place.id, type: "place", title: e.name, year: null, parts: ["place", name, "Qloo"], source: `Qloo: a long-standing place in ${name}, still there today.`, qlooId: e.id, ...(e.image ? { image: e.image } : {}) });
 
   return out;
 }

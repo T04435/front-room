@@ -151,3 +151,28 @@ describe("Rosa's live run, 31 Oct (the four bugs)", () => {
     expect(standIn?.title).not.toBe("The Sound of Music");
   });
 });
+
+describe("no memorials in Places (reminiscence, not grief)", () => {
+  it("Amritsar's historic places keep Sri Harmandir Sahib and drop Jallianwala Bagh, offline end to end", async () => {
+    const { all } = await run(person("Amrit", 1944, [{ id: "amr", name: "Amritsar", fromYear: 1947, toYear: 1965 }], { languages: ["Punjabi"] }));
+    const places = all.filter((s) => s.type === "place").map((s) => s.title);
+    expect(places).toContain("Sri Harmandir Sahib");
+    expect(places).not.toContain("Jallianwala Bagh");
+  });
+
+  it("drops a cemetery and a war memorial, keeps an ordinary Bagh garden, and keeps a place the family named", async () => {
+    const { isMemorial } = await import("@/lib/card-words");
+    expect(isMemorial("Jallianwala Bagh")).toBe(true);
+    expect(isMemorial("Southern Cemetery")).toBe(true);
+    expect(isMemorial("Cenotaph", ["war memorial"])).toBe(true);
+    expect(isMemorial("Ram Bagh")).toBe(false);
+    expect(isMemorial("Shalimar Bagh")).toBe(false);
+    const place = (id: string, title: string, more = {}) => ({ id, placeId: "amr", type: "place" as const, title, year: null, parts: ["place", "Amritsar", "Qloo"], source: "Qloo: a long-standing place in Amritsar, still there today.", ...more });
+    const p = person("Amrit", 1944, [{ id: "amr", name: "Amritsar", fromYear: 1947, toYear: 1965 }], {
+      suggestions: { "amr:1": [place("p1", "Jallianwala Bagh"), place("p2", "Sri Harmandir Sahib"), place("p3", "Ram Bagh"), place("p4", "Glasnevin Cemetery", { fromStory: "Visited her parents at Glasnevin Cemetery" })] },
+    });
+    const titles = galleryOf(p, new Map()).shelves.place.map((x) => x.title);
+    expect(titles).toEqual(expect.arrayContaining(["Sri Harmandir Sahib", "Ram Bagh", "Glasnevin Cemetery"]));
+    expect(titles).not.toContain("Jallianwala Bagh");
+  });
+});

@@ -122,7 +122,7 @@ const PLACES: Record<string, [name: string, description: string][]> = {
     ["Parque del Retiro", "The great park with its boating lake"],
   ],
   amritsar: [
-    ["Golden Temple", "Harmandir Sahib, the holiest gurdwara of Sikhism"],
+    ["Sri Harmandir Sahib", "The Golden Temple, the holiest gurdwara of Sikhism"],
     ["Jallianwala Bagh", "Memorial garden near the Golden Temple"],
   ],
   bradford: [
