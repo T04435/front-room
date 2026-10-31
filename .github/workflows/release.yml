@@ -49,7 +49,7 @@ jobs:
         if: steps.version.outputs.next != ''
         id: deploy
         run: |
-          url=$(npx vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" \
+          url=$(npx vercel@latest deploy --prod --force --yes --token "$VERCEL_TOKEN" \
             --build-env APP_VERSION=${{ steps.version.outputs.next }} --build-env APP_SHA=$GITHUB_SHA)
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed $url"
