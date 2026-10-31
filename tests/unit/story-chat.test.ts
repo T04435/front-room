@@ -53,4 +53,17 @@ describe("when a new look-up is due", () => {
     const capeTown = { id: "c", name: "Cape Town", fromYear: 1975, toYear: null } as Person["places"][number];
     expect(placesDue({ ...done, places: [...done.places, capeTown] }).map((p) => p.name)).toEqual(["Cape Town"]);
   });
+
+  it("a language or a venue told later asks for a fresh look-up, only where it belongs", async () => {
+    const { placesDue, researchInputs, researchKey } = await import("@/lib/person");
+    const liverpool = { id: "a", name: "Liverpool", fromYear: 1946, toYear: 1968 } as Person["places"][number];
+    const leeds = { id: "b", name: "Leeds", fromYear: 1968, toYear: null } as Person["places"][number];
+    const base = rosa({ preferredName: "Joan", birthYear: 1946, places: [liverpool, leeds] });
+    const researched = Object.fromEntries([liverpool, leeds].map((pl) => [researchKey(pl, 1946), researchInputs(base, pl)]));
+    const done = { ...base, researched };
+    expect(placesDue(done)).toEqual([]);
+    const danced = { ...done, moments: [{ id: "m", kind: "dance" as const, year: 1962, label: "Danced at the Cavern" }] };
+    expect(placesDue(danced).map((p) => p.name)).toEqual(["Liverpool"]);
+    expect(placesDue({ ...done, languages: ["Welsh"] }).map((p) => p.name)).toEqual(["Liverpool", "Leeds"]);
+  });
 });

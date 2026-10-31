@@ -192,7 +192,25 @@ export const researchKey = (place: Place, birthYear: number) => {
  */
 export function researchInputs(p: Person, place: Place): string {
   const by = birthYearOf(p) ?? 0;
-  return JSON.stringify([place.name, eraForPlace(place, by), p.loves.filter((l) => l.source !== "ring_a_bell").map((l) => nameKey(l.title)).sort()]);
+  const base = [place.name, eraForPlace(place, by), p.loves.filter((l) => l.source !== "ring_a_bell").map((l) => nameKey(l.title)).sort()];
+  // The language they grew up speaking (where their loves are looked for) and the venues the story names in this
+  // place: told later, they're worth a fresh look-up too. Added only when there are some, so a story without them
+  // keeps the inputs it was researched with.
+  const languages = p.languages.map((l) => l.toLowerCase().trim()).sort();
+  const venues = venuesIn(p, place).map(nameKey).sort();
+  return JSON.stringify(languages.length || venues.length ? [...base, languages, venues] : base);
+}
+
+/** A moment's venue: the one given, else "at the Cavern" in its label. */
+export const venueOf = (label: string, venue?: string) => venue?.trim() || /\bat (?:the )?([A-Z][\w'’]+(?: [A-Z][\w'’]+)*)/.exec(label)?.[1] || null;
+
+/** The venues the story names in a place: moments in its years (or, undated, in the first place). */
+function venuesIn(p: Person, place: Place): string[] {
+  const first = p.places[0]?.id === place.id;
+  return talkingPoints(p)
+    .filter((m) => (m.year === null ? first : place.fromYear !== null && place.fromYear <= m.year && (place.toYear === null || m.year < place.toYear)))
+    .map((m) => venueOf(m.label, m.venue))
+    .filter((v): v is string => Boolean(v));
 }
 
 /**

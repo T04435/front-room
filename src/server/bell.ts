@@ -2,7 +2,7 @@ import "server-only";
 import { describeEra, eraFor, pickDecadeTag } from "@/lib/era";
 import { harshKeywords, isInstitution, isMemorial, pickVenue } from "@/lib/card-words";
 import { STAND_INS_KEY } from "@/lib/gallery";
-import { birthYearOf, eraForPlace, placesDue, researchInputs, researchKey, steersClear, talkingPoints, type Person, type Place, type Suggestion } from "@/lib/person";
+import { birthYearOf, eraForPlace, placesDue, venueOf, researchInputs, researchKey, steersClear, talkingPoints, type Person, type Place, type Suggestion } from "@/lib/person";
 import { nameKey, parseInsights, parseSearch, parseTags, pickByName, type QlooEntity } from "@/lib/qloo-parse";
 import type { CallLog, CallOptions, QlooParams } from "@/lib/qloo-transport";
 import type { RunEvent } from "@/lib/run-events";
@@ -274,7 +274,6 @@ export const STORY_KEY = "story";
  * place they lived that year, else the first). Only a sure match counts (`pickVenue`): never a hotel nearby, never a guess.
  */
 async function storyVenues(p: Person, towns: Town[], onCall: OnCall): Promise<Draft[]> {
-  const venueOf = (label: string, venue?: string) => venue?.trim() || /\bat (?:the )?([A-Z][\w'’]+(?: [A-Z][\w'’]+)*)/.exec(label)?.[1] || null;
   const asks = talkingPoints(p)
     .map((m) => ({ m, venue: venueOf(m.label, m.venue) }))
     .filter((x): x is { m: Person["moments"][number]; venue: string } => Boolean(x.venue) && !steersClear(p, x.venue ?? undefined))
