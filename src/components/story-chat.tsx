@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Message, MessageContent } from "@/components/ui/message";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { birthYearOf, missingMinimum, researchInputs, researchKey, type Fact, type Person } from "@/lib/person";
+import { birthYearOf, missingMinimum, placesDue, type Fact, type Person } from "@/lib/person";
 import type { FamilyQuestion } from "@/lib/learning";
 import { possessive, type RunEvent } from "@/lib/run-events";
 import { addPlace, addSteer, applyFact, describeFact, storyPatch, uid, wouldHelpNext, yearsText, type Help } from "@/lib/story";
@@ -157,8 +157,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   const offered = useRef(false);
   const ro = Boolean(person.example);
   const name = person.preferredName || "them";
-  const by = birthYearOf(person);
-  const stale = by !== null && person.places.some((pl) => person.researched[researchKey(pl, by)] !== researchInputs(person, pl));
+  const stale = placesDue(person).length > 0;
   // New tries alone don't make a gallery (as on the person page): it takes a look-up.
   const hasGallery = Object.entries(person.suggestions).some(([k, cs]) => k !== "new-tries" && cs.length);
 
@@ -257,7 +256,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
     if (ask && !asked) return setMsgs((ms) => (ms.some((m) => "kind" in m && m.kind === "ask" && !settled(m.id) && JSON.stringify(m.ask) === JSON.stringify(ask)) ? ms : [...ms, { id: id(), from: "agent", kind: "ask", ask }]));
     if (ask) return;
     if (missingMinimum(p).length === 0) {
-      const changed = by !== null && p.places.some((pl) => p.researched[researchKey(pl, birthYearOf(p)!)] !== researchInputs(p, pl));
+      const changed = placesDue(p).length > 0;
       if ((changed || !hasGallery) && !offered.current) {
         offered.current = true;
         push({ id: id(), from: "agent", kind: "find" });

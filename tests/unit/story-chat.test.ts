@@ -41,3 +41,16 @@ describe("what research says as it goes", () => {
     expect(addedText({ ...end, id: "place-b", ok: false, chips: [], summary: "Qloo didn't answer in time for Madrid." }, "Madrid", "Rosa")).toBe("Qloo didn't answer in time for Madrid.");
   });
 });
+
+describe("when a new look-up is due", () => {
+  it("never for a place they left as a small child, so the banner goes after a look-up", async () => {
+    const { placesDue, researchInputs, researchKey } = await import("@/lib/person");
+    const lahore = { id: "a", name: "Lahore", fromYear: 1944, toYear: 1947 } as Person["places"][number];
+    const amritsar = { id: "b", name: "Amritsar", fromYear: 1947, toYear: 1965 } as Person["places"][number];
+    const base = rosa({ preferredName: "Amrit", birthYear: 1944, places: [lahore, amritsar] });
+    const done = { ...base, researched: { [researchKey(amritsar, 1944)]: researchInputs(base, amritsar) } };
+    expect(placesDue(done)).toEqual([]);
+    const capeTown = { id: "c", name: "Cape Town", fromYear: 1975, toYear: null } as Person["places"][number];
+    expect(placesDue({ ...done, places: [...done.places, capeTown] }).map((p) => p.name)).toEqual(["Cape Town"]);
+  });
+});

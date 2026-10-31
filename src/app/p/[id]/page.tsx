@@ -7,7 +7,7 @@ import { APP_NAME } from "@/lib/app";
 import { DEVICE_COOKIE } from "@/lib/device";
 import { galleryOf } from "@/lib/gallery";
 import { familyQuestions, playStats, provenCalm } from "@/lib/learning";
-import { birthYearOf, researchInputs, researchKey } from "@/lib/person";
+import { placesDue } from "@/lib/person";
 import { songsPending } from "@/server/bell";
 import { picturesDue } from "@/server/pictures";
 import { NEW_TRIES_KEY, newTriesStale } from "@/server/new-tries";
@@ -39,9 +39,8 @@ export default async function PersonPage({ params }: PageProps<"/p/[id]">) {
     const paused = familyQuestions(stats, person.resolvedUpsets);
     return <StoryChat initial={person} paused={paused} provenCalm={provenCalm(stats).length} />;
   }
-  const by = birthYearOf(person);
   // Songs still being checked after a look-up: the gallery says so and refreshes, rather than offering another look-up.
   const pending = songsPending(person);
-  const stale = !pending && by !== null && person.places.some((pl) => person.researched[researchKey(pl, by)] !== researchInputs(person, pl));
+  const stale = !pending && placesDue(person).length > 0;
   return <GalleryView person={person} gallery={gallery} plays={plays} stale={stale} songsPending={pending} picturesDue={!pending && picturesDue(person)} triesDue={!pending && !person.example && newTriesStale(person, stats)} />;
 }

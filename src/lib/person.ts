@@ -195,6 +195,18 @@ export function researchInputs(p: Person, place: Place): string {
   return JSON.stringify([place.name, eraForPlace(place, by), p.loves.filter((l) => l.source !== "ring_a_bell").map((l) => nameKey(l.title)).sort()]);
 }
 
+/**
+ * The places whose look-up is missing or out of date (a new place, new years, new loves). A place they left as a small
+ * child (before about 8) has no years of theirs to look up (born in Lahore, grew up in Amritsar after 1947), so it
+ * never counts: it kept the "Find more" banner up for good after every look-up.
+ */
+export function placesDue(p: Person): Place[] {
+  const by = birthYearOf(p);
+  if (by === null) return [];
+  const remembered = (pl: Place) => pl.toYear === null || pl.toYear >= by + 8;
+  return p.places.filter((pl) => remembered(pl) && p.researched[researchKey(pl, by)] !== researchInputs(p, pl));
+}
+
 /** Whether a title matches a steer-clear label (either contains the other, by words). */
 export function steersClear(p: Pick<Person, "steers">, ...texts: (string | undefined)[]): boolean {
   const labels = p.steers.map((s) => nameKey(s.label)).filter((l) => l.length >= 3);

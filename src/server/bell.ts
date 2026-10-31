@@ -2,7 +2,7 @@ import "server-only";
 import { describeEra, eraFor, pickDecadeTag } from "@/lib/era";
 import { harshKeywords, isInstitution, isMemorial, pickVenue } from "@/lib/card-words";
 import { STAND_INS_KEY } from "@/lib/gallery";
-import { birthYearOf, eraForPlace, researchInputs, researchKey, steersClear, talkingPoints, type Person, type Place, type Suggestion } from "@/lib/person";
+import { birthYearOf, eraForPlace, placesDue, researchInputs, researchKey, steersClear, talkingPoints, type Person, type Place, type Suggestion } from "@/lib/person";
 import { nameKey, parseInsights, parseSearch, parseTags, pickByName, type QlooEntity } from "@/lib/qloo-parse";
 import type { CallLog, CallOptions, QlooParams } from "@/lib/qloo-transport";
 import type { RunEvent } from "@/lib/run-events";
@@ -34,12 +34,7 @@ const get = (path: string, params: QlooParams, onCall: OnCall, opts?: CallOption
 
 /** The places whose research is missing or out of date (their place, years, loves or steer-clears changed). */
 export function placesToResearch(p: Person): Place[] {
-  const by = birthYearOf(p);
-  if (by === null) return [];
-  // A place they left as a small child (before about 8) has no years of theirs to look up: born in Lahore, grew up in
-  // Amritsar after 1947.
-  const remembered = (pl: Place) => pl.toYear === null || pl.toYear >= by + 8;
-  return p.places.filter((pl) => remembered(pl) && p.researched[researchKey(pl, by)] !== researchInputs(p, pl)).slice(0, MAX_PLACES);
+  return placesDue(p).slice(0, MAX_PLACES);
 }
 
 /** `eraFrom`/`eraTo`: the place's era, so a song picked for an artist comes from those years. */
