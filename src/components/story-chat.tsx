@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Ban, Check, Lightbulb, Mic, MicOff, Paperclip, Pencil, Sparkles, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Ban, Check, ChevronDown, Lightbulb, Mic, MicOff, Paperclip, Pencil, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { type CSSProperties, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AgentMark } from "@/components/front-room/agent";
@@ -31,7 +31,8 @@ type Msg =
   | { id: string; from: "agent"; kind: "helps" }
   | { id: string; from: "agent"; kind: "help"; help: Help }
   | { id: string; from: "agent"; kind: "find" }
-  | { id: string; from: "agent"; kind: "finding"; steps?: Line[] }
+  /** `seconds`: set when the look-up is done; the panel then folds to one line. `stopped`: it ended with an error. */
+  | { id: string; from: "agent"; kind: "finding"; steps?: Line[]; seconds?: number; stopped?: boolean }
   | { id: string; from: "agent"; kind: "found" };
 
 /** One line of the Go-Between's research, in its own message: what it's looking up, then what that added. */
@@ -183,7 +184,10 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   const [ideas, setIdeas] = useState(false);
   const talked = msgs.some((m) => m.from === "you");
   const cue = Boolean(starter) && !talked && !busy && text.trim().length > 0;
-  const hints = missingHints(person);
+  // Not while the Go-Between is reading or looking things up, or while what it heard waits for That's right: the
+  // ideas could ask for something just said and not yet taken in.
+  const waiting = busy || msgs.some((m) => "kind" in m && m.kind === "heard" && !resolved.has(m.id));
+  const hints = waiting ? [] : missingHints(person);
 
   // Arriving with ?find=1 (the gallery's "Find more"): look things up straight away.
   useEffect(() => {
@@ -303,6 +307,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
       return;
     }
     const findingId = id();
+    const startedAt = Date.now();
     push({ id: findingId, from: "agent", kind: "finding", steps: [] });
     // Each step's line lands in the research message itself, never as a message of its own.
     const research = (f: (steps: Line[]) => Line[]) => setMsgs((ms) => ms.map((m) => ("kind" in m && m.kind === "finding" && m.id === findingId ? { ...m, steps: f(m.steps ?? []) } : m)));
@@ -340,6 +345,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
           if (event.type === "error") failed = event.message;
         }
       }
+      setMsgs((ms) => ms.map((m) => ("kind" in m && m.kind === "finding" && m.id === findingId ? { ...m, seconds: Math.max(1, Math.round((Date.now() - startedAt) / 1000)), stopped: Boolean(failed) } : m)));
       if (failed) say(failed);
       else {
         const fresh = (await (await fetch(`/api/people/${person.id}`)).json()) as Person;
@@ -348,6 +354,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
         push({ id: id(), from: "agent", kind: "found" });
       }
     } catch (e) {
+      setMsgs((ms) => ms.map((m) => ("kind" in m && m.kind === "finding" && m.id === findingId ? { ...m, seconds: Math.max(1, Math.round((Date.now() - startedAt) / 1000)), stopped: true } : m)));
       say(e instanceof Error ? e.message : "The look-up stopped. Try again in a minute.");
     } finally {
       setBusy(false);
@@ -391,7 +398,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
       <div className="grid gap-3" aria-live="polite">
         {/* A question the story has answered since goes, even before anything else is confirmed (A15). */}
         {/* The same question twice (two answers settling at once both asked it): only the first shows. */}
-        {msgs.filter((m, i) => !("kind" in m && m.kind === "ask" && (!stillNeeded(m.ask, person) || msgs.slice(0, i).some((x) => "kind" in x && x.kind === "ask" && !resolved.has(x.id) && JSON.stringify(x.ask) === JSON.stringify(m.ask))))).map((m) =>
+        {msgs.filter((m) => !("kind" in m && m.kind === "find" && resolved.has(m.id))).filter((m, i, shown) => !("kind" in m && m.kind === "ask" && (!stillNeeded(m.ask, person) || shown.slice(0, i).some((x) => "kind" in x && x.kind === "ask" && !resolved.has(x.id) && JSON.stringify(x.ask) === JSON.stringify(m.ask))))).map((m) =>
           m.from === "you" ? (
             <Message key={m.id} align="end">
               <Bubble align="end">
@@ -404,6 +411,9 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
                 <span className="flex items-center gap-1.5 text-[15px] font-medium text-muted-foreground">
                   <AgentMark size={20} decorative state={busy && m.id === msgs.at(-1)?.id ? "working" : "rest"} /> Go-Between
                 </span>
+                {"kind" in m && m.kind === "finding" ? (
+                  <Research m={m} places={person.places.map((p) => p.name)} name={name} />
+                ) : (
                 <Bubble variant="secondary" className="max-w-full">
                   <BubbleContent className="grid gap-3 text-base">
                     <AgentBody
@@ -437,6 +447,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
                     />
                   </BubbleContent>
                 </Bubble>
+                )}
               </MessageContent>
             </Message>
           ),
@@ -680,22 +691,7 @@ function AgentBody(props: BodyProps) {
         </span>
       );
     case "finding":
-      return (
-        <span className="grid gap-3">
-          <span>Looking through {person.places.map((p) => p.name).join(" and ")} for the years {name} was young.</span>
-          {/* The research as it goes: what it's looking up, then what that added. No spinners or ticks: the Go-Between's mark shows it's working. */}
-          {(m.steps?.length ?? 0) > 0 && (
-            <ol className="grid gap-2 border-l-2 border-border pl-3" aria-label="Research" aria-live="polite">
-              {m.steps!.map((x) => (
-                <li key={x.id} className="grid gap-0.5">
-                  <span className={cn(!x.done && "text-muted-foreground")}>{x.text}</span>
-                  {x.source && <span className="text-xs text-muted-foreground">{x.source}</span>}
-                </li>
-              ))}
-            </ol>
-          )}
-        </span>
-      );
+      return null;
     case "found":
       return (
         <span className="grid gap-2">
@@ -708,6 +704,40 @@ function AgentBody(props: BodyProps) {
         </span>
       );
   }
+}
+
+/**
+ * The look-up as an agent at work, like other agent apps: one live line saying what it's doing now (shimmering),
+ * the steps behind a toggle, and once done, one folded line ("Looked through 3 places · 42 s") to open again.
+ * No spinners or ticks: the Go-Between's mark above it moves while it works.
+ */
+function Research({ m, places, name }: { m: Extract<Msg, { kind: "finding" }>; places: string[]; name: string }) {
+  const [open, setOpen] = useState(false);
+  const steps = m.steps ?? [];
+  const working = m.seconds === undefined;
+  const now = [...steps].reverse().find((x) => !x.done) ?? steps.at(-1);
+  const where = places.length > 1 ? `${places.slice(0, -1).join(", ")} and ${places.at(-1)}` : (places[0] ?? "their places");
+  const head = working
+    ? (now?.text ?? `Looking through ${where} for the years ${name} was young…`)
+    : `${m.stopped ? "Stopped looking" : "Looked"} through ${places.length === 1 ? where : `${places.length} places`} for ${name} · ${m.seconds} s`;
+  return (
+    <div className="grid gap-2 text-base">
+      <button type="button" className="flex min-h-11 items-center gap-1.5 justify-self-start text-left text-muted-foreground hover:text-foreground" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span className={cn(working && "research-shimmer")}>{head}</span>
+        <ChevronDown aria-hidden className={cn("size-4 shrink-0 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && steps.length > 0 && (
+        <ol className="grid gap-2 border-l-2 border-border pl-3 text-[15px]" aria-label="Research steps" aria-live="polite">
+          {steps.map((x) => (
+            <li key={x.id} className="grid gap-0.5">
+              <span className={cn(!x.done && "text-muted-foreground")}>{x.text}</span>
+              {x.source && <span className="text-xs text-muted-foreground">{x.source}</span>}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
 }
 
 /** "Here's what I heard": That's right for the lot, and a Change per fact (UX-5, R2-3). */

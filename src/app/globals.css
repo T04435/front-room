@@ -182,3 +182,24 @@
     box-shadow: none !important;
   }
 }
+
+/* The Go-Between's live research line: a soft light passing over the words while it works (still for reduced motion). */
+.research-shimmer {
+  background: linear-gradient(90deg, var(--muted-foreground) 0%, var(--foreground) 50%, var(--muted-foreground) 100%) 0 0 / 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: research-shimmer 2s linear infinite;
+}
+@keyframes research-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .research-shimmer {
+    animation: none;
+    color: var(--muted-foreground);
+    background: none;
+  }
+}
