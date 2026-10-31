@@ -1,0 +1,46 @@
+import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
+import { GalleryView } from "@/components/gallery-view";
+import { StoryChat } from "@/components/story-chat";
+import { APP_NAME } from "@/lib/app";
+import { DEVICE_COOKIE } from "@/lib/device";
+import { galleryOf } from "@/lib/gallery";
+import { familyQuestions, playStats, provenCalm } from "@/lib/learning";
+import { placesDue } from "@/lib/person";
+import { songsPending } from "@/server/bell";
+import { picturesDue } from "@/server/pictures";
+import { NEW_TRIES_KEY, newTriesStale } from "@/server/new-tries";
+import { getPerson, linkDevice, personPlays } from "@/server/people";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: PageProps<"/p/[id]">): Promise<Metadata> {
+  const person = await getPerson((await params).id).catch(() => null);
+  return { title: `${person?.preferredName ?? "Not found"} · ${APP_NAME}`, robots: { index: false } };
+}
+
+/**
+ * A person's page. Once Qloo has found things for them, it's their gallery: what to play for them now. Before that,
+ * it's the chat with the Go-Between, collecting their story.
+ */
+export default async function PersonPage({ params }: PageProps<"/p/[id]">) {
+  const { id } = await params;
+  const person = await getPerson(id);
+  if (!person) notFound();
+  // Opening a person's link adds them to this device's list.
+  await linkDevice((await cookies()).get(DEVICE_COOKIE)?.value ?? null, id).catch(() => {});
+  const plays = await personPlays(id);
+  const stats = playStats(plays, person.resolvedUpsets);
+  const gallery = galleryOf(person, stats);
+  // Family loves alone don't make a gallery: until a look-up has found things, the page is the chat.
+  const found = Object.entries(person.suggestions).some(([k, cs]) => k !== NEW_TRIES_KEY && cs.length);
+  if (!found || gallery.total === 0) {
+    const paused = familyQuestions(stats, person.resolvedUpsets);
+    return <StoryChat initial={person} paused={paused} provenCalm={provenCalm(stats).length} />;
+  }
+  // Songs still being checked after a look-up: the gallery says so and refreshes, rather than offering another look-up.
+  const pending = songsPending(person);
+  const stale = !pending && placesDue(person).length > 0;
+  return <GalleryView person={person} gallery={gallery} plays={plays} stale={stale} songsPending={pending} picturesDue={!pending && picturesDue(person)} triesDue={!pending && !person.example && newTriesStale(person, stats)} />;
+}

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56">
+  <!-- The Go-Between mark: apricot and plum circles, a cream wave through both (agent.tsx, small size). -->
+  <circle cx="21" cy="28" r="17" fill="#f6c9a0"/>
+  <circle cx="35" cy="28" r="17" fill="#5b2a55" fill-opacity="0.92"/>
+  <path d="M8 30c3.5-6 7-6 10.5 0s7 6 10.5 0 7-6 10.5 0 5 5 8 1" fill="none" stroke="#fffbf8" stroke-width="4.4" stroke-linecap="round"/>
+</svg>

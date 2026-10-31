@@ -1,0 +1,194 @@
+import { Ban, Check, ClipboardList } from "lucide-react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { CopyText, PrintButton } from "@/components/person-actions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { APP_NAME } from "@/lib/app";
+import { careNoteForPlays } from "@/lib/care-note";
+import { playStats, topProven } from "@/lib/learning";
+import { talkingPoints } from "@/lib/person";
+import { getPerson, personPlays } from "@/server/people";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: PageProps<"/p/[id]/works">): Promise<Metadata> {
+  const person = await getPerson((await params).id).catch(() => null);
+  return { title: `What works · ${person?.preferredName || "Not found"} · ${APP_NAME}`, robots: { index: false } };
+}
+
+/** The demo's homes are in the UK; real homes get their own zone with accounts (after the hackathon). */
+const HOME_TZ = process.env.FRONT_ROOM_TIME_ZONE || "Europe/London";
+
+const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: HOME_TZ }) : null);
+
+/**
+ * What works (v2 brief, P0 7): the handover card, readable in 30 seconds by an agency worker at 18:00. The preferred
+ * name, the top things that work, steer-clears, how to settle them, hearing and headphones, and the last session, each
+ * line dated.
+ */
+export default async function WorksPage({ params }: PageProps<"/p/[id]/works">) {
+  const { id } = await params;
+  const person = await getPerson(id);
+  if (!person) notFound();
+  const plays = await personPlays(id);
+  const stats = playStats(plays, person.resolvedUpsets, new Date(), HOME_TZ);
+  const works = topProven(stats);
+  // The same rule as the gallery's handover: anything logged Calm, most calm days first (QA-26).
+  const settles = [...stats.values()].filter((s) => s.calmSessions > 0 && s.state !== "paused").sort((a, b) => b.calmSessions - a.calmSessions).slice(0, 2);
+  const paused = [...stats.values()].filter((s) => s.state === "paused");
+  const resting = [...stats.values()].filter((s) => s.state === "resting");
+  // The last day with plays is the last session.
+  const dayOf = (iso: string) => new Date(iso).toLocaleDateString("en-CA", { timeZone: HOME_TZ });
+  const lastDay = plays.filter((p) => p.response !== "none").at(-1);
+  const days = new Set(plays.map((p) => dayOf(p.at))).size;
+  const p = person.practical;
+  // The same steer-clear rule as the gallery: no wedding when the husband is on steer clear (A3).
+  const talks = talkingPoints(person).slice(0, 2);
+  const heard = person.staffHeard.filter((h) => h.confirmed);
+  // One copyable line per day of play, newest first (the last three).
+  const playDays = [...new Set(plays.filter((x) => x.response !== "none").map((x) => dayOf(x.at)))].slice(-3).reverse();
+  const notes = playDays.map((d) => ({ d, note: careNoteForPlays(plays.filter((x) => dayOf(x.at) === d), HOME_TZ) })).filter((n): n is { d: string; note: string } => Boolean(n.note));
+
+  return (
+    <div className="grid gap-5">
+      <div className="grid gap-1">
+        <h1 className="flex items-center gap-2 font-heading text-[34px] leading-[40px]">
+          <ClipboardList className="size-6" aria-hidden /> What works
+        </h1>
+        <p className="text-lg">
+          {person.preferredName}
+          {p.greeting ? <span className="text-muted-foreground"> · {p.greeting}</span> : null}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {days} {days === 1 ? "day" : "days"} of play logged{lastDay ? ` · last ${day(lastDay.at)}` : ""}. Each line says when it was last confirmed (UK dates and times).
+        </p>
+        <div className="mt-1">
+          <PrintButton />
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Works</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          {works.length === 0 && talks.length === 0 && <p className="text-sm text-muted-foreground">Nothing proven yet. Two good sessions with the same song, and it shows here.</p>}
+          {works.map((s) => (
+            <p key={s.key} className="flex gap-2">
+              <Check className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden />
+              <span>
+                {s.title}
+                {s.by ? ` (${s.by})` : ""}: {s.sangSessions >= 2 ? "sings along" : "engages"} <span className="text-xs text-muted-foreground">· {s.label.replace("Proven · ", "")}, last {day(s.lastAt)}</span>
+              </span>
+            </p>
+          ))}
+          {talks.map((m) => (
+            <p key={m.id} className="flex gap-2">
+              <Check className="mt-1 size-4 shrink-0 text-emerald-600" aria-hidden />
+              <span>
+                Talking about: {m.kind === "wedding" ? "Their wedding" : m.label}
+                {m.year && (m.kind === "wedding" || !m.label.includes(String(m.year))) ? ` (${m.year})` : ""} <span className="text-xs text-muted-foreground">· from the family</span>
+              </span>
+            </p>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Steer clear</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          {person.steers.length === 0 && paused.length === 0 && <p className="text-sm text-muted-foreground">{person.steerAsked ? "Nothing flagged by the family." : "Not asked yet: ask the family in the story chat."}</p>}
+          {person.steers.map((s) => (
+            <p key={s.id} className="flex gap-2">
+              <Ban className="mt-1 size-4 shrink-0 text-primary" aria-hidden />
+              <span>
+                {s.label} ({s.level === "never" ? "never" : "sad but OK"}) <span className="text-xs text-muted-foreground">· {s.source === "logged" ? "after a session" : "the family"}, {day(s.at)}</span>
+              </span>
+            </p>
+          ))}
+          {paused.map((s) => (
+            <p key={s.key} className="flex gap-2">
+              <Ban className="mt-1 size-4 shrink-0 text-primary" aria-hidden />
+              <span>
+                {s.title}: paused <span className="text-xs text-muted-foreground">· upset on {day(s.lastUpsetAt)}; the family is asked in the story chat</span>
+              </span>
+            </p>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>What has been calm for {person.preferredName}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          {settles.map((s) => (
+            <p key={s.key}>
+              {s.title}
+              {s.by ? ` (${s.by})` : ""}: logged calm <span className="text-xs text-muted-foreground">· calm in {s.calmSessions} {s.calmSessions === 1 ? "session" : "sessions"}, last {day(s.lastAt)}</span>
+            </p>
+          ))}
+          {p.calms && (
+            <p>
+              {p.calms} <span className="text-xs text-muted-foreground">· the family</span>
+            </p>
+          )}
+          {p.bestTime && <p>Best time: {p.bestTime}</p>}
+          {!settles.length && !p.calms && <p className="text-sm text-muted-foreground">Not known yet. Tap Calm in the gallery when something helps, or tell the story chat.</p>}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Good to know</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-1">
+          {p.hearing && <p>{p.hearing}</p>}
+          {p.headphonesOk !== undefined && p.headphonesOk !== null && <p>{p.headphonesOk ? "Headphones are fine." : "No headphones."}</p>}
+          {person.languages.length > 0 && !person.languages.every((l) => /^english$/i.test(l)) && <p>Grew up speaking {person.languages.join(", ")}: a few words in it help.</p>}
+          {p.work && <p>Work: {p.work}</p>}
+          {p.faith && <p>{p.faith.stance === "keep_out" ? "Keep faith out of it." : p.faith.stance === "yes" ? `Faith: ${p.faith.label ?? "yes"}` : "No faith."}</p>}
+          {heard.map((h) => (
+            <p key={h.id}>
+              Staff heard: {h.text} <span className="text-xs text-muted-foreground">· the family confirmed, {day(h.at)}</span>
+            </p>
+          ))}
+          {resting.length > 0 && <p className="text-sm text-muted-foreground">Resting for a month (no reaction three times): {resting.map((s) => s.title).join(", ")}.</p>}
+          {!p.hearing && p.headphonesOk == null && !p.work && !p.faith && !resting.length && !heard.length && <p className="text-sm text-muted-foreground">Nothing yet.</p>}
+        </CardContent>
+      </Card>
+
+      {notes.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Care notes</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {notes.map((n) => (
+              <div key={n.d} className="grid gap-1.5">
+                <span className="text-sm font-medium">{day(`${n.d}T12:00:00Z`)}</span>
+                <p>{n.note}</p>
+                <div>
+                  <CopyText text={`${person.preferredName}, ${day(`${n.d}T12:00:00Z`)}: ${n.note}`} label="Copy the note" />
+                </div>
+              </div>
+            ))}
+            <p className="text-xs text-muted-foreground">Observations, not a clinical score. Copy them into the home&apos;s records.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <p className="hidden text-xs print:block">Printed from Front Room on {day(new Date().toISOString())}. Observations by staff and family, not a clinical record.</p>
+
+      <div className="print:hidden">
+        <Button asChild>
+          <Link href={`/p/${id}`}>Play something for {person.preferredName}</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
