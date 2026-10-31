@@ -375,7 +375,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   }
 
   return (
-    <div className="mx-auto grid max-w-2xl gap-4" style={{ "--composer-h": `${composerH + 16}px` } as CSSProperties}>
+    <div className="mx-auto grid w-full max-w-3xl gap-4" style={{ "--composer-h": `${composerH + 16}px` } as CSSProperties}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="font-heading text-[30px] leading-[36px]">{hasGallery ? `Tell me more about ${name}` : `${person.preferredName ? `${person.preferredName}’s` : "Their"} story`}</h1>
         <div className="flex gap-2">
@@ -959,7 +959,14 @@ function HelpInput({ help, person, onSave }: { help: Help; person: Person; onSav
     case "steer":
       return <SteerTopic person={person} name={name} onSave={onSave} />;
     case "place":
-      return <PlaceSearch id="h-place" label={help.label} onPick={(pl) => onSave(addPlace(person, { name: pl.name, label: pl.label, fromYear: person.places.at(-1)?.toYear ?? null, toYear: null, role: "lived" }), pl.label ?? pl.name)} />;
+      return (
+        <PlaceSearch
+          id="h-place"
+          label={help.label}
+          yearLabel={(place) => `When did ${name} move to ${place}?`}
+          onPick={(pl, year) => onSave(addPlace(person, { name: pl.name, label: pl.label, fromYear: year ?? null, toYear: null, role: "lived", ...(year ? {} : { yearsUnknown: true }) }), `${pl.label ?? pl.name}${year ? `, from ${year}` : ""}`)}
+        />
+      );
     case "moment":
       return (
         <TextInput

@@ -48,9 +48,17 @@ export function YearInput({
   );
 }
 
-/** A town or city, found with Qloo's locality search (no map). Typing a name that isn't found still works. */
-export function PlaceSearch({ id, label, onPick }: { id: string; label: string; onPick: (place: { name: string; label?: string }) => void }) {
+type Picked = { name: string; label?: string };
+
+/**
+ * A town or city, found with Qloo's locality search (no map). Typing a name that isn't found still works. With
+ * `yearLabel`, picking a place asks the year they moved there in the same step (a new city with no years was looked up
+ * as if it were where they grew up): `year` is null for "Not sure".
+ */
+export function PlaceSearch({ id, label, onPick, yearLabel }: { id: string; label: string; onPick: (place: Picked, year?: number | null) => void; yearLabel?: (place: string) => string }) {
   const [q, setQ] = useState("");
+  const [picked, setPicked] = useState<Picked | null>(null);
+  const pick = (pl: Picked) => (yearLabel ? setPicked(pl) : onPick(pl));
   const [state, setState] = useState<{ status: "idle" | "searching" | "done" | "error"; results: { name: string; label: string }[]; message?: string }>({ status: "idle", results: [] });
 
   async function search() {
@@ -65,6 +73,20 @@ export function PlaceSearch({ id, label, onPick }: { id: string; label: string; 
     } catch (e) {
       setState({ status: "error", results: [], message: e instanceof Error ? e.message : "Place search isn't answering." });
     }
+  }
+
+  if (picked && yearLabel) {
+    return (
+      <div className="grid gap-2">
+        <p className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{picked.label ?? picked.name}</span>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setPicked(null)}>
+            Change
+          </Button>
+        </p>
+        <YearInput id={`${id}-year`} label={yearLabel(picked.name)} value={null} choices={[{ label: "Not sure", value: null }]} onSave={(y) => onPick(picked, y)} />
+      </div>
+    );
   }
 
   return (
@@ -97,11 +119,11 @@ export function PlaceSearch({ id, label, onPick }: { id: string; label: string; 
       {state.status === "done" && (
         <div className="flex flex-wrap gap-2">
           {state.results.map((r) => (
-            <Button key={r.label} type="button" size="sm" variant="outline" onClick={() => onPick(r)}>
+            <Button key={r.label} type="button" size="sm" variant="outline" onClick={() => pick(r)}>
               {r.label}
             </Button>
           ))}
-          <Button type="button" size="sm" variant="ghost" onClick={() => onPick({ name: q.trim() })}>
+          <Button type="button" size="sm" variant="ghost" onClick={() => pick({ name: q.trim() })}>
             {state.results.length ? `None of these: use “${q.trim()}”` : `Not found: use “${q.trim()}” anyway`}
           </Button>
         </div>

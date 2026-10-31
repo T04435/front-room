@@ -60,19 +60,20 @@ export function ConsentForm({ initialExample = null }: { initialExample?: Exampl
   }
 
   return (
-    <form onSubmit={submit} className="grid max-w-xl gap-6">
-      <Card>
+    // Wide screens: the examples on the left, the name and consent on the right, so the page uses its width.
+    <form onSubmit={submit} className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      <Card className="lg:row-span-4">
         <CardHeader>
           <CardTitle>No one in mind? Start from an example</CardTitle>
           <CardDescription>A fictional person and their “This is me” story, ready in the chat box. Sending it runs the real chat and look-up.</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2" role="group" aria-label="Examples">
+        <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2" role="group" aria-label="Examples">
           {EXAMPLES.map((ex) => (
-            <Button key={ex.id} type="button" variant={example?.id === ex.id ? "default" : "outline"} aria-pressed={example?.id === ex.id} className="h-auto min-h-12 max-w-full py-2 text-left whitespace-normal" disabled={busy} onClick={() => pick(ex)}>
+            <Button key={ex.id} type="button" variant={example?.id === ex.id ? "default" : "outline"} aria-pressed={example?.id === ex.id} className="h-auto min-h-12 justify-start py-2 text-left whitespace-normal" disabled={busy} onClick={() => pick(ex)}>
               {ex.label}
             </Button>
           ))}
-          {example && <p className="basis-full text-sm text-muted-foreground">{example.name} is fictional. Check who is telling it below, then start their story.</p>}
+          {example && <p className="col-span-full text-sm text-muted-foreground">{example.name} is fictional. Check who is telling it below, then start their story.</p>}
         </CardContent>
       </Card>
       <div className="grid gap-2">
