@@ -31,10 +31,11 @@ type Msg =
   | { id: string; from: "agent"; kind: "helps" }
   | { id: string; from: "agent"; kind: "help"; help: Help }
   | { id: string; from: "agent"; kind: "find" }
-  | { id: string; from: "agent"; kind: "finding" }
-  | { id: string; from: "agent"; kind: "found" }
-  /** One research step done: what it added to the gallery, and where it came from. */
-  | { id: string; from: "agent"; kind: "added"; text: string; source?: string };
+  | { id: string; from: "agent"; kind: "finding"; steps?: Line[] }
+  | { id: string; from: "agent"; kind: "found" };
+
+/** One line of the Go-Between's research, in its own message: what it's looking up, then what that added. */
+type Line = { id: string; text: string; done: boolean; source?: string };
 
 /**
  * What helps, from the Alzheimer's Society's "This is me": each adds a starter line to the box. `known`: the story
@@ -248,7 +249,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
     if (msgs.some((m) => "kind" in m && m.kind === "heard" && !settled(m.id))) return;
     const ask = nextAsk(p);
     const asked = ask && open.some((m) => stillNeeded(m.ask, p) && JSON.stringify(m.ask) === JSON.stringify(ask));
-    if (ask && !asked) return push({ id: id(), from: "agent", kind: "ask", ask });
+    // Checked against the latest messages too: two answers settling at once both got here and asked twice.
+    if (ask && !asked) return setMsgs((ms) => (ms.some((m) => "kind" in m && m.kind === "ask" && !settled(m.id) && JSON.stringify(m.ask) === JSON.stringify(ask)) ? ms : [...ms, { id: id(), from: "agent", kind: "ask", ask }]));
     if (ask) return;
     if (missingMinimum(p).length === 0) {
       const changed = by !== null && p.places.some((pl) => p.researched[researchKey(pl, birthYearOf(p)!)] !== researchInputs(p, pl));
@@ -300,7 +302,10 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
       if (ask && !asked) push({ id: id(), from: "agent", kind: "ask", ask });
       return;
     }
-    push({ id: id(), from: "agent", kind: "finding" });
+    const findingId = id();
+    push({ id: findingId, from: "agent", kind: "finding", steps: [] });
+    // Each step's line lands in the research message itself, never as a message of its own.
+    const research = (f: (steps: Line[]) => Line[]) => setMsgs((ms) => ms.map((m) => ("kind" in m && m.kind === "finding" && m.id === findingId ? { ...m, steps: f(m.steps ?? []) } : m)));
     offered.current = false;
     setBusy(true);
     try {
@@ -324,8 +329,14 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
           if (!line.trim()) continue;
           const event = JSON.parse(line) as RunEvent;
           // Each step says what it added as it lands; the gallery opens only once the whole look-up is done.
-          if (event.type === "step-start") titles.set(event.id, event.title);
-          if (event.type === "step-end") push({ id: id(), from: "agent", kind: "added", text: addedText(event, titles.get(event.id), person.preferredName), source: event.sourceLine });
+          if (event.type === "step-start") {
+            titles.set(event.id, event.title);
+            research((xs) => [...xs.filter((x) => x.id !== event.id), { id: event.id, text: `${event.running}…`, done: false }]);
+          }
+          if (event.type === "step-end") {
+            const done: Line = { id: event.id, text: addedText(event, titles.get(event.id), person.preferredName), done: true, source: event.sourceLine };
+            research((xs) => (xs.some((x) => x.id === event.id) ? xs.map((x) => (x.id === event.id ? done : x)) : [...xs, done]));
+          }
           if (event.type === "error") failed = event.message;
         }
       }
@@ -379,7 +390,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
 
       <div className="grid gap-3" aria-live="polite">
         {/* A question the story has answered since goes, even before anything else is confirmed (A15). */}
-        {msgs.filter((m) => !("kind" in m && m.kind === "ask" && !stillNeeded(m.ask, person))).map((m) =>
+        {/* The same question twice (two answers settling at once both asked it): only the first shows. */}
+        {msgs.filter((m, i) => !("kind" in m && m.kind === "ask" && (!stillNeeded(m.ask, person) || msgs.slice(0, i).some((x) => "kind" in x && x.kind === "ask" && !resolved.has(x.id) && JSON.stringify(x.ask) === JSON.stringify(m.ask))))).map((m) =>
           m.from === "you" ? (
             <Message key={m.id} align="end">
               <Bubble align="end">
@@ -668,12 +680,20 @@ function AgentBody(props: BodyProps) {
         </span>
       );
     case "finding":
-      return <span>Looking through {person.places.map((p) => p.name).join(" and ")} for the years {name} was young. I&apos;ll say what I add as I go.</span>;
-    case "added":
       return (
-        <span className="grid gap-1">
-          <span>{m.text}</span>
-          {m.source && <span className="text-xs text-muted-foreground">{m.source}</span>}
+        <span className="grid gap-3">
+          <span>Looking through {person.places.map((p) => p.name).join(" and ")} for the years {name} was young.</span>
+          {/* The research as it goes: what it's looking up, then what that added. No spinners or ticks: the Go-Between's mark shows it's working. */}
+          {(m.steps?.length ?? 0) > 0 && (
+            <ol className="grid gap-2 border-l-2 border-border pl-3" aria-label="Research" aria-live="polite">
+              {m.steps!.map((x) => (
+                <li key={x.id} className="grid gap-0.5">
+                  <span className={cn(!x.done && "text-muted-foreground")}>{x.text}</span>
+                  {x.source && <span className="text-xs text-muted-foreground">{x.source}</span>}
+                </li>
+              ))}
+            </ol>
+          )}
         </span>
       );
     case "found":

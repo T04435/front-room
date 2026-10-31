@@ -11,14 +11,14 @@ describe("the box's ideas", () => {
   });
 
   it("change as the story fills in", () => {
-    const told = rosa({ places: [place("a", "Sevilla"), place("b", "Madrid")], loves: [{ id: "l", type: "song", title: "Como una ola" }], steerAsked: true });
+    const told = rosa({ places: [place("a", "Sevilla"), place("b", "Madrid")], loves: [{ id: "l", type: "song", title: "Como una ola", source: "family" }], steerAsked: true });
     expect(missingHints(told).map((h) => h.label)).toEqual(["Music, films and shows", "What calms them", "Family and big moments"]);
   });
 
   it("none once everything is known", () => {
     const all = rosa({
       places: [place("a", "Sevilla"), place("b", "Madrid")],
-      loves: [{ id: "l", type: "song", title: "Como una ola" }, { id: "m", type: "artist", title: "Rocío Jurado" }],
+      loves: [{ id: "l", type: "song", title: "Como una ola", source: "family" }, { id: "m", type: "artist", title: "Rocío Jurado", source: "family" }],
       steerAsked: true,
       moments: [{ id: "w", kind: "wedding", year: 1970, label: "Married in Triana" }],
       practical: { calms: "Copla, softly", work: "Seamstress", faith: { stance: "keep_out" } },

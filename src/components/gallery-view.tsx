@@ -481,18 +481,16 @@ function HowQloo({ name, places }: { name: string; places: string[] }) {
   return (
     <details className="group rounded-lg border bg-card p-4 text-sm">
       <summary className="cursor-pointer font-medium">How Qloo finds these</summary>
-      <ol className="mt-3 grid gap-2 sm:grid-cols-4">
-        {steps.map(([title, text], i) => (
-          <li key={title} className="grid content-start gap-1 rounded-md bg-muted/50 p-3">
-            <span className="font-medium">
-              {i + 1}. {title}
-            </span>
-            <span className="text-muted-foreground">{text}</span>
+      {/* A plain numbered list: four boxes inside a box read as cramped cards. */}
+      <ol className="mt-3 grid max-w-prose list-decimal gap-2 pl-5 marker:font-medium">
+        {steps.map(([title, text]) => (
+          <li key={title}>
+            <span className="font-medium">{title}.</span> <span className="text-muted-foreground">{text}</span>
           </li>
         ))}
       </ol>
       <p className="mt-2 text-muted-foreground">
-        Each card says why it’s here.{" "}
+        Each item in the gallery says why it’s here.{" "}
         <a className="underline underline-offset-2" href="https://github.com/T04435/front-room#the-qloo-calls" target="_blank" rel="noreferrer">
           The Qloo calls, one by one
         </a>
