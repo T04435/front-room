@@ -45,11 +45,14 @@ jobs:
           echo "next=$next" >> "$GITHUB_OUTPUT"
           if [ -z "$next" ]; then echo "No releasable commits since the last tag: nothing to deploy."; fi
 
+      # --force: no build cache. v1.0.0 shipped a stylesheet that never existed in the source (the scaffold's default
+      # :root with today's print rules), while a clean build of the same commit is right: the cache Vercel restored was
+      # stale. A full build costs a minute or two, once per release.
       - name: Deploy to production
         if: steps.version.outputs.next != ''
         id: deploy
         run: |
-          url=$(npx vercel@latest deploy --prod --yes --token "$VERCEL_TOKEN" \
+          url=$(npx vercel@latest deploy --prod --yes --force --token "$VERCEL_TOKEN" \
             --build-env APP_VERSION=${{ steps.version.outputs.next }} --build-env APP_SHA=$GITHUB_SHA)
           echo "url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed $url"
@@ -67,6 +70,17 @@ jobs:
             sleep 10
           done
           echo "Production doesn't report $want: not tagging."
+          exit 1
+
+      # The theme ships too: the stylesheet the home page links has the brand's cream (#fffbf8), not shadcn's defaults.
+      - name: Smoke check the theme
+        if: steps.version.outputs.next != ''
+        run: |
+          base="${{ vars.PRODUCTION_URL || 'https://front-room.vercel.app' }}"
+          css=$(curl -fsS "$base/?ci=$GITHUB_RUN_ID" | grep -o '/_next/static/[^"]*\.css' | head -1)
+          echo "stylesheet: $css"
+          curl -fsS "$base$css" | grep -q fffbf8 && exit 0
+          echo "The live stylesheet has no #fffbf8: the theme didn't ship. Not tagging."
           exit 1
 
       - name: Tag and release
