@@ -243,9 +243,9 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
             </Button>
             {/* On a phone: two equal outline buttons, one line each; the full name stays the accessible one. */}
             <Button asChild variant="ghost" className="max-sm:min-h-11 max-sm:border-2 max-sm:border-input max-sm:bg-card">
-              <Link href={`/p/${person.id}/story`} aria-label={`Get to know ${name} better`}>
-                <MessageCircleHeart aria-hidden /> <span className="sm:hidden">Their story</span>
-                <span className="max-sm:hidden">Get to know {name} better</span>
+              <Link href={`/p/${person.id}/story`} aria-label={`Tell me more about ${name}`}>
+                <MessageCircleHeart aria-hidden /> <span className="sm:hidden">Tell me more</span>
+                <span className="max-sm:hidden">Tell me more about {name}</span>
               </Link>
             </Button>
           </div>
@@ -307,6 +307,21 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
         return items.length ? <Shelf key={t} title={SHELF[t]} items={items} onOpen={setOpen} /> : null;
       })}
 
+      {/* How to keep adding, after the shelves: the story chat is where everything new comes in. */}
+      {!ro && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-dashed border-input p-4">
+          <p className="min-w-0 flex-1 basis-64">
+            <span className="font-medium">Know more about {name}?</span>{" "}
+            <span className="text-muted-foreground">Another place they lived, a song they always sang, what calms them: each thing you add finds more for this gallery.</span>
+          </p>
+          <Button asChild className="max-sm:h-11 max-sm:w-full">
+            <Link href={`/p/${person.id}/story`}>
+              <MessageCircleHeart aria-hidden /> Tell me more about {name}
+            </Link>
+          </Button>
+        </div>
+      )}
+
       <HowQloo name={name} places={person.places.map((x) => x.name)} />
 
       {/* Sharing, quietly, after the shelves (UX-11). */}
@@ -321,7 +336,7 @@ export function GalleryView({ person, gallery, plays, stale, triesDue, songsPend
         <details className="text-sm text-muted-foreground">
           <summary className="cursor-pointer py-2">Paused and resting ({gallery.paused.length + gallery.resting.length})</summary>
           <div className="grid gap-1">
-            {gallery.paused.length > 0 && <p>Paused after an upset: {gallery.paused.map((g) => `‘${g.title}’`).join(", ")}. The family is asked about it in Get to know them better.</p>}
+            {gallery.paused.length > 0 && <p>Paused after an upset: {gallery.paused.map((g) => `‘${g.title}’`).join(", ")}. The family is asked about it in Tell me more.</p>}
             {gallery.resting.length > 0 && <p>Resting for a month (no reaction three times): {gallery.resting.map((g) => `‘${g.title}’`).join(", ")}.</p>}
           </div>
         </details>
@@ -557,7 +572,7 @@ function LearnedSomething({ person, name, onSaved }: { person: Person; name: str
     setState("saved");
     onSaved();
   }
-  if (state === "saved") return <p className="border-t pt-3 text-sm">Noted for {name}&apos;s family to confirm in Get to know them better.</p>;
+  if (state === "saved") return <p className="border-t pt-3 text-sm">Noted for {name}&apos;s family to confirm in Tell me more.</p>;
   if (!unfolded)
     return (
       // Never wider than the sheet: it wraps on a phone (R2, last).

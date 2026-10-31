@@ -4,18 +4,16 @@ import { ArrowDown, ArrowUp, Ban, Check, Lightbulb, Mic, MicOff, Paperclip, Penc
 import Link from "next/link";
 import { type CSSProperties, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { AgentMark } from "@/components/front-room/agent";
-import { applyStepEvent, RunSteps, type StepItem } from "@/components/run-steps";
 import { PlaceSearch, SteerQuestion, TextInput, YearInput } from "@/components/story-inputs";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Message, MessageContent } from "@/components/ui/message";
-import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { birthYearOf, missingMinimum, researchInputs, researchKey, type Fact, type Person } from "@/lib/person";
 import type { FamilyQuestion } from "@/lib/learning";
-import type { RunEvent } from "@/lib/run-events";
+import { possessive, type RunEvent } from "@/lib/run-events";
 import { addPlace, addSteer, applyFact, describeFact, storyPatch, uid, wouldHelpNext, yearsText, type Help } from "@/lib/story";
 
 type Candidate = Fact & { id: string };
@@ -35,22 +33,30 @@ type Msg =
   | { id: string; from: "agent"; kind: "find" }
   | { id: string; from: "agent"; kind: "finding" }
   | { id: string; from: "agent"; kind: "found" }
-  | { id: string; from: "agent"; kind: "early" };
+  /** One research step done: what it added to the gallery, and where it came from. */
+  | { id: string; from: "agent"; kind: "added"; text: string; source?: string };
 
-/** What helps, from the Alzheimer's Society's "This is me": each adds a starter line to the box. */
-const HINTS: { label: string; starter: (n: string) => string }[] = [
-  { label: "Where they grew up", starter: (n) => `${n} grew up in ` },
-  { label: "Where they lived after", starter: () => "Later they lived in " },
-  { label: "Their work", starter: (n) => `${n} worked as ` },
-  { label: "Family and big moments", starter: () => "A big moment was " },
-  { label: "Faith", starter: () => "Faith: " },
-  { label: "Music, films and shows", starter: (n) => `${n} loved ` },
+/**
+ * What helps, from the Alzheimer's Society's "This is me": each adds a starter line to the box. `known`: the story
+ * already has it, so it isn't offered.
+ */
+const HINTS: { label: string; starter: (n: string) => string; known: (p: Person) => boolean }[] = [
+  { label: "Where they grew up", starter: (n) => `${n} grew up in `, known: (p) => p.places.length > 0 },
+  { label: "Where they lived after", starter: () => "Later they lived in ", known: (p) => p.places.length > 1 },
   // Their own songs beat era picks (Playlist for Life asks these first).
-  { label: "A song they always sang", starter: (n) => `${n} always sang ` },
-  { label: "Their wedding music", starter: () => "At their wedding they danced to " },
-  { label: "What calms them", starter: () => "What calms them is " },
-  { label: "What upsets them", starter: () => "Please steer clear of " },
+  { label: "A song they always sang", starter: (n) => `${n} always sang `, known: (p) => p.loves.some((l) => l.type === "song") },
+  { label: "Music, films and shows", starter: (n) => `${n} loved `, known: (p) => p.loves.some((l) => l.type !== "song") },
+  { label: "What upsets them", starter: () => "Please steer clear of ", known: (p) => p.steerAsked || p.steers.length > 0 },
+  { label: "What calms them", starter: () => "What calms them is ", known: (p) => Boolean(p.practical.calms) },
+  { label: "Family and big moments", starter: () => "A big moment was ", known: (p) => p.moments.length > 0 },
+  { label: "Their work", starter: (n) => `${n} worked as `, known: (p) => Boolean(p.practical.work) },
+  { label: "Their wedding music", starter: () => "At their wedding they danced to ", known: (p) => p.moments.some((m) => m.kind === "wedding") },
+  { label: "Faith", starter: () => "Faith: ", known: (p) => Boolean(p.practical.faith) },
 ];
+
+/** The three most useful things still missing from the story, as ideas for the box; they change as it fills in. */
+const MAX_HINTS = 3;
+export const missingHints = (p: Person) => HINTS.filter((h) => !h.known(p)).slice(0, MAX_HINTS);
 
 const id = () => Math.random().toString(36).slice(2, 10);
 
@@ -104,7 +110,6 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   const [person, setPerson] = useState(initial);
   const [text, setText] = useState(starter ?? "");
   const [busy, setBusy] = useState(false);
-  const [steps, setSteps] = useState<StepItem[]>([]);
   const [msgs, setMsgs] = useState<Msg[]>(() => [
     ...opening(initial, paused),
     ...(starter ? [{ id: "example", from: "agent" as const, text: `This is a fictional example: ${initial.preferredName}'s “This is me” is in the box below. Edit it if you like, then press Send.` }] : []),
@@ -167,20 +172,17 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
     const first = fresh.find((m) => m.from === "agent");
     const el = first && fresh.at(-1)?.from === "agent" ? document.querySelector<HTMLElement>(`[data-msg="${first.id}"]`) : null;
     // The gallery's button: all of it in view, above the composer (FC-2).
-    const opens = [...fresh].reverse().find((m) => "kind" in m && (m.kind === "found" || m.kind === "early"));
+    const opens = [...fresh].reverse().find((m) => "kind" in m && m.kind === "found");
     const button = opens ? document.querySelector<HTMLElement>(`[data-msg="${opens.id}"]`) : null;
     if (button) button.scrollIntoView({ behavior: "smooth", block: "end" });
     else if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     else endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [msgs]);
-  // Look-up steps: keep the latest in view.
-  useEffect(() => {
-    if (steps.length) endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [steps.length]);
   // On a phone the ideas fold away once the conversation has started, so it gets the screen (A10).
   const [ideas, setIdeas] = useState(false);
   const talked = msgs.some((m) => m.from === "you");
   const cue = Boolean(starter) && !talked && !busy && text.trim().length > 0;
+  const hints = missingHints(person);
 
   // Arriving with ?find=1 (the gallery's "Find more"): look things up straight away.
   useEffect(() => {
@@ -301,7 +303,6 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
     push({ id: id(), from: "agent", kind: "finding" });
     offered.current = false;
     setBusy(true);
-    setSteps([]);
     try {
       const res = await fetch(`/api/people/${person.id}/research`, { method: "POST" });
       if (res.status === 409) {
@@ -311,8 +312,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
       if (!res.ok || !res.body) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "The look-up couldn't start.");
       const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
       let buffer = "";
-      let n = 0;
       let failed: string | null = null;
+      const titles = new Map<string, string>();
       for (;;) {
         const { value, done: end } = await reader.read();
         if (end) break;
@@ -322,12 +323,9 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
         for (const line of lines) {
           if (!line.trim()) continue;
           const event = JSON.parse(line) as RunEvent;
-          // Films, TV and places are saved: the gallery can open now, and the songs join it when they're checked.
-          if (event.type === "ready") {
-            push({ id: id(), from: "agent", kind: "early" });
-            continue;
-          }
-          setSteps((xs) => applyStepEvent(xs, event, n++));
+          // Each step says what it added as it lands; the gallery opens only once the whole look-up is done.
+          if (event.type === "step-start") titles.set(event.id, event.title);
+          if (event.type === "step-end") push({ id: id(), from: "agent", kind: "added", text: addedText(event, titles.get(event.id), person.preferredName), source: event.sourceLine });
           if (event.type === "error") failed = event.message;
         }
       }
@@ -336,8 +334,6 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
         const fresh = (await (await fetch(`/api/people/${person.id}`)).json()) as Person;
         latest.current = fresh;
         setPerson(fresh);
-        // The early "open it now" offer has done its job.
-        setMsgs((ms) => ms.filter((m) => !("kind" in m && m.kind === "early")));
         push({ id: id(), from: "agent", kind: "found" });
       }
     } catch (e) {
@@ -364,7 +360,7 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
   return (
     <div className="mx-auto grid max-w-2xl gap-4" style={{ "--composer-h": `${composerH + 16}px` } as CSSProperties}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="font-heading text-[30px] leading-[36px]">{hasGallery ? `Get to know ${name} better` : `${person.preferredName ? `${person.preferredName}’s` : "Their"} story`}</h1>
+        <h1 className="font-heading text-[30px] leading-[36px]">{hasGallery ? `Tell me more about ${name}` : `${person.preferredName ? `${person.preferredName}’s` : "Their"} story`}</h1>
         <div className="flex gap-2">
           {hasGallery && (
             <Button asChild variant="outline" size="sm">
@@ -406,7 +402,6 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
                       busy={busy}
                       resolved={resolved.has(m.id) || ("kind" in m && m.kind === "ask" && toldSince(m.ask, msgs, msgs.indexOf(m)) !== null)}
                       answer={answers[m.id] ?? ("kind" in m && m.kind === "ask" ? (toldSince(m.ask, msgs, msgs.indexOf(m)) ?? undefined) : undefined)}
-                      steps={steps}
                       onHint={(starter) => setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${starter}`)}
                       onConfirm={(facts) => void confirmFacts(m.id, facts)}
                       onDrop={() => done(m.id)}
@@ -435,8 +430,8 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
           ),
         )}
         {busy && !msgs.some((m) => "kind" in m && m.kind === "finding" && !resolved.has(m.id)) && (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner /> The Go-Between is reading that…
+          <p className="flex items-center gap-2 text-[15px] text-muted-foreground">
+            <AgentMark size={20} decorative state="working" /> Go-Between is reading that…
           </p>
         )}
         <div ref={endRef} className="scroll-mb-(--composer-h)" />
@@ -445,15 +440,15 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
       {!ro && (
         <div ref={composerBox} className="sticky bottom-0 grid gap-2 border-t bg-background pt-3 pb-4">
           {/* On a phone, once you've started, the ideas sit behind one button (A10). */}
-          {talked && (
+          {talked && hints.length > 0 && (
             <Button size="sm" variant="ghost" className="justify-self-start sm:hidden" aria-expanded={ideas} onClick={() => setIdeas((x) => !x)}>
               <Lightbulb aria-hidden /> {ideas ? "Hide ideas" : "Ideas of what to say"}
             </Button>
           )}
-          {/* One scrolling row, so the chat keeps the screen; a thin scrollbar (A17). */}
-          {/* A fade on the right says the row scrolls (FC-13). */}
-          <div className={cn("-mx-1 flex gap-1.5 overflow-x-auto px-1 pr-8 pb-1 [mask-image:linear-gradient(to_right,black_calc(100%-2.5rem),transparent)] [scrollbar-width:thin]", talked && !ideas && "max-sm:hidden")} aria-label="What helps">
-            {HINTS.map((h) => (
+          {/* At most three, for what the story is still missing: they change as it fills in. */}
+          {hints.length > 0 && (
+          <div className={cn("flex flex-wrap gap-1.5", talked && !ideas && "max-sm:hidden")} aria-label="What would help">
+            {hints.map((h) => (
               <Button key={h.label} size="sm" variant="secondary" className="shrink-0" onClick={() => {
                   setText((t) => `${t}${t && !t.endsWith(" ") ? " " : ""}${h.starter(person.preferredName || "They")}`);
                   // Back to the box, caret at the end, so typing carries on (QA-29).
@@ -468,14 +463,15 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
               </Button>
             ))}
           </div>
+          )}
           {/* An example's story waits in the box: say plainly what to do next (A11). */}
           {cue && (
             <p className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 font-medium text-primary" role="status">
               <ArrowDown aria-hidden className="size-4 shrink-0" /> {name}&apos;s story is in the box. Tap Send to read it.
             </p>
           )}
-          {/* On a phone the box takes the full width and the buttons sit under it (QA-62). */}
-          <div className="flex flex-wrap items-end gap-2 sm:flex-nowrap">
+          {/* One box, as in other chat apps: the words on top, attach and talk on the left, Send on the right. */}
+          <div className="grid rounded-xl border-2 border-input bg-card focus-within:border-ring">
             <Textarea
               ref={composer}
               aria-label={`Tell the Go-Between about ${name}`}
@@ -488,16 +484,16 @@ export function StoryChat({ initial, paused, provenCalm, autoFind, starter }: { 
                 }
               }}
               placeholder={`Tell me about ${name}. Talk (your phone's dictation), type or paste.`}
-              className="max-h-48 min-h-14 min-w-0 basis-full max-sm:max-h-28 sm:basis-auto sm:flex-1"
+              className="max-h-60 min-h-14 resize-none overflow-y-auto rounded-xl border-0 bg-transparent px-4 pt-3 pb-1 text-lg [scrollbar-width:thin] focus-visible:outline-none dark:bg-transparent max-sm:max-h-40"
               maxLength={8000}
             />
-            <span className="ml-auto flex gap-2">
+            <span className="flex items-center gap-2 px-2 pb-2">
             <input ref={fileInput} type="file" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" className="hidden" onChange={(e) => void readFile(e.target.files?.[0])} />
-            <Button size="icon" variant="outline" aria-label="Read a photo or PDF of a “This is me”" title="Read a photo or PDF of a “This is me”" disabled={busy} onClick={() => fileInput.current?.click()}>
+            <Button size="icon" variant="ghost" aria-label="Read a photo or PDF of a “This is me”" title="Read a photo or PDF of a “This is me”" disabled={busy} onClick={() => fileInput.current?.click()}>
               <Paperclip aria-hidden />
             </Button>
             <TalkButton onText={(t) => setText((x) => `${x}${x && !x.endsWith(" ") ? " " : ""}${t}`)} />
-            <Button size="icon" aria-label="Send" className={cn(cue && "animate-pulse ring-4 ring-primary/30")} onClick={() => void send()} disabled={busy || text.trim().length < 3}>
+            <Button size="icon" aria-label="Send" className={cn("ml-auto", cue && "animate-pulse ring-4 ring-primary/30")} onClick={() => void send()} disabled={busy || text.trim().length < 3}>
               <ArrowUp aria-hidden />
             </Button>
             </span>
@@ -551,10 +547,18 @@ function TalkButton({ onText }: { onText: (t: string) => void }) {
     setOn(true);
   }
   return (
-    <Button size="icon" variant={on ? "destructive" : "outline"} aria-label={on ? "Stop talking" : "Talk"} aria-pressed={on} onClick={toggle}>
+    <Button size="icon" variant={on ? "destructive" : "ghost"} aria-label={on ? "Stop talking" : "Talk"} aria-pressed={on} onClick={toggle}>
       {on ? <MicOff aria-hidden /> : <Mic aria-hidden />}
     </Button>
   );
+}
+
+/** What a research step added, in the Go-Between's words: "Added Paco de Lucía, … to Rosa’s gallery (Sevilla, 1958–1970)." */
+export function addedText(event: Extract<RunEvent, { type: "step-end" }>, title: string | undefined, name: string): string {
+  const adds = event.id.startsWith("place-") || event.id === "story";
+  if (!event.ok || !event.chips.length || !adds) return event.summary;
+  const list = event.chips.length > 1 ? `${event.chips.slice(0, -1).join(", ")} and ${event.chips.at(-1)}` : event.chips[0];
+  return `Added ${list} to ${possessive(name, true)} gallery${title ? ` (${title})` : ""}.`;
 }
 
 /** The chat's first messages: a new person gets the invitation; someone known gets what's known and what would help next. */
@@ -624,7 +628,6 @@ type BodyProps = {
   resolved: boolean;
   /** What was answered, shown in the settled question. */
   answer?: string;
-  steps: StepItem[];
   onHint: (starter: string) => void;
   onConfirm: (facts: Candidate[]) => void;
   onDrop: () => void;
@@ -665,21 +668,12 @@ function AgentBody(props: BodyProps) {
         </span>
       );
     case "finding":
+      return <span>Looking through {person.places.map((p) => p.name).join(" and ")} for the years {name} was young. I&apos;ll say what I add as I go.</span>;
+    case "added":
       return (
-        <span className="grid gap-2">
-          <span>Looking through {person.places.map((p) => p.name).join(" and ")} for the years {name} was young.</span>
-          {props.steps.length > 0 && <RunSteps items={props.steps} />}
-        </span>
-      );
-    case "early":
-      return resolved ? null : (
-        <span className="grid gap-2">
-          <span>The first films, TV and places for {name} are ready. The rest, and the songs (checked one by one), join the gallery in a minute, even if you open it now.</span>
-          <span>
-            <Button asChild size="sm" variant="outline">
-              <Link href={props.galleryHref}>Open the gallery now</Link>
-            </Button>
-          </span>
+        <span className="grid gap-1">
+          <span>{m.text}</span>
+          {m.source && <span className="text-xs text-muted-foreground">{m.source}</span>}
         </span>
       );
     case "found":

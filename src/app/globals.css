@@ -55,6 +55,7 @@
 
 /* Front Room theme (design system v9, components/src/theme.css): tokens.json wins if they ever differ. */
 :root {
+  color-scheme: light;
   --radius: 20px;
   --background: #fffbf8;
   --foreground: #2a1a28;
@@ -97,6 +98,8 @@
 /* Dark follows the system setting (the DS's .dark block, applied by media query). */
 @media (prefers-color-scheme: dark) {
   :root {
+    /* Native scrollbars and form controls follow the theme (a white scrollbar sat in the dark composer). */
+    color-scheme: dark;
   --background: #1c1220;
     --foreground: #f7edf3;
     --card: #28192d;
