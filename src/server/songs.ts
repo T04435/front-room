@@ -63,6 +63,12 @@ const OFFLINE_SONGS: Record<string, { title: string; year: number }> = {
   "Lata Mangeshkar": { title: "Lag Jaa Gale", year: 1964 },
   "Asha Bhosle": { title: "Aaiye Meherbaan", year: 1958 },
   "Kishore Kumar": { title: "Mere Sapnon Ki Rani", year: 1969 },
+  // Japan and Brazil, for the Kazuko and Severino examples.
+  "Misora Hibari": { title: "Kanashii Sake", year: 1966 },
+  "Kyu Sakamoto": { title: "Ue o Muite Arukō", year: 1961 },
+  "Luiz Gonzaga": { title: "Asa Branca", year: 1947 },
+  "Roberto Carlos": { title: "Quero Que Vá Tudo pro Inferno", year: 1965 },
+  "Elis Regina": { title: "Arrastão", year: 1965 },
 };
 
 /** "Cilla" → "Cilla Black": a first name or surname the family used, matched to one known artist. */

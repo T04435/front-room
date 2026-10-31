@@ -47,4 +47,15 @@ describe("the example stories (offline reader)", () => {
     const { facts } = await extractFacts(EXAMPLES[2].text, person("Amrit"));
     expect(kinds(facts)).toEqual(expect.arrayContaining(["birthYear:1944", "place:Amritsar", "place:Bradford", "language:Punjabi"]));
   });
+
+  // US, Australia, Japan and Brazil: born, both places, a love, and the language where it isn't English.
+  it.each([
+    ["dolores", "Dolores", ["birthYear:1945", "place:Memphis", "place:Chicago", "love:Otis Redding", "love:Aretha Franklin", "painful:Sister Ruth"]],
+    ["maureen", "Maureen", ["birthYear:1950", "place:Adelaide", "place:Perth", "love:The Seekers", "painful:Brother Kevin"]],
+    ["kazuko", "Kazuko", ["birthYear:1947", "place:Osaka", "place:Tokyo", "love:Misora Hibari", "language:Japanese"]],
+    ["severino", "Severino", ["birthYear:1946", "place:Recife", "place:Curitiba", "love:Luiz Gonzaga", "language:Portuguese"]],
+  ])("%s: read end to end", async (id, name, expected) => {
+    const { facts } = await extractFacts(EXAMPLES.find((e) => e.id === id)!.text, person(name));
+    expect(kinds(facts)).toEqual(expect.arrayContaining(expected));
+  });
 });

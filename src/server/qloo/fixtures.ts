@@ -15,6 +15,8 @@ const ARTISTS_80S = ["Madonna", "Duran Duran", "Whitney Houston", "Wham!", "Cult
 // the Rosa and Amrit examples show the same shape offline as live.
 const ARTISTS_SPANISH = ["Raphael", "Marisol", "Julio Iglesias", "Mocedades", "Paco de Lucía", "Camarón de la Isla", "Camilo Sesto", "Rocío Dúrcal"];
 const ARTISTS_PUNJABI = ["Mohammed Rafi", "Lata Mangeshkar", "Asha Bhosle", "Kishore Kumar", "Surinder Kaur", "Noor Jehan", "Mukesh", "Manna Dey"];
+const ARTISTS_JAPANESE = ["Misora Hibari", "Kyu Sakamoto", "Saburo Kitajima", "The Peanuts", "Yuzo Kayama", "Hiroshi Itsuki"];
+const ARTISTS_BRAZILIAN = ["Luiz Gonzaga", "Roberto Carlos", "Elis Regina", "Jackson do Pandeiro", "Jorge Ben", "Chico Buarque"];
 const BY_COUNTRY: Record<string, { films: [string, number, string][]; tv: [string, number][] }> = {
   Spain: {
     films: [
@@ -30,6 +32,31 @@ const BY_COUNTRY: Record<string, { films: [string, number, string][]; tv: [strin
       ["Estudio 1", 1965],
       ["La familia Colón", 1965],
       ["Habitación 508", 1966],
+    ],
+  },
+  Japan: {
+    films: [
+      ["Tokyo Story", 1953, "Japan"],
+      ["Seven Samurai", 1954, "Japan"],
+      ["Floating Weeds", 1959, "Japan"],
+      ["Late Autumn", 1960, "Japan"],
+      ["An Autumn Afternoon", 1962, "Japan"],
+    ],
+    tv: [
+      ["Astro Boy", 1963],
+      ["Ultraman", 1966],
+    ],
+  },
+  Brazil: {
+    films: [
+      ["O Cangaceiro", 1953, "Brazil"],
+      ["Black Orpheus", 1959, "France"],
+      ["O Pagador de Promessas", 1962, "Brazil"],
+      ["Vidas Secas", 1963, "Brazil"],
+    ],
+    tv: [
+      ["O Direito de Nascer", 1964],
+      ["Beto Rockfeller", 1968],
     ],
   },
   India: {
@@ -51,6 +78,14 @@ const TOWNS: Record<string, string> = {
   amritsar: "Punjab, India",
   lahore: "Punjab, Pakistan",
   bradford: "England, United Kingdom",
+  memphis: "Tennessee, United States",
+  chicago: "Illinois, United States",
+  adelaide: "South Australia, Australia",
+  perth: "Western Australia, Australia",
+  osaka: "Osaka Prefecture, Japan",
+  tokyo: "Tokyo, Japan",
+  recife: "Pernambuco, Brasil",
+  curitiba: "Paraná, Brasil",
   glasgow: "Scotland, United Kingdom",
   govan: "Scotland, United Kingdom",
   cardiff: "Wales, United Kingdom",
@@ -212,6 +247,8 @@ function answer(path: string, p: QlooParams): unknown {
     const tags = String(p["filter.tags"] ?? "");
     if (/spanish|copla|flamenco/.test(tags)) return { results: { entities: ARTISTS_SPANISH.map((n) => e(`a-${n}`, n)) } };
     if (/punjabi|bollywood|indian|pakistani/.test(tags)) return { results: { entities: ARTISTS_PUNJABI.map((n) => e(`a-${n}`, n)) } };
+    if (/japanese|enka/.test(tags)) return { results: { entities: ARTISTS_JAPANESE.map((n) => e(`a-${n}`, n)) } };
+    if (/brazilian|mpb|forro/.test(tags)) return { results: { entities: ARTISTS_BRAZILIAN.map((n) => e(`a-${n}`, n)) } };
     const names = tags.includes("80s") ? ARTISTS_80S : tags.includes("70s") ? ARTISTS_70S : tags.includes("50s") ? ARTISTS_50S : ARTISTS_60S;
     return { results: { entities: names.map((n) => e(`a-${n}`, n)) } };
   }

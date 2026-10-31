@@ -92,7 +92,7 @@ export function kmBetween(a: Locality | null | undefined, b: Locality | null | u
 }
 
 /** The country in English, as Qloo's `filter.release_country` wants it ("Spain"; "ES" returns nothing). */
-const ENGLISH: Record<string, string> = { España: "Spain", Italia: "Italy", México: "Mexico", Deutschland: "Germany", Polska: "Poland", Éire: "Ireland", "Bhārat": "India" };
+const ENGLISH: Record<string, string> = { España: "Spain", Italia: "Italy", México: "Mexico", Deutschland: "Germany", Polska: "Poland", Éire: "Ireland", "Bhārat": "India", Brasil: "Brazil", 日本: "Japan", Nippon: "Japan" };
 export const countryName = (l: Locality | null | undefined) => (l?.country ? (ENGLISH[l.country] ?? l.country) : null);
 
 /**
@@ -108,6 +108,7 @@ const LANGUAGE_ORIGIN: Record<string, { tags: [string, string][]; country: strin
   spanish: { tags: [["spanish", "Spanish"], ["copla", "copla"], ["flamenco", "flamenco"]], country: "Spain" },
   español: { tags: [["spanish", "Spanish"], ["copla", "copla"], ["flamenco", "flamenco"]], country: "Spain" },
   italian: { tags: [["italian", "Italian"]], country: "Italy" },
+  japanese: { tags: [["japanese", "Japanese"], ["enka", "enka"]], country: "Japan" },
 };
 export type Origin = { tags: { tag: string; word: string }[]; country: string };
 
@@ -162,6 +163,17 @@ export function localTags(l: Locality | null | undefined): { tag: string; word: 
       return [t("italian", "Italian")];
     case "France":
       return [t("french", "French")];
+    // Not probed live yet (the Dolores, Maureen, Kazuko and Severino examples): Qloo may name these tags otherwise.
+    case "United States":
+      return [t("american", "American")];
+    case "Australia":
+      return [t("australian", "Australian")];
+    case "日本":
+    case "Japan":
+      return [t("japanese", "Japanese"), t("enka", "enka")];
+    case "Brasil":
+    case "Brazil":
+      return [t("brazilian", "Brazilian"), t("mpb", "MPB"), t("forro", "forró")];
     default:
       return [];
   }

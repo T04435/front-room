@@ -191,3 +191,20 @@ describe("NotOnQ budgets for music calls", () => {
     expect(musicCallOptions({ "filter.type": "urn:entity:artist", "signal.interests.entities": "x" })).toEqual({});
   });
 });
+
+describe("Japan and Brazil (the Kazuko and Severino examples)", () => {
+  const at = (country: string, label: string) => ({ query: "", label, country, nation: null, lat: null, lon: null });
+
+  it("ask Qloo for their own music, asked in English", async () => {
+    const { countryName, globalIsLocal, localTags } = await import("@/server/locality");
+    expect(localTags(at("Japan", "Osaka Prefecture, Japan")).map((t) => t.word)).toEqual(["Japanese", "enka"]);
+    expect(localTags(at("Brasil", "Pernambuco, Brasil")).map((t) => t.word)).toEqual(["Brazilian", "MPB", "forró"]);
+    expect(countryName(at("Brasil", "Pernambuco, Brasil"))).toBe("Brazil");
+    expect(globalIsLocal(at("Japan", "Tokyo, Japan"))).toBe(false);
+  });
+
+  it("Japanese loves come from Japan", async () => {
+    const { loveOrigin } = await import("@/server/locality");
+    expect(loveOrigin({ languages: ["Japanese"], places: [] }, new Map())?.country).toBe("Japan");
+  });
+});
